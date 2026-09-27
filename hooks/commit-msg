@@ -1,0 +1,76 @@
+#!/bin/sh
+# commit-msg: the subject line must be a Conventional Commit with a Japanese subject.
+#
+# Part of the Repository Harness. The accepted types live in
+# quality/commit-types.txt so the rule is one reviewable file, not a regex
+# buried in a hook.
+#
+# Bypassing this (--no-verify) is not a fix: the same check runs in `make check`.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+
+file=${1:?commit-msg: the message file is required}
+subject=$(sed -n '1p' "$file")
+types=$(grep -vE '^[[:space:]]*(#|$)' quality/commit-types.txt | awk '{print $1}' | paste -sd'|' -)
+
+fail() {
+  echo "commit-msg: $1"
+  echo
+  echo "  subject: $subject"
+  echo
+  echo "Expected <type>(<scope>)!: <subject>, for example:"
+  echo "  feat(sharedLogic): 取引を金額と品目で記録する"
+  echo "  fix(androidApp): グループが存在しない場合に404を返す"
+  echo "  refactor(sharedUI): 画面ごとにコンポーネントを分割する"
+  echo
+  echo "Types: $(printf '%s' "$types" | tr '|' ' ')"
+  echo "Subject: Japanese, no trailing period・。・．or whitespace, at most 72 characters."
+  echo
+  echo "粒度: 一貫したひとつの変更を1コミットにまとめる。ツリーが動く状態を保てる"
+  echo "  最小のファイル集合（コード・テスト・状態ファイル）をまとめてコミットする。"
+  echo "  1ファイルずつでも、無関係な変更を1日分まとめてでもない。"
+  echo "本文: 何をではなく、なぜを書く。diffは何が変わったかを既に示している。本文"
+  echo "  には理由・却下した代替案・半年後に驚くことを書く。72カラムで折り返す。"
+  echo "  件名がすべてを語っている場合のみ省略する。"
+  exit 1
+}
+
+# git writes these itself; they are not authored subjects.
+case $subject in
+  'Merge '*|'Revert "'*|'fixup! '*|'squash! '*) exit 0 ;;
+esac
+
+# An empty or comment-only first line is a missing message, not an exemption.
+case $subject in
+  ''|'#'*) fail 'the commit has no subject' ;;
+esac
+
+printf '%s' "$subject" | grep -qE "^($types)(\([a-zA-Z0-9._/-]+\))?!?: .+" || fail 'the subject is not a Conventional Commit'
+
+case $subject in
+  *[[:space:]]) fail 'the subject ends with trailing whitespace' ;;
+esac
+case $subject in
+  *.) fail 'the subject ends with a period' ;;
+esac
+case $subject in
+  *。) fail 'the subject ends with a 。' ;;
+esac
+case $subject in
+  *．) fail 'the subject ends with a full-width ．' ;;
+esac
+
+# Character count, not byte count: Japanese text is multi-byte in UTF-8, and
+# both `${#subject}` in POSIX sh and this platform's `awk length()` count
+# bytes even under a UTF-8 locale (verified: awk gave 39 for a 13-character
+# Japanese subject). node is already a harness prerequisite, and
+# `Array.from(s).length` counts by Unicode code point, so it is used instead
+# of a locale-dependent shell/awk/wc count.
+length=$(node -e 'process.stdout.write(String(Array.from(process.argv[1]).length))' "$subject")
+[ "$length" -le 72 ] || fail "the subject is $length characters; the limit is 72"
+
+# Script-property detection (node, for the same reason as the length count
+# above) rather than a hand-picked character range: \p{Script=Han} also
+# covers marks like 々 and 〆 that a hiragana/katakana/kanji range can miss.
+node -e 'process.exit(/\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}/u.test(process.argv[1]) ? 0 : 1)' "$subject" \
+  || fail 'the subject has no Japanese (hiragana/katakana/kanji); the type is English, the subject is Japanese'

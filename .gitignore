@@ -5,6 +5,17 @@
 !README.md
 !CLAUDE.md
 
+# Harness
+!Makefile
+!hooks/
+!hooks/**
+!scripts/
+!scripts/**
+!quality/
+!quality/**
+!.claude/
+!.claude/settings.json
+
 # KMP client (ignores delegated to clients/kmp/.gitignore)
 !clients/
 !clients/kmp/

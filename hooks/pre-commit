@@ -1,0 +1,15 @@
+#!/bin/sh
+# pre-commit: fast checks on staged files only. Target: a few seconds.
+#
+# Part of the Repository Harness. Bypassing it (--no-verify) is not a fix; the
+# same check runs again in `make check`. Output is one line on success and
+# the diagnostics on failure (scripts/quiet.sh).
+#
+# Staged-file linting (formatting, static analysis) is not wired in yet; this
+# is deliberately just the protected-paths check for now, fast enough to run
+# on every commit.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+Q="sh scripts/quiet.sh"
+
+$Q pre-commit:protected-paths sh scripts/guard/protected-paths.sh --staged

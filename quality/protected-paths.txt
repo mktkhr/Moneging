@@ -1,0 +1,31 @@
+# Paths that make up the Repository Harness. Changes here are checked by
+# scripts/guard/protected-paths.sh and, at the tool, by
+# scripts/guard/tool-policy.ts. One path (file or directory) per line;
+# '#' starts a comment.
+#
+# Refused while the harness is LOCKED (quality/harness-lock.txt); open to
+# editing through a session while UNLOCKED. The always-protected set
+# (scripts/guard/harness-lock.ts) is a small, separate list that stays
+# refused regardless of the lock - it is not repeated here.
+quality
+hooks
+scripts/guard
+scripts/hooks
+scripts/quiet.sh
+Makefile
+# Claude Code configuration and the instructions it loads.
+.claude
+CLAUDE.md
+# Files whose edits can switch a gate off without touching quality/.
+.gitignore
+clients/kmp/.gitignore
+# Root-level Gradle wiring: which modules exist, plugin/repository setup, the
+# wrapper version. Deliberately NOT protected: each module's own
+# build.gradle.kts (androidApp/, sharedLogic/, sharedUI/) and
+# clients/kmp/gradle/libs.versions.toml - product work adds dependencies and
+# module config there routinely, and gating that would make normal feature
+# work fight the harness for no safety benefit.
+clients/kmp/settings.gradle.kts
+clients/kmp/build.gradle.kts
+clients/kmp/gradle.properties
+clients/kmp/gradle/wrapper
