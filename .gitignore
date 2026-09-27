@@ -1,0 +1,9 @@
+# Deny by default: ignore everything, then allow explicitly
+*
+
+!.gitignore
+!README.md
+!CLAUDE.md
+
+# Never commit (agent-only design docs)
+docs/superpowers/
