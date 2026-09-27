@@ -5,5 +5,10 @@
 !README.md
 !CLAUDE.md
 
+# KMP client (ignores delegated to clients/kmp/.gitignore)
+!clients/
+!clients/kmp/
+!clients/kmp/**
+
 # Never commit (agent-only design docs)
 docs/superpowers/
