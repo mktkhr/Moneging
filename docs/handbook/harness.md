@@ -23,10 +23,12 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 ## 何が保護されているか
 
 `quality/protected-paths.txt` に列挙: `quality/` `hooks/` `scripts/guard/`
-`scripts/hooks/` `scripts/quiet.sh` `Makefile` `mise.toml` `.claude/`
+`scripts/hooks/` `scripts/quiet.sh` `scripts/status*.ts`
+`scripts/ios-ui-test.sh` `Makefile` `mise.toml` `.claude/`
 `CLAUDE.md` `.gitignore` `clients/kmp/.gitignore`、Gradle の一部設定ファイル、
 `clients/kmp/build-logic` `clients/kmp/.editorconfig`
-`clients/kmp/iosApp/Configuration/Config.xcconfig` `PRODUCT.md` `acceptance/`。
+`clients/kmp/iosApp/Configuration/Config.xcconfig`、スキーム
+`iosAppAcceptance.xcscheme`、`PRODUCT.md` `acceptance/`。
 `.git` と `.claude/settings.local.json` も常に拒否される。
 
 ## ハーネスの変え方（変更スクリプト）
@@ -58,14 +60,54 @@ make hooks     # git hooks を hooks/ に向ける
   guard-ignored, guard-toolchain, guard-suppressions, fmt-check, lint,
   kmp-test）。Stop hook が実行するのと同じ。
 - `make check` — verify に加え、Android/iOS のビルド、`swiftlint analyze`、
-  フルテストスイート。
-  push 前に実行する。
+  フルテストスイート、iOS UI テスト（`ios-ui-test`）、受け入れテスト
+  （`acceptance`）。push 前に実行する。
+- `make status` — `make -k check` を実行し、実際に走った結果から
+  `test-results/STATUS.md` を書く。進捗はこの1行で報告する。
 - `make fmt` / `make fmt-check` — Kotlin（ktlintFormat/ktlintCheck）と
   Swift（`xcrun swift-format`）を、その場で直すか（fmt）検査だけするか
   （fmt-check）。
 - `make lint` — 静的解析一式。下記「lint ゲート」を参照。
 - `make tools` — mise.toml のバージョンをインストール。
 - `make hooks` — git hooks を配線する。
+
+## 受け入れテストとステージ
+
+`PRODUCT.md` §7 の基準ごとに、実装より前に書く実行可能なテストが
+`acceptance/` にある（保護パス。構成は `acceptance/README.md`）。
+
+- `acceptance/shared/` — AC-B。`sharedLogic` に対する Kotlin テスト。
+  Gradle の `:acceptanceShared`（`-Pmoneging.acceptance` の時だけ build に入る。
+  未実装の API を参照して `make verify` を壊さないため）。Android host と
+  iOS simulator の両方で走る。`make acceptance-shared`。
+- `acceptance/ios/` — AC-F/AC-E の XCUITest。`iosAppAcceptanceTests` ターゲット
+  （同期フォルダ）と `iosAppAcceptance` スキームで走る。テスト名に
+  `AC_F_102` の形で ID を含める。`make acceptance-ios`。
+- Android の受け入れテストは未配線。
+
+`quality/stage.txt` は開いているステージ（§8）の番号。`make acceptance-gate`
+は 1..その番号 の全基準が pass であることを要求する（0 なら何も要求しない）。
+下げない。`make acceptance` = 両スイート + gate で、`make check` に含まれ
+`make verify` には含まれない。`make status` は JUnit XML
+（`clients/kmp/build/acceptance-shared/test-results`）と xcresult
+（`test-results/acceptance/ios.xcresult`）を読んで基準ごとに
+PASS/FAIL/MISSING を書く。
+
+`make ios-ui-test` は iosApp スキームの既定テストプランを
+`build-for-testing` → `test-without-building`（並列テスト有効、
+`IOS_TEST_WORKERS`、既定 2。並列化の単位はテストクラス）で走らせる。
+依存するファイル（iosApp、sharedLogic、acceptance/ios、Gradle 設定）が
+前回の成功時から変わっていなければ `ok: ios-ui-test (skipped: unchanged)` で
+飛ばす（`.cache/ios-ui-test`）。`make ios-ui-test FORCE=1` で常に実行。
+シミュレータは `IOS_TEST_DEVICE`（既定 `iPhone 17`）。UI テストと受け入れ
+テストのランナーには `UITestDisableAnimations=YES` が渡る
+（`TEST_RUNNER_` 経由）。テストは起動するアプリに
+`-UITestDisableAnimations YES` として渡す
+（`XCUIApplication.launchedForAcceptance(arguments:)`）。
+
+進捗は `make status` の1行で報告する。`TODO.md`（次にやること）と
+`DECISIONS.md`（なぜ。`PRODUCT.md` に反しない）を止める前に更新する。
+ステージを閉じる前に `test-auditor` サブエージェントで監査する。
 
 ## lint ゲート
 

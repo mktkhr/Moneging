@@ -316,15 +316,17 @@ the app's data is included in the OS device backup (§6).
 
 Every criterion has one test that carries its identifier, written before the
 implementation. The harness runs each one; a criterion whose test does not
-exist fails once its stage is open (`quality/stage.txt`, harness to be added).
-`AC-B` identifiers name a test of the shared logic in
-`clients/kmp/sharedLogic`'s `commonTest`, run on every target. Every `AC-F` and
-`AC-E` criterion is tested on both platforms: its identifier appears in the
-title of a platform UI test, an XCUITest on iOS and a Compose UI test on
-Android. `AC-E` tests drive the built app end to end on a simulator or
-emulator. The one exception is the widget on iOS: its criteria are verified by
-unit tests of the widget's data and timeline provider, carrying the identifier
-in their title, not by XCUITest.
+exist fails once its stage is open (`quality/stage.txt`). The tests live in
+`acceptance/` (`acceptance/README.md`). `AC-B` identifiers name a test of the
+shared logic in `acceptance/shared`, compiled against `clients/kmp/sharedLogic`
+and run on the Android host and the iOS simulator. Every `AC-F` and `AC-E`
+criterion is tested on both platforms: its identifier appears in the title of
+a platform UI test, an XCUITest in `acceptance/ios` (written `AC_F_102`, since
+a Swift name cannot hold `-`) and a Compose UI test on Android. `AC-E` tests
+drive the built app end to end on a simulator or emulator. The one exception
+is the widget on iOS: its criteria are verified by unit tests of the widget's
+data and timeline provider, carrying the identifier in their title, not by
+XCUITest.
 
 Fixtures shared by the criteria below: the ledger is `家計`, and the clock
 reads 2026-02-15 unless a criterion says otherwise.
@@ -943,6 +945,5 @@ passing, so progress is real even if the product is unfinished.
 
 ## 9. Definition of done
 
-`make check` is green, `make status` (harness to be added) reports every
-criterion of every stage passing, and `quality/stage.txt` (harness to be added)
-names the last stage.
+`make check` is green, `make status` reports every criterion of every stage
+passing, and `quality/stage.txt` names the last stage.

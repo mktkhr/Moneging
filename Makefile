@@ -21,9 +21,13 @@ IOS_SRC    := $(KMP)/iosApp/iosApp
 IOS_LOG    := $(KMP)/build/xcodebuild.log
 SWIFTLINT  := mise exec -- swiftlint
 SWIFT_FORMAT := xcrun swift-format
+# acceptance/shared joins the Gradle build only when asked (settings.gradle.kts).
+ACC_GRADLE := $(GRADLEW) -Pmoneging.acceptance
+ACC_SHARED_RESULTS := $(KMP)/build/acceptance-shared/test-results
 
 .PHONY: help tools hooks harness-check guard-protected guard-ignored guard-toolchain \
-        guard-suppressions kmp-test kmp-build kmp-test-all ios-build swiftlint-analyze fmt fmt-check lint verify check
+        guard-suppressions kmp-test kmp-build kmp-test-all ios-build swiftlint-analyze fmt fmt-check lint verify check \
+        acceptance acceptance-shared acceptance-ios acceptance-gate status ios-ui-test
 
 ## ---------------------------------------------------------------- overview
 help: ## Show this help
@@ -92,7 +96,37 @@ lint: guard-suppressions fmt-check ## Full static-analysis gate: formatting (fmt
 	$(Q) lint:android sh -c "cd $(KMP) && $(GRADLEW) lint"
 	$(Q) lint:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml $(IOS_SRC)
 
+## ---------------------------------------------------------------- acceptance (PRODUCT.md §7)
+# Written before the implementation, so red until it exists; part of check,
+# never of verify. Android acceptance (Compose UI tests) is not wired yet.
+acceptance-shared: ## AC-B tests (acceptance/shared) against sharedLogic on the Android host and the iOS simulator, with their ktlint/detekt/Android Lint; JUnit XML in clients/kmp/build/acceptance-shared/test-results
+	rm -rf $(ACC_SHARED_RESULTS)
+	$(Q) acceptance-shared sh -c "cd $(KMP) && $(ACC_GRADLE) --continue :acceptanceShared:ktlintCheck :acceptanceShared:detektAll \
+	  :acceptanceShared:lint :acceptanceShared:testAndroidHostTest :acceptanceShared:iosSimulatorArm64Test"
+
+acceptance-ios: ## AC-F/AC-E XCUITests (acceptance/ios, scheme iosAppAcceptance) on the simulator, after swift-format and swiftlint; result bundle in test-results/acceptance/ios.xcresult
+	$(Q) acceptance-ios:swift-format $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive acceptance/ios
+	$(Q) acceptance-ios:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml acceptance/ios
+	sh scripts/ios-ui-test.sh acceptance
+
+acceptance-gate: ## Every criterion of the open stage (quality/stage.txt) has a passing test
+	$(Q) acceptance-gate node scripts/status.ts --gate
+
+acceptance: acceptance-shared acceptance-ios acceptance-gate ## Executable acceptance criteria (shared logic + iOS) and the stage gate; part of make check
+
+status: ## Run make -k check and write test-results/STATUS.md from what actually ran
+	rm -rf test-results/acceptance $(ACC_SHARED_RESULTS)
+	mkdir -p test-results
+	$(MAKE) -k check >test-results/check.log 2>&1; echo "make-exit: $$?" >>test-results/check.log
+	node scripts/status.ts
+
+## ---------------------------------------------------------------- iOS UI tests (iosApp scheme, default test plan)
+# Kept apart from the acceptance section: drop this block and its name in
+# `check` to take the product's own UI tests out of make check.
+ios-ui-test: ## iosApp's default XCUITest plan: build-for-testing, then test-without-building in parallel; skipped when nothing it depends on changed (FORCE=1 runs it anyway)
+	sh scripts/ios-ui-test.sh ui
+
 ## ---------------------------------------------------------------- aggregate
 verify: harness-check guard-protected guard-ignored guard-toolchain guard-suppressions fmt-check lint kmp-test ## Fast checks: harness, protection, formatting, static analysis, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
 
-check: verify kmp-build kmp-test-all ios-build swiftlint-analyze ## Every quality gate: verify, plus the Android and iOS builds, swiftlint analyze and the full sharedLogic test suite. Run before pushing
+check: verify kmp-build kmp-test-all ios-build swiftlint-analyze ios-ui-test acceptance ## Every quality gate: verify, plus the Android and iOS builds, swiftlint analyze, the full sharedLogic test suite, the iOS UI tests and the acceptance criteria. Run before pushing

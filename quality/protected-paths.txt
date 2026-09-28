@@ -13,6 +13,12 @@ hooks
 scripts/guard
 scripts/hooks
 scripts/quiet.sh
+# How status is measured and the stage gate judged (make status,
+# make acceptance-gate), and how the iOS UI and acceptance tests run.
+scripts/status.ts
+scripts/status-stage.ts
+scripts/status.test.ts
+scripts/ios-ui-test.sh
 Makefile
 # Toolchain pins (harness: a version drift here silently changes what
 # guard scripts, tests and the Gradle build run under).
@@ -40,6 +46,9 @@ clients/kmp/gradle/wrapper
 clients/kmp/build-logic
 clients/kmp/.editorconfig
 clients/kmp/iosApp/Configuration/Config.xcconfig
+# The scheme that runs acceptance/ios (make acceptance-ios). The target it
+# names lives in project.pbxproj, which product work edits routinely.
+clients/kmp/iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/iosAppAcceptance.xcscheme
 
 # The spec and its executable acceptance criteria: product work reads them,
 # it does not bend them to fit (the acceptance writer owns acceptance/).
