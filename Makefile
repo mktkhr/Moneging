@@ -18,11 +18,12 @@ IOS_PROJ   := iosApp/iosApp.xcodeproj
 IOS_SCHEME := iosApp
 IOS_DERIVED := $(ROOT)/clients/kmp/build/DerivedData
 IOS_SRC    := $(KMP)/iosApp/iosApp
+IOS_LOG    := $(KMP)/build/xcodebuild.log
 SWIFTLINT  := mise exec -- swiftlint
 SWIFT_FORMAT := xcrun swift-format
 
 .PHONY: help tools hooks harness-approve harness-check guard-protected guard-ignored guard-toolchain \
-        guard-suppressions kmp-test kmp-build kmp-test-all ios-build fmt fmt-check lint verify check
+        guard-suppressions kmp-test kmp-build kmp-test-all ios-build swiftlint-analyze fmt fmt-check lint verify check
 
 ## ---------------------------------------------------------------- overview
 help: ## Show this help
@@ -70,10 +71,21 @@ kmp-build: ## Assemble the debug Android app
 kmp-test-all: ## Every sharedLogic test target (Android host + iOS simulator klibs)
 	$(Q) kmp-test-all sh -c "cd $(KMP) && $(GRADLEW) :sharedLogic:allTests"
 
-ios-build: ## Build iosApp for a generic iOS Simulator destination, unsigned
-	$(Q) ios-build sh -c "cd $(KMP) && xcodebuild -project $(IOS_PROJ) -scheme $(IOS_SCHEME) \
+ios-build: ## Clean-build iosApp for a generic iOS Simulator destination, unsigned; keeps the compiler log for swiftlint-analyze
+	$(Q) ios-build sh -c "mkdir -p $(KMP)/build && cd $(KMP) && xcodebuild -project $(IOS_PROJ) -scheme $(IOS_SCHEME) \
 	  -destination 'generic/platform=iOS Simulator' -derivedDataPath $(IOS_DERIVED) \
-	  CODE_SIGNING_ALLOWED=NO build"
+	  CODE_SIGNING_ALLOWED=NO clean build >$(IOS_LOG) 2>&1 || { cat $(IOS_LOG); exit 1; }"
+
+# swiftlint's analyzer_rules need the compiler invocations, so this reads the
+# log of the clean ios-build. SwiftLint silently analyses nothing when the
+# paths it is given do not match the ones in the log (e.g. /tmp vs
+# /private/tmp), so the source path is resolved physically and a run that
+# analysed 0 files fails.
+swiftlint-analyze: ios-build ## swiftlint analyze --strict over ios-build's compiler log; fails when no file was analysed
+	$(Q) swiftlint-analyze sh -c 'src=$$(cd $(IOS_SRC) && pwd -P) && \
+	  out=$$($(SWIFTLINT) analyze --strict --config quality/swift/swiftlint.yml --compiler-log-path $(IOS_LOG) "$$src" 2>&1); \
+	  status=$$?; printf "%s\n" "$$out"; [ $$status -eq 0 ] || exit $$status; \
+	  printf "%s\n" "$$out" | grep -Eq " in [1-9][0-9]* files?\.$$" || { echo "swiftlint analyze: no file analysed; $(IOS_LOG) has no compiler invocation for $$src"; exit 1; }'
 
 ## ---------------------------------------------------------------- formatting & static analysis
 fmt: ## Reformat product code in place: ktlintFormat (Kotlin) + swift-format (Swift)
@@ -84,15 +96,12 @@ fmt-check: ## Check formatting without modifying: ktlintCheck (Kotlin) + swift-f
 	$(Q) fmt-check:kotlin sh -c "cd $(KMP) && $(GRADLEW) ktlintCheck"
 	$(Q) fmt-check:swift $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive $(IOS_SRC)
 
-lint: guard-suppressions ## Full static-analysis gate: detekt + ktlint check + Android Lint + swiftlint --strict + swift-format lint --strict + guard-suppressions
-	$(Q) lint:ktlint sh -c "cd $(KMP) && $(GRADLEW) ktlintCheck"
-	$(Q) lint:detekt sh -c "cd $(KMP) && $(GRADLEW) detekt"
-	$(Q) lint:detekt-kmp sh -c "cd $(KMP) && $(GRADLEW) :sharedLogic:check :sharedUI:check -x testAndroidHostTest -x allTests -x iosSimulatorArm64Test"
-	$(Q) lint:android sh -c "cd $(KMP) && $(GRADLEW) :androidApp:lint"
+lint: guard-suppressions fmt-check ## Full static-analysis gate: formatting (fmt-check) + detekt + Android Lint + swiftlint --strict + guard-suppressions
+	$(Q) lint:detekt sh -c "cd $(KMP) && $(GRADLEW) detektAll"
+	$(Q) lint:android sh -c "cd $(KMP) && $(GRADLEW) lint"
 	$(Q) lint:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml $(IOS_SRC)
-	$(Q) lint:swift-format $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive $(IOS_SRC)
 
 ## ---------------------------------------------------------------- aggregate
 verify: harness-check guard-protected guard-ignored guard-toolchain guard-suppressions fmt-check lint kmp-test ## Fast checks: harness, protection, formatting, static analysis, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
 
-check: verify kmp-build kmp-test-all ios-build ## Every quality gate: verify, plus the Android and iOS builds and the full sharedLogic test suite. Run before pushing
+check: verify kmp-build kmp-test-all ios-build swiftlint-analyze ## Every quality gate: verify, plus the Android and iOS builds, swiftlint analyze and the full sharedLogic test suite. Run before pushing

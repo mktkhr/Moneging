@@ -16,15 +16,16 @@
 # two do not quietly diverge.
 #
 # swiftlint: the Swift linter for clients/kmp/iosApp, invoked via
-# `quality/swift/swiftlint.yml` (guard-suppressions and the fmt/lint Make
+# `quality/swift/swiftlint.yml` (the `lint` and `swiftlint-analyze` Make
 # targets shell out to the mise-installed binary rather than relying on
 # whatever version Homebrew or Xcode happens to have on PATH).
 #
 # ktlint: the standalone CLI, pinned to the same 1.8.0 that
-# org.jlleitschuh.gradle.ktlint drives in each module's build.gradle.kts.
+# org.jlleitschuh.gradle.ktlint drives through the build-logic convention
+# plugin (version `ktlint` in clients/kmp/gradle/libs.versions.toml).
 # `hooks/pre-commit` shells out to this mise-installed binary directly
 # (staged files only, no Gradle daemon) so the fast path stays fast; `make
-# fmt`/`fmt-check`/`lint` go through Gradle instead, since it is the only way
+# fmt`/`fmt-check` go through Gradle instead, since it is the only way
 # to apply/check the whole tree with the project's ktlint_official
 # `.editorconfig` picked up the same way IDEs and the Gradle plugin see it.
 #

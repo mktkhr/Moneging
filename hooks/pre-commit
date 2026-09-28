@@ -7,24 +7,54 @@
 #
 # Kotlin/Swift formatting is checked here with the standalone, mise-pinned
 # CLIs (ktlint, `xcrun swift-format`) directly on the staged files only, not
-# through Gradle/`make fmt-check` - seconds, not the whole tree. The full
-# static-analysis suite (detekt, ktlintCheck across the whole project,
-# Android Lint, swiftlint) stays in `make lint`/`make check`, which
-# hooks/pre-push already runs on every push.
+# through Gradle/`make fmt-check` - seconds, not the whole tree. What is
+# checked is the staged content (the index), not the working-tree copy: the
+# staged blobs, together with the staged .editorconfig and swift-format
+# configuration, are exported to a temporary directory with
+# `git checkout-index` and linted there, so an unstaged fix cannot hide a
+# badly formatted commit. Added, copied, modified and renamed files
+# (--diff-filter=ACMR) are covered. The full static-analysis suite (detekt,
+# ktlintCheck across the whole project, Android Lint, swiftlint) stays in
+# `make lint`/`make check`, which hooks/pre-push already runs on every push.
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 Q="sh scripts/quiet.sh"
 
 $Q pre-commit:protected-paths sh scripts/guard/protected-paths.sh --staged
 
-staged_all=$(git diff --cached --name-only --diff-filter=ACM)
+staged_all=$(git diff --cached --name-only --diff-filter=ACMR)
 
 staged_kt=$(printf '%s\n' "$staged_all" | grep -E '^clients/kmp/.*\.(kt|kts)$' | grep -v '/build/' || true)
+staged_swift=$(printf '%s\n' "$staged_all" | grep -E '^clients/kmp/iosApp/iosApp/.*\.swift$' || true)
+
+[ -n "$staged_kt$staged_swift" ] || exit 0
+
+index_copy=$(mktemp -d "${TMPDIR:-/tmp}/moneging-pre-commit.XXXXXX")
+trap 'rm -rf "$index_copy"' EXIT
+
+# Exports the staged version of each named path that is in the index to
+# $index_copy, keeping its repository-relative path.
+export_staged() {
+  for path in "$@"; do
+    if git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+      git checkout-index --prefix="$index_copy/" -- "$path"
+    fi
+  done
+}
+
 if [ -n "$staged_kt" ]; then
-  $Q pre-commit:ktlint sh -c 'mise exec -- ktlint "$@"' _ $staged_kt
+  # Resolved here, in the repository, where mise.toml pins the version.
+  ktlint_bin=$(mise which ktlint)
+  # One path per word: repository paths contain no whitespace.
+  # shellcheck disable=SC2086
+  export_staged clients/kmp/.editorconfig $staged_kt
+  # shellcheck disable=SC2086
+  $Q pre-commit:ktlint sh -c 'cd "$1" && bin=$2 && shift 2 && "$bin" "$@"' _ "$index_copy" "$ktlint_bin" $staged_kt
 fi
 
-staged_swift=$(printf '%s\n' "$staged_all" | grep -E '^clients/kmp/iosApp/iosApp/.*\.swift$' || true)
 if [ -n "$staged_swift" ]; then
-  $Q pre-commit:swift-format sh -c 'xcrun swift-format lint --strict --configuration quality/swift/swift-format.json "$@"' _ $staged_swift
+  # shellcheck disable=SC2086
+  export_staged quality/swift/swift-format.json $staged_swift
+  # shellcheck disable=SC2086
+  $Q pre-commit:swift-format sh -c 'cd "$1" && shift && xcrun swift-format lint --strict --configuration quality/swift/swift-format.json "$@"' _ "$index_copy" $staged_swift
 fi
