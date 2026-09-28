@@ -6,7 +6,6 @@ import com.android.build.api.dsl.Lint
 import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.extensions.DetektExtension
 import dev.detekt.gradle.extensions.FailOnSeverity
-import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalogsExtension
@@ -52,26 +51,13 @@ class QualityConventionPlugin : Plugin<Project> {
 
 private const val BUILD_OUTPUT_SEGMENT = "/build/"
 
-/**
- * An [Action] from a plain Kotlin lambda. `kotlin-dsl` compiles `Action`
- * lambdas with an implicit receiver (SAM-with-receiver), which detekt's
- * type resolution does not model; going through a function type keeps the
- * code valid, and fully resolved, under both.
- */
-private fun <T : Any> action(block: (T) -> Unit): Action<T> =
-    object : Action<T> {
-        override fun execute(target: T) = block(target)
-    }
-
 private fun Project.lockKotlinWarnings() {
-    tasks.withType(KotlinCompilationTask::class.java).configureEach(
-        action { task ->
-            task.compilerOptions.allWarningsAsErrors.set(true)
-            task.compilerOptions.allWarningsAsErrors.disallowChanges()
-            task.compilerOptions.suppressWarnings.set(false)
-            task.compilerOptions.suppressWarnings.disallowChanges()
-        },
-    )
+    tasks.withType(KotlinCompilationTask::class.java).configureEach { task ->
+        task.compilerOptions.allWarningsAsErrors.set(true)
+        task.compilerOptions.allWarningsAsErrors.disallowChanges()
+        task.compilerOptions.suppressWarnings.set(false)
+        task.compilerOptions.suppressWarnings.disallowChanges()
+    }
 }
 
 private fun Project.applyKtlintPolicy() {
@@ -89,14 +75,12 @@ private fun Project.applyKtlintPolicy() {
     ktlint.android.set(pluginManager.hasPlugin("com.android.application"))
     ktlint.ignoreFailures.set(false)
     ktlint.ignoreFailures.disallowChanges()
-    ktlint.filter(
-        action { filter ->
-            // Generated source roots (e.g. the Compose resource generator's)
-            // live under build/; a relative "**/build/**" glob does not
-            // match them, so filter by absolute path.
-            filter.exclude { it.file.path.contains(BUILD_OUTPUT_SEGMENT) }
-        },
-    )
+    ktlint.filter { filter ->
+        // Generated source roots (e.g. the Compose resource generator's)
+        // live under build/; a relative "**/build/**" glob does not match
+        // them, so filter by absolute path.
+        filter.exclude { it.file.path.contains(BUILD_OUTPUT_SEGMENT) }
+    }
 }
 
 private fun Project.applyDetektPolicy(configFile: File) {
@@ -106,7 +90,10 @@ private fun Project.applyDetektPolicy(configFile: File) {
     // scripts/guard/suppressions.ts accepts only these exact forms.
     detekt.allRules.set(true)
     detekt.allRules.disallowChanges()
-    detekt.buildUponDefaultConfig.set(false)
+    // detekt 2 runs only the rules present in the effective configuration:
+    // without the default config underneath quality/kotlin/detekt.yml,
+    // allRules would activate just the handful of rules that file names.
+    detekt.buildUponDefaultConfig.set(true)
     detekt.buildUponDefaultConfig.disallowChanges()
     detekt.disableDefaultRuleSets.set(false)
     detekt.disableDefaultRuleSets.disallowChanges()
@@ -126,61 +113,47 @@ private fun Project.applyDetektPolicy(configFile: File) {
     detekt.ignoredBuildTypes.disallowChanges()
     detekt.ignoredFlavors.set(emptyList())
     detekt.ignoredFlavors.disallowChanges()
-    tasks.withType(Detekt::class.java).configureEach(
-        action { task ->
-            task.exclude { it.file.path.contains(BUILD_OUTPUT_SEGMENT) }
-            task.ignoreFailures.set(false)
-            task.failOnSeverity.set(FailOnSeverity.Info)
-            task.baseline.set(null as RegularFile?)
-            task.allRules.set(true)
-            task.buildUponDefaultConfig.set(false)
-        },
-    )
+    tasks.withType(Detekt::class.java).configureEach { task ->
+        task.exclude { it.file.path.contains(BUILD_OUTPUT_SEGMENT) }
+        task.ignoreFailures.set(false)
+        task.failOnSeverity.set(FailOnSeverity.Info)
+        task.baseline.set(null as RegularFile?)
+        task.allRules.set(true)
+        task.buildUponDefaultConfig.set(true)
+    }
     val detektAll =
-        tasks.register(
-            "detektAll",
-            action { task ->
-                task.description = "Runs every detekt task of this project (type-resolution and source-set ones)."
-                task.group = LifecycleBasePlugin.VERIFICATION_GROUP
-                task.dependsOn(tasks.withType(Detekt::class.java))
-            },
-        )
+        tasks.register("detektAll") { task ->
+            task.description = "Runs every detekt task of this project (type-resolution and source-set ones)."
+            task.group = LifecycleBasePlugin.VERIFICATION_GROUP
+            task.dependsOn(tasks.withType(Detekt::class.java))
+        }
     dependOnFromCheck(detektAll)
 }
 
 private fun Project.applyAndroidLintPolicy(config: File) {
-    pluginManager.withPlugin(
-        "com.android.application",
-        action {
-            val lint = extensions.getByType(ApplicationExtension::class.java).lint
-            lint.applyPolicy(config)
-            lint.checkDependencies = true
-            dependOnFromCheck("lint")
-        },
-    )
-    pluginManager.withPlugin(
-        "com.android.kotlin.multiplatform.library",
-        action {
-            // Without this plugin AGP 9 registers Android Lint for the
-            // module's host tests only, never for its main code.
-            pluginManager.apply("com.android.lint")
-            extensions
-                .getByType(KotlinMultiplatformExtension::class.java)
-                .targets
-                .withType(KotlinMultiplatformAndroidLibraryTarget::class.java)
-                .configureEach(action { target -> target.lint.applyPolicy(config) })
-            dependOnFromCheck("lint")
-        },
-    )
+    pluginManager.withPlugin("com.android.application") {
+        val lint = extensions.getByType(ApplicationExtension::class.java).lint
+        lint.applyPolicy(config)
+        lint.checkDependencies = true
+        dependOnFromCheck("lint")
+    }
+    pluginManager.withPlugin("com.android.kotlin.multiplatform.library") {
+        // Without this plugin AGP 9 registers Android Lint for the module's
+        // host tests only, never for its main code.
+        pluginManager.apply("com.android.lint")
+        extensions
+            .getByType(KotlinMultiplatformExtension::class.java)
+            .targets
+            .withType(KotlinMultiplatformAndroidLibraryTarget::class.java)
+            .configureEach { target -> target.lint.applyPolicy(config) }
+        dependOnFromCheck("lint")
+    }
 }
 
 private fun Project.dependOnFromCheck(dependency: Any) {
-    plugins.withType(
-        LifecycleBasePlugin::class.java,
-        action {
-            tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME, action { check -> check.dependsOn(dependency) })
-        },
-    )
+    plugins.withType(LifecycleBasePlugin::class.java) {
+        tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { check -> check.dependsOn(dependency) }
+    }
 }
 
 private fun Lint.applyPolicy(config: File) {

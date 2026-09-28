@@ -211,9 +211,9 @@ const CASES: readonly Case[] = [
   { name: "checkTestSources = false", file: KTS, line: "checkTestSources = false", directive: "checkTestSources" },
   { name: "allRules = false", file: KTS, line: "allRules = false", directive: "allRules" },
   {
-    name: "buildUponDefaultConfig = true",
+    name: "buildUponDefaultConfig = false",
     file: KTS,
-    line: "buildUponDefaultConfig = true",
+    line: "buildUponDefaultConfig = false",
     directive: "buildUponDefaultConfig",
   },
   {

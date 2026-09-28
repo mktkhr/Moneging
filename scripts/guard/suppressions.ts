@@ -105,7 +105,7 @@ const BUILD_VALUE_GUARDS: readonly ValueGuard[] = [
   { name: "checkTestSources", allowed: "true" },
   { name: "ignoreTestSources", allowed: "false" },
   { name: "allRules", allowed: "true" },
-  { name: "buildUponDefaultConfig", allowed: "false" },
+  { name: "buildUponDefaultConfig", allowed: "true" },
   { name: "disableDefaultRuleSets", allowed: "false" },
   { name: "failOnSeverity", allowed: "(?:[\\w.]*FailOnSeverity\\.)?Info" },
   { name: "ignored(?:Variants|BuildTypes|Flavors)", allowed: "emptyList\\(\\)" },

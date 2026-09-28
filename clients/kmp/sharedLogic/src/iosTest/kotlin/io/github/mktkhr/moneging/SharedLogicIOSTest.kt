@@ -14,6 +14,6 @@ class SharedLogicIOSTest {
      */
     @Test
     fun example() {
-        assertEquals(EXPECTED_SUM, 1 + 2)
+        assertEquals(expected = EXPECTED_SUM, actual = 1 + 2)
     }
 }

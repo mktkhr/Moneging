@@ -6,7 +6,11 @@
 # Tool: dev.detekt 2.0.0-alpha.6. All rules are active (`allRules`), any
 # finding fails (`failOnSeverity = Info`), no baseline - all set and locked
 # in the build-logic convention plugin
-# (clients/kmp/build-logic/.../QualityConventionPlugin.kt).
+# (clients/kmp/build-logic/.../QualityConventionPlugin.kt). This file is
+# layered over detekt's default config (`buildUponDefaultConfig = true`):
+# detekt 2 only runs rules present in the effective configuration, so
+# without the default underneath, `allRules` would activate only the rules
+# named here. It therefore lists only overrides of the defaults.
 #
 # Coverage (detekt 2.0.0-alpha.6):
 # - Type resolution: the Android compilations of each module

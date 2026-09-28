@@ -1,5 +1,9 @@
 plugins {
-    `kotlin-dsl`
+    // Plain Kotlin (Gradle's embedded version) rather than `kotlin-dsl`:
+    // kotlin-dsl compiles `Action` lambdas with an implicit receiver
+    // (SAM-with-receiver), which detekt's type resolution does not model.
+    `java-gradle-plugin`
+    `embedded-kotlin`
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlintGradle)
 }
@@ -38,7 +42,7 @@ kotlin {
 // policy for its own sources directly.
 detekt {
     allRules = true
-    buildUponDefaultConfig = false
+    buildUponDefaultConfig = true
     failOnSeverity = dev.detekt.gradle.extensions.FailOnSeverity.Info
     config.setFrom(files("../../../quality/kotlin/detekt.yml"))
 }
