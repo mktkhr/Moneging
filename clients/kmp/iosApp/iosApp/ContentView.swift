@@ -1,21 +1,26 @@
-import SwiftUI
 import SharedLogic
+import SwiftUI
 
-struct ContentView: View {
-    @State private var showContent = false
-    var body: some View {
+internal struct ContentView: View {
+    private static let iconSize: CGFloat = 200
+    private static let contentSpacing: CGFloat = 16
+
+    @State private var showContent: Bool = false
+
+    internal var body: some View {
         VStack {
             Button("Click me!") {
                 withAnimation {
-                    showContent = !showContent
+                    self.showContent.toggle()
                 }
             }
 
-            if showContent {
-                VStack(spacing: 16) {
+            if self.showContent {
+                VStack(spacing: Self.contentSpacing) {
                     Image(systemName: "swift")
-                        .font(.system(size: 200))
+                        .font(.system(size: Self.iconSize))
                         .foregroundColor(.accentColor)
+                        .accessibilityHidden(true)
                     Text("SwiftUI: \(Greeting().greet())")
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -26,8 +31,6 @@ struct ContentView: View {
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+#Preview {
+    ContentView()
 }

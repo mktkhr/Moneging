@@ -1,8 +1,8 @@
 import SwiftUI
 
 @main
-struct iOSApp: App {
-    var body: some Scene {
+internal struct MonegingApp: App {
+    internal var body: some Scene {
         WindowGroup {
             ContentView()
         }
