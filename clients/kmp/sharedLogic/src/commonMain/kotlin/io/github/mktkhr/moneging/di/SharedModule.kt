@@ -1,18 +1,18 @@
 package io.github.mktkhr.moneging.di
 
-import io.github.mktkhr.moneging.state.AppViewModel
+import io.github.mktkhr.moneging.state.AppState
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatform
 
 /**
- * The dependency graph every client shares. [AppViewModel] is a singleton:
+ * The dependency graph every client shares. [AppState] is a singleton:
  * every tab and every platform resolves the same instance, so the state it
  * publishes stays consistent across tabs.
  */
 val sharedModule =
     module {
-        single { AppViewModel() }
+        single { AppState() }
     }
 
 /**
@@ -27,7 +27,7 @@ fun initKoin() {
 }
 
 /**
- * Resolves the shared [AppViewModel] singleton. [initKoin] must have run
+ * Resolves the shared [AppState] singleton. [initKoin] must have run
  * first.
  */
-fun sharedAppViewModel(): AppViewModel = KoinPlatform.getKoin().get()
+fun sharedAppState(): AppState = KoinPlatform.getKoin().get()

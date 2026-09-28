@@ -77,5 +77,5 @@ internal struct RootView: View {
 #Preview {
     RootView()
         .environment(AppRouter())
-        .environment(SharedStateStore(viewModel: sharedAppViewModel()))
+        .environment(SharedStateStore(appState: sharedAppState()))
 }

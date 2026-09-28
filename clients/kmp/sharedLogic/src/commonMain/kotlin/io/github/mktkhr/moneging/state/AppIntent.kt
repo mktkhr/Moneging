@@ -1,7 +1,7 @@
 package io.github.mktkhr.moneging.state
 
 /**
- * User intents [AppViewModel] accepts. The UI only ever sends an intent and
+ * User intents [AppState] accepts. The UI only ever sends an intent and
  * reads the resulting [AppUiState] back; it never mutates state directly.
  */
 sealed interface AppIntent {

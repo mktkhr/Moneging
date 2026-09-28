@@ -37,7 +37,21 @@ data class ResolvedTheme(
     val glassBorder: String,
     /** [glassSurface]'s own drop shadow - a raw CSS `box-shadow` string, unused by this shell yet. */
     val glassShadow: String,
+    /**
+     * A floating element's own drop shadow colour (the style's `shadow`
+     * token, [StyleSchemeTokens.shadow]), as "#RRGGBBAA" - transparent
+     * black when the style has no shadow ([CardStyle.Border] styles, whose
+     * `shadow` token is `"none"`).
+     */
+    val shadowColor: String,
+    /** [shadowColor]'s own vertical offset, in points (0 when there is no shadow). */
+    val shadowOffsetY: Double,
+    /** [shadowColor]'s own blur radius, in points (0 when there is no shadow). */
+    val shadowBlurRadius: Double,
 )
+
+// ResolvedTheme.shadowColor for a style with no shadow token ("none").
+private const val NO_SHADOW_COLOR = "#00000000"
 
 /**
  * Resolves [style]'s tokens for [color] and [scheme] into the semantic
@@ -58,6 +72,7 @@ fun resolveTheme(
     val accent = mixTowardWhite(colorHex, accentMixTowardWhite.getValue(scheme))
     val tint = mixTowardWhite(colorHex, tintMixTowardWhite.getValue(scheme))
     val accentTint = if (scheme == ThemeScheme.Light) tint else withAlpha(hex = tint, alphaHex = TINT_DARK_ALPHA)
+    val shadow = parseCssBoxShadow(schemeTokens.shadow)
 
     return ResolvedTheme(
         background = schemeTokens.bg,
@@ -71,5 +86,8 @@ fun resolveTheme(
         glassSurface = withAlpha(hex = schemeTokens.surface, alphaHex = glassSurfaceAlpha.getValue(scheme)),
         glassBorder = glassBorder.getValue(scheme),
         glassShadow = glassShadow.getValue(scheme),
+        shadowColor = shadow?.colorHex ?: NO_SHADOW_COLOR,
+        shadowOffsetY = shadow?.offsetY ?: 0.0,
+        shadowBlurRadius = shadow?.blurRadius ?: 0.0,
     )
 }

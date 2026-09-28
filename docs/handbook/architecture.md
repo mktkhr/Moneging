@@ -13,7 +13,7 @@ flowchart LR
         V2[Composable]
     end
     subgraph shared["sharedLogic（Kotlin）"]
-        VM["ViewModel\nStateFlow&lt;UiState&gt;"] --> UC[ユースケース]
+        VM["AppState（アプリ生存期間）\nStateFlow&lt;UiState&gt;"] --> UC[ユースケース]
         UC --> R[リポジトリ]
         R --> DB[(SQLDelight)]
     end
@@ -21,7 +21,10 @@ flowchart LR
     V2 --> VM
 ```
 
-- 画面の状態は共有の ViewModel が1つの `StateFlow<UiState>` で公開する。UI は操作を ViewModel に送り、新しい状態を受け取るだけ（単方向）。
+- アプリ全体の状態（現在の月・家計簿の選択など）は `AppState`（`sharedLogic`、`androidx.lifecycle.ViewModel` ではない素の状態保持クラス）が1つの `StateFlow<AppUiState>` で公開する。UI は操作を `AppState.onIntent` に送り、新しい状態を受け取るだけ（単方向）。
+  `AppState` は Koin のシングルトンとしてアプリの生存期間ずっと生き続ける。`ViewModel` はライフサイクルオーナー（`onCleared()` を呼ぶ側）があって初めて意味を持つ型で、
+  アプリ生存期間のシングルトンにオーナーは存在しないため、`AppState` は明示的な `CoroutineScope` を自分で持つ素のクラスにしている。
+- 画面ごとの状態（今後実装される個々の画面）は、これとは別のライフサイクル: 各画面（`NavigationStack` の遷移先）がオーナーとなる、通常の `androidx.lifecycle.ViewModel` を使う。
 - iOS は SKIE で Flow を `AsyncSequence` として受け取る。
 - データは端末内の SQLDelight。更新はリポジトリが Flow で流す。
 - 依存関係は Koin で組み立てる。

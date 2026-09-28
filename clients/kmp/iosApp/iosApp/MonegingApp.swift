@@ -16,9 +16,9 @@ internal struct MonegingApp: App {
 
     internal init() {
         // The shared Koin container must be running before `SharedStateStore`
-        // resolves the shared `AppViewModel` from it, so this runs first.
+        // resolves the shared `AppState` from it, so this runs first.
         doInitKoin()
         self._router = State(wrappedValue: AppRouter())
-        self._store = State(wrappedValue: SharedStateStore(viewModel: sharedAppViewModel()))
+        self._store = State(wrappedValue: SharedStateStore(appState: sharedAppState()))
     }
 }
