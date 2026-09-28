@@ -175,4 +175,76 @@ final class IosAppUITests: XCTestCase {
             XCTAssertEqual(marker.value as? String, "1", "\(entry.tab) の状態オブジェクトが再生成された")
         }
     }
+
+    /// Saves PNG screenshots of ホーム, the record sheet, the ledger menu,
+    /// 設定, カレンダー, and 検索 for manual review. Written directly to
+    /// the host filesystem (the simulator UI test runner process has host
+    /// file access), outside the repository.
+    func testCaptureAppScreenshots() throws {
+        let outputDirectory =
+            "/private/tmp/claude-502/-Users-taka-ghq-github-com-mktkhr-Moneging"
+            + "/cb07a61f-4e13-4f0b-8b94-7ebb182b377a/scratchpad/shell-shots"
+        try FileManager.default.createDirectory(
+            atPath: outputDirectory,
+            withIntermediateDirectories: true,
+        )
+
+        func save(_ name: String) throws {
+            let data = app.screenshot().image.pngData()
+            let png = try XCTUnwrap(data, "\(name) の PNG 化に失敗した")
+            try png.write(to: URL(fileURLWithPath: "\(outputDirectory)/\(name).png"))
+        }
+
+        switchToTab("ホーム")
+        try save("01-home")
+
+        let titleMenu = app.buttons["ledger-title-menu"]
+        XCTAssertTrue(titleMenu.waitForExistence(timeout: 5))
+        titleMenu.tap()
+        XCTAssertTrue(app.buttons["ledger-menu-secondary"].waitForExistence(timeout: 5))
+        try save("02-ledger-menu")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
+        let secondLedgerButton = app.buttons["ledger-menu-secondary"]
+        var menuDismissAttempts = 0
+        while secondLedgerButton.exists && menuDismissAttempts < 20 {
+            usleep(200_000)
+            menuDismissAttempts += 1
+        }
+
+        app.buttons["record-button"].tap()
+        XCTAssertTrue(app.buttons["record-option-manual"].waitForExistence(timeout: 5))
+        try save("03-record-sheet")
+
+        // A generic `swipeDown()` was unreliable at dismissing the sheet
+        // (its start point does not consistently land inside the sheet's
+        // draggable area); dragging from a coordinate inside the sheet to
+        // the bottom of the screen is more deterministic.
+        let dragStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        let dragEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99))
+        dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
+
+        let manualRow = app.buttons["record-option-manual"]
+        var sheetDismissAttempts = 0
+        while manualRow.exists && sheetDismissAttempts < 25 {
+            usleep(200_000)
+            sheetDismissAttempts += 1
+        }
+        XCTAssertFalse(manualRow.exists, "記録する シートが閉じない")
+        // The dismiss animation's dimming overlay can still intercept hits
+        // briefly after its elements leave the accessibility tree.
+        sleep(1)
+
+        app.buttons["account-button"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
+        try save("04-settings")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        switchToTab("カレンダー")
+        XCTAssertTrue(app.staticTexts["calendar-creation-count"].waitForExistence(timeout: 5))
+        try save("05-calendar")
+
+        switchToTab("検索")
+        XCTAssertTrue(app.staticTexts["search-creation-count"].waitForExistence(timeout: 5))
+        try save("06-search")
+    }
 }
