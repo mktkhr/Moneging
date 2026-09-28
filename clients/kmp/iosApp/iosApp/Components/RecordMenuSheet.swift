@@ -28,8 +28,8 @@ internal struct RecordMenuSheet: View {
         }
         .padding(Self.padding)
         // `.contain`, not the default: exposes this whole content view as
-        // its own accessibility element (so a UI test can read its frame,
-        // matching `fittedSheet`'s own measured height) while keeping the
+        // its own accessibility element (so a UI test can compare its frame
+        // with the presented sheet's, checking `fittedSheet()`) while keeping the
         // title/row buttons individually accessible underneath it.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("record-sheet-content")

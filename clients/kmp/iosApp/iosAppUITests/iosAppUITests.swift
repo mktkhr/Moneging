@@ -161,10 +161,9 @@ final class IosAppUITests: XCTestCase {
     }
 
     /// The 記録する sheet hugs its own content: no extra empty space below
-    /// the rows. Every number here is read from real elements' frames or
-    /// from the height the app itself measured and applied
-    /// (`record-sheet-measured-height`, `FittedSheetModifier.swift`'s own
-    /// contract), never a hard-coded constant.
+    /// the rows, and no row compressed to fit. Every number here is read
+    /// from real elements' frames - the presented sheet's own container
+    /// and the content inside it - never a hard-coded constant.
     func testRecordSheetHugsItsOwnContentHeight() throws {
         switchToTab("ホーム")
         app.buttons["record-button"].tap()
@@ -173,10 +172,15 @@ final class IosAppUITests: XCTestCase {
         let receiptRow = app.buttons["record-option-receipt-scan"]
         let photoRow = app.buttons["record-option-photo-pick"]
         XCTAssertTrue(manualRow.waitForExistence(timeout: 5))
+        let content = app.otherElements["record-sheet-content"]
+        XCTAssertTrue(content.waitForExistence(timeout: 5))
+        // Let the presentation's spring animation settle before reading frames.
+        sleep(1)
 
-        // Inter-row gaps must match each other: no row carries extra
-        // slack the others don't (a self-consistency check between real
-        // elements, not a constant).
+        // No row is compressed: all three share one height, and the gaps
+        // between them match (self-consistency between real elements).
+        XCTAssertEqual(manualRow.frame.height, receiptRow.frame.height, accuracy: 1, "行の高さが揃っていない（圧縮されている）")
+        XCTAssertEqual(receiptRow.frame.height, photoRow.frame.height, accuracy: 1, "行の高さが揃っていない（圧縮されている）")
         let gapBetweenFirstTwo = receiptRow.frame.minY - manualRow.frame.maxY
         let gapBetweenLastTwo = photoRow.frame.minY - receiptRow.frame.maxY
         XCTAssertEqual(
@@ -186,30 +190,39 @@ final class IosAppUITests: XCTestCase {
             "行の間隔が均一でない（余分な空白がある可能性）",
         )
 
-        // `record-sheet-content` unions its accessible children's own
-        // frames (the title and the three rows), so its height excludes
-        // the sheet's own padding - `appliedHeight` (what the app measured
-        // and fed to `presentationDetents`, `record-sheet-measured-height`)
-        // includes it. Their difference is everything else the sheet
-        // shows: that padding, the safe area, the system's own card
-        // margin - real chrome, not empty filler - so it must stay under
-        // a single row's own measured height, not balloon past it. The
-        // original defect this guards (before `FittedSheetModifier`'s
-        // current two-step measurement) left roughly 71pt of chrome here,
-        // taller than any row; fixed, it is roughly 50pt.
-        let content = app.otherElements["record-sheet-content"]
-        XCTAssertTrue(content.waitForExistence(timeout: 5))
-        let measuredHeightElement = app.staticTexts["record-sheet-measured-height"]
-        XCTAssertTrue(measuredHeightElement.waitForExistence(timeout: 5))
-        let appliedHeightText = try XCTUnwrap(measuredHeightElement.value as? String, "適用された高さが読み取れない")
-        let appliedHeight = try XCTUnwrap(Double(appliedHeightText), "適用された高さが数値でない: \(appliedHeightText)")
+        // The presented sheet itself: the smallest element that contains
+        // `record-sheet-content` but is not the full-screen hierarchy
+        // around it.
+        let screen = app.windows.firstMatch.frame
+        let sheet = try XCTUnwrap(
+            app.otherElements
+                .containing(.other, identifier: "record-sheet-content")
+                .allElementsBoundByIndex
+                .map(\.frame)
+                .filter { frame in
+                    frame.contains(content.frame) && frame != content.frame && frame.height < screen.height
+                }
+                .min { $0.height < $1.height },
+            "記録する シートのコンテナが見つからない",
+        )
 
-        let chrome = appliedHeight - content.frame.height
-        XCTAssertGreaterThan(chrome, 0, "コンテンツが適用された高さに収まっていない")
+        // The content's own padding is the same on every side, so its top
+        // inset inside the sheet equals its leading inset.
+        let topInset = content.frame.minY - sheet.minY
+        let leadingInset = content.frame.minX - sheet.minX
+        XCTAssertEqual(topInset, leadingInset, accuracy: 1, "シート上端とコンテンツの間に余分な空白がある")
+
+        // Below the content: that same padding plus the sheet's own bottom
+        // safe area (the home indicator) - real chrome, not empty filler.
+        // Whatever remains after the padding must stay under a single
+        // row's height; a sheet taller than its content (e.g. a `.medium`
+        // detent) leaves far more.
+        let bottomSpace = sheet.maxY - content.frame.maxY
+        XCTAssertGreaterThanOrEqual(bottomSpace, topInset - 1, "コンテンツがシートに収まっていない")
         XCTAssertLessThan(
-            chrome,
+            bottomSpace - topInset,
             manualRow.frame.height,
-            "コンテンツ以外の余白（パディング・セーフエリア）が行の高さより大きい（余分な空白がある）",
+            "コンテンツの下に行の高さ以上の余分な空白がある",
         )
     }
 
