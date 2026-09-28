@@ -3,25 +3,27 @@
  * change reaches git. Exit code 2 blocks the call and shows stderr to Claude.
  *
  * Governs Edit, MultiEdit, Write and NotebookEdit (by path) and Bash (by
- * command, in scripts/guard/bash-policy.ts). The protected list is
- * quality/protected-paths.txt, the same list the pre-commit hook and
- * `make guard-protected` read. Whether a protected path is refused depends
- * on the harness lock (scripts/guard/harness-lock.ts): LOCKED refuses every
- * one of them, UNLOCKED opens them to editing so the human can iterate on
- * the harness through a session. The always-protected set is refused
- * either way - see harness-lock.ts for what is in it and why.
+ * command, in scripts/guard/bash-policy.ts). What a caller may write depends
+ * on its role (scripts/guard/roles.ts): subagents doing product work cannot
+ * touch the harness (quality/protected-paths.txt) or the acceptance tests;
+ * the acceptance writer cannot touch the harness or product code; a reviewer
+ * writes nothing; the main session, which changes the harness only after the
+ * human approves it in conversation, is bound only by the always-protected
+ * paths.
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-import { bannedCommand } from "./bash-policy.ts";
-import { readLockState } from "./harness-lock.ts";
-import { ALWAYS_PROTECTED, isProtected, protectedEntries } from "./protected-entries.ts";
+import { bannedCommand, isBannedTarget } from "./bash-policy.ts";
+import { isProtected, protectedEntries } from "./protected-entries.ts";
+import { type Role, roleOf } from "./roles.ts";
 
 export interface HookInput {
   readonly tool_name: string;
   readonly tool_input: Readonly<Record<string, unknown>>;
   readonly cwd?: string;
+  readonly agent_id?: string;
+  readonly agent_type?: string;
 }
 
 export { bannedCommand, isProtected, protectedEntries };
@@ -68,12 +70,12 @@ function resolveRelative(root: string, target: string): string | null {
   return path.relative(realpathSync(root), resolved).split(path.sep).join("/");
 }
 
-/** null to allow the call, or the reason to refuse it. `unlocked` gates the general protected list only; the always-protected set is refused either way. */
+/** null to allow the call, or the reason to refuse it. The role defaults to the most restricted subagent. */
 export function decide(
   input: HookInput,
   root: string,
   entries: readonly string[],
-  unlocked = false,
+  role: Role = "restricted",
 ): string | null {
   if (PATH_TOOLS.has(input.tool_name)) {
     const target = input.tool_input["file_path"] ?? input.tool_input["notebook_path"];
@@ -90,16 +92,16 @@ export function decide(
       )
     )
       return "only the Stop hook records a verified tree";
-    if (candidates.some((candidate) => isProtected(candidate, ALWAYS_PROTECTED)))
-      return "this path is always protected (git internals, local Claude settings, or the harness lock and its parser); it is not edited by a session, locked or not";
-    if (!unlocked && candidates.some((candidate) => isProtected(candidate, entries)))
-      return `${relative} is part of the harness (quality/protected-paths.txt) and the harness is LOCKED`;
+
+    const banned = candidates.find((candidate) => isBannedTarget(candidate, entries, role));
+
+    if (banned !== undefined) return `${relative} is not writable by this role (${role})`;
 
     return null;
   }
 
   if (input.tool_name === "Bash" && typeof input.tool_input["command"] === "string") {
-    return bannedCommand(input.tool_input["command"], entries, root, input.cwd, unlocked);
+    return bannedCommand(input.tool_input["command"], entries, root, input.cwd, role);
   }
 
   return null;
@@ -112,7 +114,6 @@ function main(): number {
     const entries = protectedEntries(
       readFileSync(path.join(root, "quality/protected-paths.txt"), "utf8"),
     );
-    const unlocked = readLockState(root).unlocked;
     const parsed: unknown = JSON.parse(readFileSync(0, "utf8"));
 
     if (!isHookInput(parsed)) {
@@ -120,18 +121,15 @@ function main(): number {
       return 2;
     }
 
-    const reason = decide(parsed, root, entries, unlocked);
+    const reason = decide(parsed, root, entries, roleOf(parsed));
 
     if (reason === null) return 0;
 
     process.stderr.write(
       `Refused by the Repository Harness: ${reason}.\n` +
-        "Fix the product code instead. If the harness itself must change: the lock is read from\n" +
-        "refs/harness/approved, not from the working tree, so editing quality/harness-lock.txt here\n" +
-        "has no effect by itself. The human edits it (and any other harness change) outside this\n" +
-        "session, stages and commits it with MONEGING_ALLOW_HARNESS_CHANGE=1 set, and then runs\n" +
-        "`make harness-approve` to record that commit as the approved state - only then does a new\n" +
-        "unlocked-until date, or any other harness change, take effect.\n",
+        "Fix the product code instead. A refusal is information about the plan, not an obstacle\n" +
+        "to route around. If the harness or the acceptance tests must change, stop and report what\n" +
+        "and why; the main session makes that change after the human approves it.\n",
     );
 
     return 2;

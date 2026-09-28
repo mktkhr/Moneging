@@ -1,13 +1,13 @@
 // Ported from takamai's scripts/guard/tool-policy.test.ts: node:test + node:assert
 // instead of vite-plus/test (zero npm dependencies here), Moneging paths instead of
-// Go/web ones, and lock/unlock coverage for the harness lock this repository adds.
+// Go/web ones, and role coverage (scripts/guard/roles.ts) this repository adds.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { readLockState } from "./harness-lock.ts";
+import { roleOf } from "./roles.ts";
 import { decide, isProtected, protectedEntries } from "./tool-policy.ts";
 
 const entries = protectedEntries(
@@ -54,7 +54,7 @@ describe("isProtected against the real quality/protected-paths.txt: Gradle wirin
   });
 });
 
-describe("decide, harness LOCKED (default)", () => {
+describe("decide, restricted subagent (default role)", () => {
   it("refuses an edit of a protected file, with no way to allow it", () => {
     const edit = {
       tool_name: "Edit",
@@ -70,10 +70,16 @@ describe("decide, harness LOCKED (default)", () => {
     assert.notEqual(decide(edit, root, entries), null);
   });
 
-  it("refuses an edit of CLAUDE.md while locked", () => {
+  it("refuses an edit of CLAUDE.md", () => {
     const write = { tool_name: "Write", tool_input: { file_path: "/repo/CLAUDE.md" } };
 
-    assert.notEqual(decide(write, root, entries, false), null);
+    assert.notEqual(decide(write, root, entries, "restricted"), null);
+  });
+
+  it("refuses an edit of the acceptance tests", () => {
+    const write = { tool_name: "Write", tool_input: { file_path: "/repo/acceptance/shared/A.kt" } };
+
+    assert.notEqual(decide(write, root, entries, "restricted"), null);
   });
 
   it("allows product code and tools it does not govern", () => {
@@ -138,37 +144,27 @@ describe("decide, harness LOCKED (default)", () => {
   });
 });
 
-describe("decide, harness UNLOCKED", () => {
-  it("allows an edit of a general protected path", () => {
+describe("decide, main session", () => {
+  it("allows an edit of a protected path", () => {
     const write = { tool_name: "Write", tool_input: { file_path: "/repo/CLAUDE.md" } };
 
-    assert.equal(decide(write, root, entries, true), null);
+    assert.equal(decide(write, root, entries, "main"), null);
   });
 
-  it("allows an edit under scripts/guard, a general protected path", () => {
-    const write = { tool_name: "Write", tool_input: { file_path: "/repo/scripts/guard/foo.ts" } };
-
-    assert.equal(decide(write, root, entries, true), null);
-  });
-
-  it("still refuses the always-protected harness-lock file", () => {
-    const write = { tool_name: "Write", tool_input: { file_path: "/repo/quality/harness-lock.txt" } };
-
-    assert.notEqual(decide(write, root, entries, true), null);
-  });
-
-  it("still refuses the always-protected harness-lock parser", () => {
-    const write = {
-      tool_name: "Write",
-      tool_input: { file_path: "/repo/scripts/guard/harness-lock.ts" },
-    };
-
-    assert.notEqual(decide(write, root, entries, true), null);
+  it("allows an edit under scripts/guard and acceptance/", () => {
+    assert.equal(
+      decide({ tool_name: "Write", tool_input: { file_path: "/repo/scripts/guard/foo.ts" } }, root, entries, "main"),
+      null,
+    );
+    assert.equal(
+      decide({ tool_name: "Write", tool_input: { file_path: "/repo/acceptance/a.kt" } }, root, entries, "main"),
+      null,
+    );
   });
 
   it("still refuses .git and the local Claude settings", () => {
     assert.notEqual(
-      decide({ tool_name: "Write", tool_input: { file_path: "/repo/.git/config" } }, root, entries, true),
+      decide({ tool_name: "Write", tool_input: { file_path: "/repo/.git/config" } }, root, entries, "main"),
       null,
     );
     assert.notEqual(
@@ -176,38 +172,59 @@ describe("decide, harness UNLOCKED", () => {
         { tool_name: "Write", tool_input: { file_path: "/repo/.claude/settings.local.json" } },
         root,
         entries,
-        true,
+        "main",
       ),
       null,
     );
   });
 });
 
-// Wires the decision to readLockState's own verdict (via an injected
-// reader, not a real git repository - scripts/guard/harness-lock.test.ts
-// covers the real-git-repository end of this: readLockState reads the
-// harness lock as committed at refs/harness/approved, never the working
-// tree, so there is no working-tree file for this test to place any more).
-describe("decide wired to readLockState (injectable reader + today)", () => {
-  const unlockedReader = (): string | null => "unlocked-until: 2099-01-01\n";
-  const expiredReader = (): string | null => "unlocked-until: 2020-01-01\n";
-  const missingReader = (): string | null => null;
+describe("decide, acceptance writer", () => {
+  it("allows acceptance/", () => {
+    const write = { tool_name: "Write", tool_input: { file_path: "/repo/acceptance/shared/A.kt" } };
 
-  it("unlocks a general protected path when today is on or before the approved date", () => {
-    const unlocked = readLockState(root, "2026-01-01", unlockedReader).unlocked;
-    const write = { tool_name: "Write", tool_input: { file_path: "/repo/CLAUDE.md" } };
-
-    assert.equal(decide(write, root, entries, unlocked), null);
+    assert.equal(decide(write, root, entries, "acceptance-writer"), null);
   });
 
-  it("locks a general protected path once today is after the approved date", () => {
-    const unlocked = readLockState(root, "2026-01-01", expiredReader).unlocked;
-    const write = { tool_name: "Write", tool_input: { file_path: "/repo/CLAUDE.md" } };
+  it("refuses product code and the harness", () => {
+    assert.notEqual(
+      decide(
+        { tool_name: "Write", tool_input: { file_path: "/repo/clients/kmp/sharedLogic/Money.kt" } },
+        root,
+        entries,
+        "acceptance-writer",
+      ),
+      null,
+    );
+    assert.notEqual(
+      decide({ tool_name: "Write", tool_input: { file_path: "/repo/quality/x" } }, root, entries, "acceptance-writer"),
+      null,
+    );
+  });
+});
 
-    assert.notEqual(decide(write, root, entries, unlocked), null);
+describe("decide, reviewer", () => {
+  it("refuses any write inside the repository", () => {
+    const write = { tool_name: "Write", tool_input: { file_path: "/repo/clients/kmp/x.kt" } };
+
+    assert.notEqual(decide(write, root, entries, "reviewer"), null);
+  });
+});
+
+describe("roleOf", () => {
+  it("is main without an agent_id", () => {
+    assert.equal(roleOf({ tool_name: "Bash" }), "main");
+    assert.equal(roleOf({ agent_type: "implementer" }), "main");
   });
 
-  it("fails closed (locked) when the reader reports no approved ref/file", () => {
-    assert.equal(readLockState(root, "2026-01-01", missingReader).unlocked, false);
+  it("names the acceptance writer and the reviewer", () => {
+    assert.equal(roleOf({ agent_id: "a", agent_type: "acceptance-writer" }), "acceptance-writer");
+    assert.equal(roleOf({ agent_id: "a", agent_type: "reviewer" }), "reviewer");
+  });
+
+  it("treats every other subagent as restricted", () => {
+    assert.equal(roleOf({ agent_id: "a", agent_type: "implementer" }), "restricted");
+    assert.equal(roleOf({ agent_id: "a", agent_type: "general-purpose" }), "restricted");
+    assert.equal(roleOf({ agent_id: "a" }), "restricted");
   });
 });

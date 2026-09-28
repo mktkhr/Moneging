@@ -22,7 +22,7 @@ IOS_LOG    := $(KMP)/build/xcodebuild.log
 SWIFTLINT  := mise exec -- swiftlint
 SWIFT_FORMAT := xcrun swift-format
 
-.PHONY: help tools hooks harness-approve harness-check guard-protected guard-ignored guard-toolchain \
+.PHONY: help tools hooks harness-check guard-ignored guard-toolchain \
         guard-suppressions kmp-test kmp-build kmp-test-all ios-build swiftlint-analyze fmt fmt-check lint verify check
 
 ## ---------------------------------------------------------------- overview
@@ -33,23 +33,11 @@ help: ## Show this help
 tools: ## Install the exact toolchain versions pinned in mise.toml
 	$(Q) tools mise install
 
-hooks: ## Point git at the repository owned hooks (hooks/) and anchor refs/harness/approved
+hooks: ## Point git at the repository owned hooks (hooks/)
 	$(Q) hooks sh scripts/hooks/install.sh
 
-harness-approve: ## Human-only: record the current HEAD as the last harness state the human reviewed and approved
-	if [ -n "$${CLAUDECODE:-}" ] || [ -n "$${CLAUDE_PROJECT_DIR:-}" ]; then \
-	  echo "harness-approve: refusing to run inside a Claude Code session (CLAUDECODE/CLAUDE_PROJECT_DIR is set)." >&2; \
-	  echo "This records the human's own review; run it from the human's own shell, outside any session." >&2; \
-	  exit 1; \
-	fi
-	git update-ref refs/harness/approved HEAD
-	echo "harness: approved state moved to $$(git rev-parse --short HEAD)"
-
-harness-check: ## The harness itself: tests of the guards and the harness lock (node --test scripts/**/*.test.ts)
+harness-check: ## The harness itself: tests of the guards (node --test scripts/**/*.test.ts)
 	$(Q) harness-check:scripts sh -c 'node --test $$(find scripts -name "*.test.ts")'
-
-guard-protected: ## Fail when a protected path changed relative to the base while LOCKED (fails when no base exists)
-	$(Q) guard-protected sh scripts/guard/protected-paths.sh
 
 guard-ignored: ## Fail when a protected path is git-ignored
 	$(Q) guard-ignored sh scripts/guard/ignored-paths.sh
@@ -102,6 +90,6 @@ lint: guard-suppressions fmt-check ## Full static-analysis gate: formatting (fmt
 	$(Q) lint:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml $(IOS_SRC)
 
 ## ---------------------------------------------------------------- aggregate
-verify: harness-check guard-protected guard-ignored guard-toolchain guard-suppressions fmt-check lint kmp-test ## Fast checks: harness, protection, formatting, static analysis, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
+verify: harness-check guard-ignored guard-toolchain guard-suppressions fmt-check lint kmp-test ## Fast checks: harness, protection, formatting, static analysis, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
 
 check: verify kmp-build kmp-test-all ios-build swiftlint-analyze ## Every quality gate: verify, plus the Android and iOS builds, swiftlint analyze and the full sharedLogic test suite. Run before pushing

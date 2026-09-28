@@ -108,7 +108,7 @@ describe("check", () => {
 
 // The CLI's normal root resolution is derived from this file's own location
 // (always the real repository), so these pass an explicit root argument -
-// the same override scripts/guard/harness-lock.ts's CLI supports - to point
+// the same override the other guard CLIs support - to point
 // it at a throwaway mise.toml instead.
 describe("CLI", () => {
   const CLI = path.join(import.meta.dirname, "toolchain.ts");

@@ -131,7 +131,7 @@ function main(): number {
   try {
     // An explicit root argument (tests only - the Makefile and the
     // SessionStart/PreToolUse hooks never pass one) takes precedence over
-    // the derived one, the same convention scripts/guard/harness-lock.ts uses.
+    // the derived one, the same convention the other guard CLIs use.
     const root = process.argv[2] ?? repoRoot();
     const miseToml = readFileSync(path.join(root, "mise.toml"), "utf8");
 

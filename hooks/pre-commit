@@ -20,8 +20,6 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 Q="sh scripts/quiet.sh"
 
-$Q pre-commit:protected-paths sh scripts/guard/protected-paths.sh --staged
-
 staged_all=$(git diff --cached --name-only --diff-filter=ACMR)
 
 staged_kt=$(printf '%s\n' "$staged_all" | grep -E '^clients/kmp/.*\.(kt|kts)$' | grep -v '/build/' || true)

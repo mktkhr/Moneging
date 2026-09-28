@@ -1,27 +1,25 @@
 /**
  * The Bash half of the Repository Harness's tool policy: which commands are
- * refused outright, and which write near a protected path.
+ * refused outright, and which write near a path the caller may not write.
  * scripts/guard/tool-policy.ts is the entry point; this module holds the
- * command-text rules it applies to Bash calls. The always-protected set
- * (scripts/guard/harness-lock.ts) is refused unconditionally; a general
- * protected path (quality/protected-paths.txt) is refused only while the
- * harness is LOCKED.
+ * command-text rules it applies to Bash calls. ALWAYS_REFUSED and the
+ * always-protected paths bind every caller; which other paths a caller may
+ * write, and whether it may commit them, depends on its role
+ * (scripts/guard/roles.ts).
  */
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { ALWAYS_PROTECTED, isProtected } from "./protected-entries.ts";
+import { ACCEPTANCE_DIR, PRODUCT_DIRS, type Role } from "./roles.ts";
 
-/** Refused unconditionally, locked or unlocked. */
+/** Refused unconditionally, to every caller. */
 const ALWAYS_REFUSED: readonly (readonly [RegExp, string])[] = [
   // Matches the full word and any abbreviation git would accept
   // (--no-verify, --no-verif, --no-ver, ...), not just the exact spelling.
   [/--no-ver\w*/u, "hooks are part of the harness; fix what they report"],
   [/\bgit\b[^;&|]*\bcommit\b[^;&|]*\s-[a-zA-Z]*n[a-zA-Z]*\b/u, "`git commit -n` skips the hooks"],
   [/core\.hookspath/iu, "the hooks path is set by `make hooks`"],
-  [
-    /MONEGING_ALLOW_HARNESS_CHANGE/u,
-    "harness changes are made by the human running the approval step, not by a variable in a session's command",
-  ],
   [
     /\bgit\b[^;&|]*\bpush\b[^;&|]*\s(--force|--force-with-lease|-f)\b/u,
     "published history is not rewritten",
@@ -34,19 +32,8 @@ const ALWAYS_REFUSED: readonly (readonly [RegExp, string])[] = [
     "-f/--force stages what .gitignore denies by default (including docs/superpowers); nothing here forces that",
   ],
   [
-    /\bgit\b[^;&|]*update-ref/u,
-    "the approved harness state moves only through the human's approval step",
-  ],
-  [
     /\bgit\s+update-index\b[^;&|]*(--skip-worktree|--assume-unchanged)\b/u,
     "hiding changes from git hides them from the harness",
-  ],
-  // `\bmake\b[^;&|]*\bharness-approve\b` (not `\bmake\s+harness-approve\b`)
-  // so a flag or `-C` between the two words (`make -s harness-approve`,
-  // `make -C . harness-approve`) is still caught.
-  [
-    /\bmake\b[^;&|]*\bharness-approve\b/u,
-    "harness-approve records the human's own review; a session does not run it on their behalf",
   ],
   [
     /\bgit\s+(apply|am)\b|(^|[;&|]\s*)patch\s/u,
@@ -56,19 +43,12 @@ const ALWAYS_REFUSED: readonly (readonly [RegExp, string])[] = [
 
 /**
  * Refused only when the command would also mutate: a command merely reading
- * about the harness (`cat quality/protected-paths.txt`, `git show-ref
- * refs/harness/approved`, ...) changes nothing and is allowed. The optional
- * third element adds a verb that counts as mutating for that rule alone
- * (`push` changes `refs/harness` without matching the general write-verb,
- * redirect or execution detection).
+ * (`cat .cache/stop-gate/judged`, ...) changes nothing and is allowed. The
+ * optional third element adds a verb that counts as mutating for that rule
+ * alone.
  */
 const MUTATION_GATED_REFUSED: readonly (readonly [RegExp, string, RegExp?])[] = [
   [/\.cache\/stop-gate/u, "only the Stop hook records a verified tree"],
-  [
-    /refs\/harness/u,
-    "the approved harness state moves only through the human's approval step",
-    /(^|[\s;&|])push\b/u,
-  ],
 ];
 
 /** The verbs whose every token (not just a redirect target) is a write candidate. */
@@ -86,6 +66,10 @@ const REDIRECT = /(?:\d*>>?|&>>?)\s*(\S+)/gu;
 
 /** Whether a redirect (not a stream duplication or a null sink) is present. */
 const HAS_REDIRECT = /(?:\d*>>?|&>>?)\s*\S+/u;
+
+/** A `git commit` invocation, and whether it also stages tracked changes (`-a`/`--all`). */
+const GIT_COMMIT = /\bgit\b[^;&|]*\bcommit\b/u;
+const GIT_COMMIT_ALL = /\bgit\b[^;&|]*\bcommit\b[^;&|]*(\s--all\b|\s-[a-zA-Z]*a[a-zA-Z]*\b)/u;
 
 /** Whether the command writes a file, or runs one, instead of only reading it. */
 function mutatesFilesystem(command: string): boolean {
@@ -117,11 +101,68 @@ function resolveToken(token: string, root: string, cwd: string | undefined): str
   return path.relative(root, path.resolve(base, token)).split(path.sep).join("/");
 }
 
-/** Whether a resolved token is refused: always-protected always, or protected while locked. */
-function isBannedTarget(resolved: string, entries: readonly string[], unlocked: boolean): boolean {
+/** Whether a repository-relative path lies inside the repository. */
+function insideRepository(resolved: string): boolean {
+  return resolved !== ".." && !resolved.startsWith("../") && !path.isAbsolute(resolved);
+}
+
+/**
+ * Whether `role` may not write the repository-relative path `resolved`.
+ * - every caller: the always-protected paths
+ * - main: nothing else (the human approves its harness changes in conversation)
+ * - restricted (implementers, any unnamed subagent): the harness and acceptance/
+ * - acceptance-writer: the harness and the product source trees
+ * - reviewer: anything inside the repository
+ */
+export function isBannedTarget(resolved: string, entries: readonly string[], role: Role): boolean {
   if (isProtected(resolved, ALWAYS_PROTECTED)) return true;
 
-  return !unlocked && isProtected(resolved, entries);
+  switch (role) {
+    case "main":
+      return false;
+    case "reviewer":
+      return insideRepository(resolved);
+    case "acceptance-writer":
+      return isProtected(resolved, entries) || isProtected(resolved, PRODUCT_DIRS);
+    case "restricted":
+      return isProtected(resolved, entries) || isProtected(resolved, [ACCEPTANCE_DIR]);
+  }
+}
+
+/** The paths a commit would record: `(root, includeUnstaged) => repository-relative paths`. */
+export type ChangeLister = (root: string, includeUnstaged: boolean) => string[];
+
+/** Lists the staged paths (plus unstaged tracked changes for `commit -a`) with git. */
+export function listCommitPaths(root: string, includeUnstaged: boolean): string[] {
+  const run = (args: string[]): string[] =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8" })
+      .split("\n")
+      .filter((line) => line !== "");
+  const staged = run(["diff", "--cached", "--name-only"]);
+
+  return includeUnstaged ? [...staged, ...run(["diff", "--name-only"])] : staged;
+}
+
+/**
+ * The reason a commit by `role` is refused, or null. Backstops the write
+ * rules: whatever reached the index by a route the command-text rules did
+ * not see, a restricted caller still cannot commit a path it may not write.
+ */
+function commitViolation(
+  command: string,
+  entries: readonly string[],
+  root: string,
+  role: Role,
+  listChanged: ChangeLister,
+): string | null {
+  if (role === "main" || !GIT_COMMIT.test(command)) return null;
+  if (role === "reviewer") return "a reviewer reports findings; it does not commit";
+
+  const banned = listChanged(root, GIT_COMMIT_ALL.test(command)).find((file) =>
+    isBannedTarget(file, entries, role),
+  );
+
+  return banned === undefined ? null : `the commit would include ${banned}, which this role may not change`;
 }
 
 /** The reason a shell command is refused, or null. */
@@ -130,7 +171,8 @@ export function bannedCommand(
   entries: readonly string[],
   root: string,
   cwd?: string,
-  unlocked = false,
+  role: Role = "restricted",
+  listChanged: ChangeLister = listCommitPaths,
 ): string | null {
   for (const [pattern, reason] of ALWAYS_REFUSED) {
     if (pattern.test(command)) return reason;
@@ -147,7 +189,7 @@ export function bannedCommand(
   );
   const redirected = redirectTargets
     .map((token) => resolveToken(token, root, cwd))
-    .find((resolved) => isBannedTarget(resolved, entries, unlocked));
+    .find((resolved) => isBannedTarget(resolved, entries, role));
 
   if (redirected !== undefined) return `the command writes near the protected path ${redirected}`;
 
@@ -157,10 +199,10 @@ export function bannedCommand(
       .map((token) => token.replace(/^[a-z]+=/u, ""))
       .filter((token) => token !== "" && !token.startsWith("-"))
       .map((token) => resolveToken(token, root, cwd))
-      .find((resolved) => isBannedTarget(resolved, entries, unlocked));
+      .find((resolved) => isBannedTarget(resolved, entries, role));
 
     if (touched !== undefined) return `the command writes near the protected path ${touched}`;
   }
 
-  return null;
+  return commitViolation(command, entries, root, role, listChanged);
 }

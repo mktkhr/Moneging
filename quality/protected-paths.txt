@@ -1,12 +1,13 @@
-# Paths that make up the Repository Harness. Changes here are checked by
-# scripts/guard/protected-paths.sh and, at the tool, by
+# Paths that make up the Repository Harness, enforced at the tool by
 # scripts/guard/tool-policy.ts. One path (file or directory) per line;
 # '#' starts a comment.
 #
-# Refused while the harness is LOCKED (quality/harness-lock.txt); open to
-# editing through a session while UNLOCKED. The always-protected set
-# (scripts/guard/harness-lock.ts) is a small, separate list that stays
-# refused regardless of the lock - it is not repeated here.
+# Subagents doing product work (implementers, and any subagent without a
+# named role) and the acceptance writer may not write these paths or commit
+# them; a reviewer writes nothing. The main session changes them only after
+# the human approves the change in conversation. See scripts/guard/roles.ts.
+# acceptance/ is guarded the same way for implementers (roles.ts), and the
+# always-protected set (scripts/guard/protected-entries.ts) binds everyone.
 quality
 hooks
 scripts/guard

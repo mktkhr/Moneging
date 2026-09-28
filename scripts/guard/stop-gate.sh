@@ -81,16 +81,6 @@ failing=$(printf '%s\n' "$out" \
   | sed -E 's/^FAIL: ([A-Za-z0-9:._/-]+) \(exit [0-9]+\)$/\1/' \
   | sort -u)
 
-# An uncommitted edit to an always-protected path (quality/harness-lock.txt,
-# scripts/guard/harness-lock.ts) can only be the human's: tool-policy refuses
-# it to every session, locked or not. guard-protected fails first and only on
-# that check when one is dirty (scripts/guard/protected-paths.sh), so its
-# failure is not Claude's to fix; drop it from the failing set so it neither
-# blocks this stop nor gets "fixed" by waiting it out.
-if [ -n "$(git status --porcelain -- quality/harness-lock.txt scripts/guard/harness-lock.ts 2>/dev/null)" ]; then
-  failing=$(printf '%s\n' "$failing" | grep -v '^guard-protected$' || true)
-fi
-
 tmpstate=$(mktemp -d)
 printf '%s\n' "$failing" | awk 'NF' >"$tmpstate/failing"
 

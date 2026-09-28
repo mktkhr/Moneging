@@ -1,27 +1,39 @@
 // Ported from takamai's scripts/guard/bash-policy.test.ts: node:test + node:assert
 // instead of vite-plus/test (zero npm dependencies here), Moneging commands/paths
-// instead of Go/web ones, and lock/unlock coverage for the harness lock this
+// instead of Go/web ones, and role coverage (scripts/guard/roles.ts) this
 // repository adds. Dropped: the node_modules-edit rule (no npm dependencies here)
 // and the `gh ... label` rule (no CI label gate here). Added: git add -f/--force,
-// make harness-approve.
+// and the commit backstop for restricted roles.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bannedCommand } from "./bash-policy.ts";
+import { type ChangeLister, bannedCommand } from "./bash-policy.ts";
 import { protectedEntries } from "./protected-entries.ts";
+import type { Role } from "./roles.ts";
 
 const entries = protectedEntries(
   "# comment\nquality\nhooks\nMakefile\n.claude\nCLAUDE.md\nscripts/guard\n",
 );
 const root = "/repo";
+const ROLES: readonly Role[] = ["main", "restricted", "acceptance-writer", "reviewer"];
 
-describe("bannedCommand: refused always, locked or unlocked", () => {
+/** A lister reporting a fixed set of staged paths, so tests never run git. */
+function staged(...files: string[]): ChangeLister {
+  return () => files;
+}
+
+const nothingStaged = staged();
+
+function banned(command: string, role: Role, cwd?: string, lister = nothingStaged): string | null {
+  return bannedCommand(command, entries, root, cwd, role, lister);
+}
+
+describe("bannedCommand: refused to every role", () => {
   for (const command of [
     "git commit --no-verify -m 'x'",
     "git commit -nm 'x'",
     "git config core.hooksPath /dev/null",
     "git -c core.hooksPath=/dev/null commit -m x",
-    "MONEGING_ALLOW_HARNESS_CHANGE=1 git commit -m 'x'",
     "git push --force origin main",
     "git push -f",
     "git push --force-with-lease",
@@ -31,33 +43,24 @@ describe("bannedCommand: refused always, locked or unlocked", () => {
     "git am < x.mbox",
     "patch -p1 < fix.diff",
     "echo x > .cache/stop-gate/verified",
-    "git update-ref refs/harness/approved HEAD",
     "git update-index --assume-unchanged Makefile",
     "git update-index --skip-worktree Makefile",
     "git config --unset core.hookspath",
-    "make harness-approve",
-    "make -s harness-approve",
-    "make -C . harness-approve",
     "git commit --no-verif -m x",
     "git commit --no-ver -m x",
     "git push origin +main",
+    "echo x > .git/config",
+    "echo x > .claude/settings.local.json",
   ]) {
-    it(`refuses ${command}`, () => {
-      assert.notEqual(bannedCommand(command, entries, root, undefined, true), null);
-      assert.notEqual(bannedCommand(command, entries, root, undefined, false), null);
-    });
+    for (const role of ROLES) {
+      it(`refuses ${command} (${role})`, () => {
+        assert.notEqual(banned(command, role), null);
+      });
+    }
   }
-
-  it("still refuses to write near .git or the local Claude settings, even unlocked", () => {
-    assert.notEqual(bannedCommand("echo x > .git/config", entries, root, undefined, true), null);
-    assert.notEqual(
-      bannedCommand("echo x > .claude/settings.local.json", entries, root, undefined, true),
-      null,
-    );
-  });
 });
 
-describe("bannedCommand: allowed", () => {
+describe("bannedCommand: allowed to a restricted subagent", () => {
   for (const command of [
     "make check",
     "git commit -m 'feat(sharedLogic): add money type'",
@@ -69,12 +72,12 @@ describe("bannedCommand: allowed", () => {
     "git add docs/handbook/x.md",
   ]) {
     it(`allows ${command}`, () => {
-      assert.equal(bannedCommand(command, entries, root), null);
+      assert.equal(banned(command, "restricted"), null);
     });
   }
 });
 
-describe("bannedCommand: protected paths, gated by lock", () => {
+describe("bannedCommand: harness paths by role", () => {
   for (const command of [
     "echo x > quality/commit-types.txt",
     "echo x > CLAUDE.md",
@@ -84,17 +87,80 @@ describe("bannedCommand: protected paths, gated by lock", () => {
     "install -m644 x quality/y",
     "dd of=quality/z if=/dev/null",
   ]) {
-    it(`refuses ${command} while locked`, () => {
-      assert.notEqual(bannedCommand(command, entries, root, undefined, false), null);
+    it(`refuses ${command} to a restricted subagent, the acceptance writer and the reviewer`, () => {
+      assert.notEqual(banned(command, "restricted"), null);
+      assert.notEqual(banned(command, "acceptance-writer"), null);
+      assert.notEqual(banned(command, "reviewer"), null);
     });
 
-    it(`allows ${command} while unlocked`, () => {
-      assert.equal(bannedCommand(command, entries, root, undefined, true), null);
+    it(`allows ${command} to the main session`, () => {
+      assert.equal(banned(command, "main"), null);
     });
   }
 
-  it("defaults to locked when the flag is omitted", () => {
+  it("defaults to the restricted role when omitted", () => {
     assert.notEqual(bannedCommand("echo x > CLAUDE.md", entries, root), null);
+  });
+});
+
+describe("bannedCommand: acceptance/ and product code by role", () => {
+  it("refuses acceptance/ to a restricted subagent, allows it to the acceptance writer", () => {
+    assert.notEqual(banned("echo x > acceptance/shared/A.kt", "restricted"), null);
+    assert.equal(banned("echo x > acceptance/shared/A.kt", "acceptance-writer"), null);
+  });
+
+  it("refuses product code to the acceptance writer, allows it to a restricted subagent", () => {
+    assert.notEqual(banned("echo x > clients/kmp/Money.kt", "acceptance-writer"), null);
+    assert.equal(banned("echo x > clients/kmp/Money.kt", "restricted"), null);
+  });
+
+  it("refuses any repository write to the reviewer, allows writes outside it", () => {
+    assert.notEqual(banned("echo x > clients/kmp/Money.kt", "reviewer"), null);
+    assert.equal(banned("make check > /tmp/out.log 2>&1", "reviewer"), null);
+  });
+});
+
+describe("bannedCommand: commit backstop", () => {
+  it("refuses a restricted commit that stages a harness or acceptance path", () => {
+    assert.notEqual(banned("git commit -m x", "restricted", undefined, staged("quality/x")), null);
+    assert.notEqual(
+      banned("git commit -m x", "restricted", undefined, staged("clients/a.kt", "acceptance/b.kt")),
+      null,
+    );
+  });
+
+  it("allows a restricted commit of product code only", () => {
+    assert.equal(banned("git commit -m x", "restricted", undefined, staged("clients/a.kt")), null);
+  });
+
+  it("asks the lister for unstaged changes too on commit -a", () => {
+    let includeUnstaged = false;
+    const lister: ChangeLister = (_root, unstaged) => {
+      includeUnstaged = unstaged;
+      return [];
+    };
+
+    banned("git commit -am x", "restricted", undefined, lister);
+    assert.equal(includeUnstaged, true);
+  });
+
+  it("refuses an acceptance writer commit that stages product code", () => {
+    assert.notEqual(
+      banned("git commit -m x", "acceptance-writer", undefined, staged("clients/a.kt")),
+      null,
+    );
+    assert.equal(
+      banned("git commit -m x", "acceptance-writer", undefined, staged("acceptance/a.kt")),
+      null,
+    );
+  });
+
+  it("refuses every commit by the reviewer", () => {
+    assert.notEqual(banned("git commit -m x", "reviewer"), null);
+  });
+
+  it("does not restrict the main session's commits", () => {
+    assert.equal(banned("git commit -m x", "main", undefined, staged("quality/x", "acceptance/a")), null);
   });
 });
 
@@ -107,7 +173,7 @@ describe("bannedCommand reads redirects, not every token, as writes", () => {
     "make check > /tmp/out.log 2>&1",
   ]) {
     it(`allows ${command}`, () => {
-      assert.equal(bannedCommand(command, entries, root), null);
+      assert.equal(banned(command, "restricted"), null);
     });
   }
 
@@ -117,55 +183,38 @@ describe("bannedCommand reads redirects, not every token, as writes", () => {
     "echo x >> CLAUDE.md",
     "echo x &> Makefile",
   ]) {
-    it(`refuses ${command} while locked`, () => {
-      assert.notEqual(bannedCommand(command, entries, root, undefined, false), null);
+    it(`refuses ${command} to a restricted subagent`, () => {
+      assert.notEqual(banned(command, "restricted"), null);
     });
   }
 
   it("refuses a write resolved against the tool call's cwd", () => {
-    assert.notEqual(
-      bannedCommand("sed -i s/a/b/ x_test.kt", entries, root, "scripts/guard", false),
-      null,
-    );
+    assert.notEqual(banned("sed -i s/a/b/ x_test.kt", "restricted", "scripts/guard"), null);
   });
 });
 
 describe("bannedCommand allows read-only commands about the harness", () => {
-  for (const command of [
-    "cat .cache/stop-gate/failing",
-    "grep -rn update-ref docs/",
-    "git show-ref refs/harness/approved",
-    "git log --oneline",
-  ]) {
+  for (const command of ["cat .cache/stop-gate/failing", "git log --oneline"]) {
     it(`allows ${command}`, () => {
-      assert.equal(bannedCommand(command, entries, root), null);
+      assert.equal(banned(command, "restricted"), null);
     });
   }
 
-  for (const command of [
-    "rm .cache/stop-gate/judged",
-    "git update-ref refs/harness/approved HEAD",
-    "git push . HEAD:refs/harness/approved",
-  ]) {
-    it(`refuses ${command}`, () => {
-      assert.notEqual(bannedCommand(command, entries, root), null);
-    });
-  }
+  it("refuses rm .cache/stop-gate/judged", () => {
+    assert.notEqual(banned("rm .cache/stop-gate/judged", "main"), null);
+  });
 });
 
 describe("bannedCommand skips the verb when scanning tokens as paths", () => {
   it("allows a write outside the protected cwd", () => {
-    assert.equal(bannedCommand("rm /tmp/foo", entries, root, "scripts/guard", false), null);
+    assert.equal(banned("rm /tmp/foo", "restricted", "scripts/guard"), null);
   });
 
-  it("refuses a write resolved into the protected cwd, while locked", () => {
-    assert.notEqual(bannedCommand("rm x_test.ts", entries, root, "scripts/guard", false), null);
+  it("refuses a write resolved into the protected cwd", () => {
+    assert.notEqual(banned("rm x_test.ts", "restricted", "scripts/guard"), null);
   });
 
-  it("refuses a write reaching a protected path above the cwd, while locked", () => {
-    assert.notEqual(
-      bannedCommand("sed -i s/a/b/ ../../quality/x", entries, root, "scripts/guard/archcheck", false),
-      null,
-    );
+  it("refuses a write reaching a protected path above the cwd", () => {
+    assert.notEqual(banned("sed -i s/a/b/ ../../quality/x", "restricted", "scripts/guard/archcheck"), null);
   });
 });

@@ -5,10 +5,9 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 ## 3層
 
 1. **PreToolUse（ツール実行前）**: `scripts/guard/tool-policy.ts` が Edit/Write/
-   NotebookEdit/Bash を検査する。`quality/protected-paths.txt` に列挙されたパス
-   への書き込みは、ハーネスが LOCKED の間は拒否される。`--no-verify`、
-   `core.hooksPath` の書き換え、`git push --force`、`MONEGING_ALLOW_HARNESS_CHANGE`
-   の付与などハーネスを回避する Bash コマンドはロック状態に関わらず常に拒否
+   NotebookEdit/Bash を検査する。書き込めるパスは呼び出し元の役割で決まる
+   （下の表）。`--no-verify`、`core.hooksPath` の書き換え、`git push --force`、
+   `git add -f` などハーネスを回避する Bash コマンドは、役割に関わらず常に拒否
    される。
 2. **Stop（ターン終了時）**: `scripts/guard/stop-gate.sh` が未追跡ファイルの有無
    を確認し、`make -k verify` を実行する。`harness-check` はベースラインに関係
@@ -16,10 +15,22 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
    いたものが新たに落ちた場合だけターンを止める。3回連続で拒否すると諦めて
    ユーザーに伝える（その判定は同一のツリー状態にキャッシュされ、ツリーが変わ
    るまで再判定しない）。
-3. **git hooks**: `hooks/pre-commit` は、ハーネスが LOCKED かつ
-   `MONEGING_ALLOW_HARNESS_CHANGE=1` が無い間、ステージ済みの保護パス変更を
-   拒否する（常に保護される2ファイルは UNLOCKED でもこの確認が要る）。
-   `hooks/pre-push` は `make check` をフルで実行する。
+3. **git hooks**: `hooks/pre-commit` はステージ済みの Kotlin/Swift の整形を確認
+   する。`hooks/pre-push` は `make check` をフルで実行する。
+
+## 役割ごとの書き込み範囲
+
+役割は hook 入力の `agent_id` / `agent_type` で判定する（`scripts/guard/roles.ts`）。
+名前の無いサブエージェントは実装者と同じ扱い。
+
+| 役割 | ハーネス | `acceptance/` | 製品コード | コミット |
+|---|---|---|---|---|
+| メインセッション | 可（ユーザーの承認後） | 可 | 可 | 可 |
+| 実装者・その他のサブエージェント | 不可 | 不可 | 可 | 不可のパスを含むと拒否 |
+| `acceptance-writer` | 不可 | 可 | 不可 | 不可のパスを含むと拒否 |
+| `reviewer` | 不可 | 不可 | 不可 | 不可 |
+
+`.git` と `.claude/settings.local.json` は全員に対して常に拒否される。
 
 ## 何が保護されているか
 
@@ -29,34 +40,8 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 `clients/kmp/build-logic` `clients/kmp/.editorconfig`
 `clients/kmp/iosApp/Configuration/Config.xcconfig`。
 
-このうち以下の4つは「常に保護」（`scripts/guard/protected-entries.ts` の
-`ALWAYS_PROTECTED`）で、ロックの開閉に関わらず常に拒否される
-（ロック機構自体の整合性と、`.git` や Claude Code のローカル設定を守るため）:
-`.git` `.claude/settings.local.json` `quality/harness-lock.txt`
-`scripts/guard/harness-lock.ts`。
-
-## ロックと変更手順
-
-ハーネスの状態は作業ツリーの `quality/harness-lock.txt` ではなく、git 参照
-`refs/harness/approved` にコミットされている内容で決まる。今日の日付がそこに
-書かれた `unlocked-until` 以前なら UNLOCKED、それ以外は LOCKED。
-
-人間がハーネスを変更する手順（セッション内では拒否される。人間自身のシェルで
-実行する）:
-
-1. `quality/harness-lock.txt`（または変更したいハーネスファイル）を編集する
-2. `MONEGING_ALLOW_HARNESS_CHANGE=1` を設定してコミットする
-3. `make harness-approve` を実行し、今の HEAD を承認済み状態として記録する
-
-```mermaid
-flowchart LR
-    A[harness-lock.txt を編集] --> B["MONEGING_ALLOW_HARNESS_CHANGE=1\nでコミット"]
-    B --> C[make harness-approve]
-    C --> D[refs/harness/approved 更新]
-    D --> E{今日 <= unlocked-until ?}
-    E -->|Yes| F[UNLOCKED]
-    E -->|No| G[LOCKED]
-```
+ハーネスを変えるときは、メインセッションが変更内容を提示し、ユーザーが会話で
+承認してから変更・コミットする。
 
 ## 初回セットアップ
 
