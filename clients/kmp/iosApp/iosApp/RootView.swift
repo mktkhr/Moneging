@@ -4,8 +4,10 @@ import SwiftUI
 /// The app's root: a standard `TabView` with five tabs.
 ///
 /// Each tab owns its own `NavigationStack` bound to `AppRouter`. The
-/// floating 記録する button and its sheet live here once, shared by the
-/// four main tabs, so switching tabs never duplicates or recreates them.
+/// 記録する sheet lives here once, shared by the four main tabs, so
+/// switching tabs never duplicates or recreates it; the floating button
+/// that opens it is placed by each main tab's own root (`MainTabScreen`),
+/// where the tab bar is already part of the safe area.
 internal struct RootView: View {
     @Environment(AppRouter.self)
     private var router: AppRouter
@@ -16,7 +18,7 @@ internal struct RootView: View {
     // (`testTabRootsAreNotRecreatedAcrossManySwitches`, iosAppUITests) to
     // reconstruct its content on every activation, unlike the four plain
     // tabs - with this state held inside `SearchTabContent` instead,
-    // `search-creation-count` climbed to "5" after three round trips
+    // `search-tab-root`'s creation count climbed to "5" after three round trips
     // through every tab. `RootView` is itself created once at the app
     // root, so holding it here keeps it alive regardless.
     @State private var searchLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
@@ -62,24 +64,6 @@ internal struct RootView: View {
             }
         }
         .tint(Theme.accent)
-        .overlay(alignment: .bottomTrailing) {
-            // `.overlay` on a `TabView` lays out within its safe area, so
-            // this sits just above the tab bar automatically (whatever the
-            // tab bar's own current height is - Liquid Glass's
-            // collapsed/expanded states, Dynamic Type, device); this
-            // padding is only the deliberate visual gap above that, not a
-            // stand-in for the tab bar's height. `MainTabScreen`'s
-            // `.safeAreaInset` reserves exactly this same footprint
-            // (`Theme.recordButtonDiameter + Theme.spacing16`) below each
-            // tab's scroll content, so the two stay consistent.
-            if router.isRecordButtonVisible {
-                FloatingRecordButton {
-                    router.isRecordSheetPresented = true
-                }
-                .padding(.trailing, Theme.spacing16)
-                .padding(.bottom, Theme.spacing16)
-            }
-        }
         .sheet(isPresented: $router.isRecordSheetPresented) {
             RecordMenuSheet { option in
                 router.chooseRecordOption(option)

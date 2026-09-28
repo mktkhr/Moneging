@@ -5,7 +5,7 @@
     /// recreates a tab root's `@State` object (see
     /// `docs/handbook/architecture.md`, rule 3); the count is only ever
     /// shown to the user interface in debug builds (see
-    /// `TabRootLifecycleMarker`), so the counting itself compiles only in
+    /// `TabRootLifecycleHook`), so the counting itself compiles only in
     /// debug builds too - release builds carry neither the storage nor the
     /// bookkeeping.
     ///

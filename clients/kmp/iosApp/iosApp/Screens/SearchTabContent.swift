@@ -10,12 +10,12 @@ import SwiftUI
 /// from `RootView` instead. `Tab(value:role: .search)` was verified on the
 /// simulator (`testTabRootsAreNotRecreatedAcrossManySwitches`,
 /// iosAppUITests) to reconstruct its content on every activation: with
-/// `lifecycle` held here as `@State`, `search-creation-count` climbed to
+/// `lifecycle` held here as `@State`, `search-tab-root`'s creation count climbed to
 /// "5" after three round trips through every tab, where every other tab's
 /// counter stayed "1". Hoisting it to `RootView` (created once at the app
 /// root, so never recreated itself) keeps this tab's state alive across
 /// switches the same way the others' local `@State` does -
-/// `search-creation-count` stays "1" with that arrangement, confirmed the
+/// `search-tab-root`'s creation count stays "1" with that arrangement, confirmed the
 /// same way.
 internal struct SearchTabContent: View {
     private static let suggestionCount: Int = 20
@@ -28,10 +28,6 @@ internal struct SearchTabContent: View {
     internal var body: some View {
         NavigationStack(path: self.path) {
             List {
-                TabRootLifecycleMarker(
-                    screenID: "search",
-                    creationCount: self.lifecycle.creationCount,
-                )
                 ForEach(1...Self.suggestionCount, id: \.self) { index in
                     Text("検索候補 \(index)")
                         .accessibilityIdentifier("search-row-\(index)")
@@ -42,6 +38,7 @@ internal struct SearchTabContent: View {
             .searchable(text: self.$query, prompt: "記録を検索")
             .appNavigationDestinations()
         }
+        .tabRootLifecycleHook(screenID: "search", creationCount: self.lifecycle.creationCount)
     }
 }
 

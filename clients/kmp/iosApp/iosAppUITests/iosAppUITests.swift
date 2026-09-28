@@ -6,8 +6,8 @@ import XCTest
 ///
 /// Also asserts that a tab root's state object is never recreated when
 /// switching tabs (docs/handbook/architecture.md, rule 3), using the
-/// debug-only creation counters each tab root exposes (see
-/// `TabRootLifecycleMarker`).
+/// debug-only creation count each tab root exposes as its container's
+/// accessibility value (see `TabRootLifecycleHook`).
 ///
 /// Screenshot-only tests (nothing asserted, PNGs saved for manual review)
 /// live separately in `IosAppScreenshotUITests`, run by the
@@ -16,12 +16,12 @@ import XCTest
 final class IosAppUITests: XCTestCase {
     private let tabNames = ["ホーム", "カレンダー", "レポート", "予算", "検索"]
 
-    private let creationCountIdentifiers: [(tab: String, identifier: String)] = [
-        ("ホーム", "home-creation-count"),
-        ("カレンダー", "calendar-creation-count"),
-        ("レポート", "report-creation-count"),
-        ("予算", "budget-creation-count"),
-        ("検索", "search-creation-count"),
+    private let tabRootIdentifiers: [(tab: String, identifier: String)] = [
+        ("ホーム", "home-tab-root"),
+        ("カレンダー", "calendar-tab-root"),
+        ("レポート", "report-tab-root"),
+        ("予算", "budget-tab-root"),
+        ("検索", "search-tab-root"),
     ]
 
     private var app: XCUIApplication!
@@ -102,7 +102,7 @@ final class IosAppUITests: XCTestCase {
     func testHomeScrollPositionAndStateAreRetainedAcrossTabSwitch() throws {
         switchToTab("ホーム")
 
-        let homeCount = app.staticTexts["home-creation-count"]
+        let homeCount = app.descendants(matching: .any)["home-tab-root"]
         XCTAssertTrue(homeCount.waitForExistence(timeout: 5))
         XCTAssertEqual(homeCount.value as? String, "1")
 
@@ -116,7 +116,7 @@ final class IosAppUITests: XCTestCase {
         let frameBeforeSwitch = targetRow.frame
 
         switchToTab("カレンダー")
-        let calendarCount = app.staticTexts["calendar-creation-count"]
+        let calendarCount = app.descendants(matching: .any)["calendar-tab-root"]
         XCTAssertTrue(calendarCount.waitForExistence(timeout: 5))
         XCTAssertEqual(calendarCount.value as? String, "1")
 
@@ -147,6 +147,38 @@ final class IosAppUITests: XCTestCase {
             lastRow.frame.intersects(recordButton.frame),
             "最後の行が記録ボタンと重なっている: row=\(lastRow.frame) button=\(recordButton.frame)",
         )
+    }
+
+    /// The floating 記録する button floats above the tab bar: its frame
+    /// never intersects any tab bar item, including the separate 検索
+    /// button, in portrait or landscape.
+    func testRecordButtonDoesNotOverlapTabBarItems() throws {
+        defer { XCUIDevice.shared.orientation = .portrait }
+        switchToTab("ホーム")
+
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            let recordButton = app.buttons["record-button"]
+            XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
+            let buttonFrame = waitForFrameToSettle(recordButton)
+
+            let searchButton = app.tabBars.buttons["検索"]
+            XCTAssertTrue(searchButton.waitForExistence(timeout: 5), "検索 ボタンが見つからない")
+            let tabItems = app.tabBars.buttons.allElementsBoundByIndex
+            XCTAssertFalse(tabItems.isEmpty, "タブバーの項目が見つからない")
+            for item in tabItems + [searchButton] {
+                XCTAssertFalse(
+                    buttonFrame.intersects(item.frame),
+                    "\(orientation.rawValue): 記録ボタンが \(item.label) と重なっている: button=\(buttonFrame) item=\(item.frame)",
+                )
+            }
+            let tabItemsTop = tabItems.map(\.frame.minY).min() ?? buttonFrame.maxY
+            XCTAssertLessThanOrEqual(
+                buttonFrame.maxY,
+                tabItemsTop,
+                "\(orientation.rawValue): 記録ボタンがタブバーより上にない",
+            )
+        }
     }
 
     /// The floating 記録する button opens a sheet with three rows, each of
@@ -357,7 +389,7 @@ final class IosAppUITests: XCTestCase {
     /// Also the evidence for where `lifecycle` state must live on each tab:
     /// 検索's `Tab(role: .search)` really does reconstruct its content on
     /// every activation (unlike the other four, plain tabs) - proven here,
-    /// this exact test failed with `search-creation-count` at `"5"` while
+    /// this exact test failed with `search-tab-root`'s creation count at `"5"` while
     /// `SearchTabContent` held `lifecycle` as its own `@State`, which is
     /// why `RootView` holds it instead (see `RootView.searchLifecycle`'s
     /// own doc comment) while every other tab's content view owns its own
@@ -369,9 +401,9 @@ final class IosAppUITests: XCTestCase {
             }
         }
 
-        for entry in creationCountIdentifiers {
+        for entry in tabRootIdentifiers {
             switchToTab(entry.tab)
-            let marker = app.staticTexts[entry.identifier]
+            let marker = app.descendants(matching: .any)[entry.identifier]
             XCTAssertTrue(marker.waitForExistence(timeout: 5))
             XCTAssertEqual(marker.value as? String, "1", "\(entry.tab) の状態オブジェクトが再生成された")
         }

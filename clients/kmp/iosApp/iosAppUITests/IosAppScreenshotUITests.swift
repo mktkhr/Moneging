@@ -113,11 +113,11 @@ final class IosAppScreenshotUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         switchToTab("カレンダー")
-        XCTAssertTrue(app.staticTexts["calendar-creation-count"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["calendar-tab-root"].waitForExistence(timeout: 5))
         attachScreenshot("05-calendar")
 
         switchToTab("検索")
-        XCTAssertTrue(app.staticTexts["search-creation-count"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["search-tab-root"].waitForExistence(timeout: 5))
         attachScreenshot("06-search")
     }
 
@@ -142,6 +142,25 @@ final class IosAppScreenshotUITests: XCTestCase {
 
         let attachment = XCTAttachment(screenshot: axApp.screenshot())
         attachment.name = "08-record-sheet-ax-xxxl"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    /// Attaches a PNG screenshot of ホーム in landscape, for manual review of
+    /// the floating 記録する button's placement above the tab bar there.
+    func testCaptureHomeLandscapeScreenshot() throws {
+        defer { XCUIDevice.shared.orientation = .portrait }
+        switchToTab("ホーム")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(app.buttons["record-button"].waitForExistence(timeout: 5))
+        // Wait until the app's own window has actually rotated before
+        // capturing, instead of a fixed sleep().
+        let window = app.windows.firstMatch
+        let isLandscape = NSPredicate { _, _ in window.frame.width > window.frame.height }
+        let rotated = expectation(for: isLandscape, evaluatedWith: nil)
+        wait(for: [rotated], timeout: 5)
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "09-home-landscape"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

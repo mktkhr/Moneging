@@ -6,11 +6,11 @@ internal struct RecordMenuSheet: View {
     internal let onChoose: (RecordOption) -> Void
 
     internal var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing14) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
             Text("記録する")
                 .font(.title2.weight(.bold))
                 .accessibilityIdentifier("record-sheet-title")
-            VStack(spacing: Theme.spacing10) {
+            VStack(spacing: Theme.Spacing.small) {
                 ForEach(RecordOption.sheetOrder, id: \.self) { option in
                     Button {
                         self.onChoose(option)
@@ -22,7 +22,7 @@ internal struct RecordMenuSheet: View {
                 }
             }
         }
-        .padding(Theme.spacing20)
+        .padding(Theme.Spacing.extraLarge)
         // `.contain`, not the default: exposes this whole content view as
         // its own accessibility element (so a UI test can compare its frame
         // with the presented sheet's, checking `fittedSheet()`) while keeping the

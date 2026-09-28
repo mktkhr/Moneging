@@ -48,7 +48,7 @@ internal struct TabHeaderModifier: ViewModifier {
             Menu {
                 self.ledgerMenuContent
             } label: {
-                HStack(spacing: Theme.spacing6) {
+                HStack(spacing: Theme.Spacing.small) {
                     Text(self.store.selectedLedgerName)
                         .font(.largeTitle.bold())
                         .foregroundStyle(Theme.text)
@@ -60,9 +60,9 @@ internal struct TabHeaderModifier: ViewModifier {
             .accessibilityIdentifier("ledger-title-menu")
             Spacer()
         }
-        .padding(.horizontal, Theme.spacing16)
-        .padding(.top, Theme.spacing8)
-        .padding(.bottom, Theme.spacing4)
+        .padding(.horizontal, Theme.Spacing.large)
+        .padding(.top, Theme.Spacing.small)
+        .padding(.bottom, Theme.Spacing.extraSmall)
         .background(Theme.background)
     }
 
@@ -74,7 +74,7 @@ internal struct TabHeaderModifier: ViewModifier {
                 }
             }
         } label: {
-            HStack(spacing: Theme.spacing4) {
+            HStack(spacing: Theme.Spacing.extraSmall) {
                 Text("\(self.store.selectedMonth)月")
                 Image(systemName: "chevron.down")
             }

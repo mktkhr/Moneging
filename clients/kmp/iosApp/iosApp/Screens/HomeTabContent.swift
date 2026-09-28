@@ -15,18 +15,17 @@ internal struct HomeTabContent: View {
     @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "home")
 
     internal var body: some View {
-        VStack(spacing: Theme.spacing12) {
-            TabRootLifecycleMarker(screenID: "home", creationCount: self.lifecycle.creationCount)
-            PlaceholderCard(title: "今月の残り予算", minHeight: Theme.budgetCardMinHeight)
-            PlaceholderCard(title: "読み取り中・確認待ち", minHeight: Theme.pendingCardMinHeight)
-            VStack(alignment: .leading, spacing: Theme.spacing8) {
+        VStack(spacing: Theme.Spacing.medium) {
+            PlaceholderCard(title: "今月の残り予算")
+            PlaceholderCard(title: "読み取り中・確認待ち")
+            VStack(alignment: .leading, spacing: Theme.Spacing.small) {
                 Text("最近の記録")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.mutedText)
                 ForEach(1...Self.recentRecordCount, id: \.self) { index in
                     Text("記録 \(index)")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Theme.spacing12)
+                        .padding(Theme.Spacing.medium)
                         .background(
                             Theme.surface,
                             in: RoundedRectangle(cornerRadius: Theme.radius),
@@ -39,7 +38,8 @@ internal struct HomeTabContent: View {
                 }
             }
         }
-        .padding(Theme.spacing16)
+        .padding(Theme.Spacing.large)
+        .tabRootLifecycleHook(screenID: "home", creationCount: self.lifecycle.creationCount)
     }
 }
 

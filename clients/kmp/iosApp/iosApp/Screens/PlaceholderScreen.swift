@@ -10,7 +10,7 @@ internal struct PlaceholderScreen: View {
     internal let subtitle: String
 
     internal var body: some View {
-        VStack(spacing: Theme.spacing8) {
+        VStack(spacing: Theme.Spacing.small) {
             Text(self.title)
                 .font(.title2.weight(.bold))
             Text(self.subtitle)

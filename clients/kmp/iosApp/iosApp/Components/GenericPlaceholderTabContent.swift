@@ -12,12 +12,11 @@ internal struct GenericPlaceholderTabContent: View {
     internal let rowTitle: String
 
     internal var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing8) {
-            TabRootLifecycleMarker(screenID: self.screenID, creationCount: self.creationCount)
+        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
             ForEach(1...Self.rowCount, id: \.self) { index in
                 Text("\(self.rowTitle) \(index)")
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Theme.spacing12)
+                    .padding(Theme.Spacing.medium)
                     .background(
                         Theme.surface,
                         in: RoundedRectangle(cornerRadius: Theme.radius),
@@ -29,7 +28,8 @@ internal struct GenericPlaceholderTabContent: View {
                     .accessibilityIdentifier("\(self.screenID)-row-\(index)")
             }
         }
-        .padding(Theme.spacing16)
+        .padding(Theme.Spacing.large)
+        .tabRootLifecycleHook(screenID: self.screenID, creationCount: self.creationCount)
     }
 }
 
