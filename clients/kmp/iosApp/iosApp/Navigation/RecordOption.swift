@@ -45,4 +45,18 @@ internal enum RecordOption: CaseIterable, Hashable {
             "doc.viewfinder"
         }
     }
+
+    /// A stable, ASCII identifier for UI testing.
+    internal var identifier: String {
+        switch self {
+        case .manual:
+            "manual"
+
+        case .photoPick:
+            "photo-pick"
+
+        case .receiptScan:
+            "receipt-scan"
+        }
+    }
 }

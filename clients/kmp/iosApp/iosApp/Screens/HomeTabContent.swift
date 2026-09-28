@@ -14,7 +14,7 @@ internal struct HomeTabContent: View {
     private static let budgetCardHeight: CGFloat = 132
     private static let pendingCardHeight: CGFloat = 64
 
-    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "home")
+    internal let lifecycle: TabRootLifecycle
 
     internal var body: some View {
         VStack(spacing: Self.sectionSpacing) {
@@ -47,6 +47,6 @@ internal struct HomeTabContent: View {
 
 #Preview {
     ScrollView {
-        HomeTabContent()
+        HomeTabContent(lifecycle: TabRootLifecycle(screenID: "home"))
     }
 }

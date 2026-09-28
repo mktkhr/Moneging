@@ -30,4 +30,27 @@ internal enum SettingsItem: CaseIterable, Hashable {
             "写真からの読み取り"
         }
     }
+
+    /// A stable, ASCII identifier for UI testing.
+    internal var identifier: String {
+        switch self {
+        case .appearance:
+            "appearance"
+
+        case .backup:
+            "backup"
+
+        case .categories:
+            "categories"
+
+        case .ledgerManagement:
+            "ledger-management"
+
+        case .notificationsDevice:
+            "notifications-device"
+
+        case .receiptScanning:
+            "receipt-scanning"
+        }
+    }
 }

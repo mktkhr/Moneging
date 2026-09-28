@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		1E4952136D22ADF14CFACF0C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D8BAC7954A82F95858C2B88C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AD8DB20D7B3F5E11B416A88D;
+			remoteInfo = iosApp;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		28BCB5E8E56F544DAD431789 /* Moneging.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Moneging.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E888F057D09C3B0C9B99F5DA /* iosAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iosAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -34,10 +45,22 @@
 			path = Configuration;
 			sourceTree = "<group>";
 		};
+		87D69E276996C0FBD462E498 /* iosAppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = iosAppUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		8897920C6430FB874B840C03 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		24DDCC96B17BB37E90DDED1C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -52,6 +75,7 @@
 			children = (
 				7976E4BE8AF7286E90939DEA /* Configuration */,
 				244BF7278A88431C50B18370 /* iosApp */,
+				87D69E276996C0FBD462E498 /* iosAppUITests */,
 				4206B40F92CE5A6460776B8A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				28BCB5E8E56F544DAD431789 /* Moneging.app */,
+				E888F057D09C3B0C9B99F5DA /* iosAppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -90,6 +115,29 @@
 			productReference = 28BCB5E8E56F544DAD431789 /* Moneging.app */;
 			productType = "com.apple.product-type.application";
 		};
+		4192418D1F4D85EF5FFA2F31 /* iosAppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E0C9A7F9AD907131AEB03CC /* Build configuration list for PBXNativeTarget "iosAppUITests" */;
+			buildPhases = (
+				3CDB5C75BDDA96BAC0D2BC78 /* Sources */,
+				24DDCC96B17BB37E90DDED1C /* Frameworks */,
+				1234C6AF6AC7D53EE7823E2B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CFBFDBBA5837F6AAC78C6FBD /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				87D69E276996C0FBD462E498 /* iosAppUITests */,
+			);
+			name = iosAppUITests;
+			packageProductDependencies = (
+			);
+			productName = iosAppUITests;
+			productReference = E888F057D09C3B0C9B99F5DA /* iosAppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -102,6 +150,10 @@
 				TargetAttributes = {
 					AD8DB20D7B3F5E11B416A88D = {
 						CreatedOnToolsVersion = 16.2;
+					};
+					4192418D1F4D85EF5FFA2F31 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = AD8DB20D7B3F5E11B416A88D;
 					};
 				};
 			};
@@ -120,12 +172,20 @@
 			projectRoot = "";
 			targets = (
 				AD8DB20D7B3F5E11B416A88D /* iosApp */,
+				4192418D1F4D85EF5FFA2F31 /* iosAppUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		DF3BA3F78DE437CD6584E230 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1234C6AF6AC7D53EE7823E2B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -164,7 +224,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3CDB5C75BDDA96BAC0D2BC78 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CFBFDBBA5837F6AAC78C6FBD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AD8DB20D7B3F5E11B416A88D /* iosApp */;
+			targetProxy = 1E4952136D22ADF14CFACF0C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F0051F58AB8612D8B2CCD096 /* Debug */ = {
@@ -346,6 +421,38 @@
 			};
 			name = Release;
 		};
+		A8D57E812A25537B27F5FDB3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.mktkhr.moneging.iosAppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = iosApp;
+			};
+			name = Debug;
+		};
+		4E8F35AEE63D5A3ADA542ED1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.mktkhr.moneging.iosAppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = iosApp;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -363,6 +470,15 @@
 			buildConfigurations = (
 				7AF91269B5E9227BEC455572 /* Debug */,
 				DF790BC43812F49EF7317586 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8E0C9A7F9AD907131AEB03CC /* Build configuration list for PBXNativeTarget "iosAppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A8D57E812A25537B27F5FDB3 /* Debug */,
+				4E8F35AEE63D5A3ADA542ED1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

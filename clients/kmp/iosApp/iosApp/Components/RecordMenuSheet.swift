@@ -21,6 +21,7 @@ internal struct RecordMenuSheet: View {
                         RecordOptionRow(option: option)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("record-option-\(option.identifier)")
                 }
             }
         }

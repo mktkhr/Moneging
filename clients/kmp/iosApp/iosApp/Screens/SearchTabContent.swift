@@ -7,8 +7,8 @@ internal struct SearchTabContent: View {
     private static let suggestionCount: Int = 20
 
     internal let path: Binding<NavigationPath>
+    internal let lifecycle: TabRootLifecycle
 
-    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
     @State private var query: String = ""
 
     internal var body: some View {
@@ -32,5 +32,8 @@ internal struct SearchTabContent: View {
 }
 
 #Preview {
-    SearchTabContent(path: .constant(NavigationPath()))
+    SearchTabContent(
+        path: .constant(NavigationPath()),
+        lifecycle: TabRootLifecycle(screenID: "search"),
+    )
 }

@@ -23,6 +23,7 @@ internal struct FloatingRecordButton: View {
                 )
         }
         .accessibilityLabel("記録する")
+        .accessibilityIdentifier("record-button")
         .frame(minWidth: Theme.minimumTapTarget, minHeight: Theme.minimumTapTarget)
     }
 }

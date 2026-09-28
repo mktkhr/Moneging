@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 予算 tab root content: placeholder only, scrollable.
 internal struct BudgetTabContent: View {
-    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "budget")
+    internal let lifecycle: TabRootLifecycle
 
     internal var body: some View {
         GenericPlaceholderTabContent(
@@ -15,6 +15,6 @@ internal struct BudgetTabContent: View {
 
 #Preview {
     ScrollView {
-        BudgetTabContent()
+        BudgetTabContent(lifecycle: TabRootLifecycle(screenID: "budget"))
     }
 }

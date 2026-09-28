@@ -13,32 +13,44 @@ internal struct RootView: View {
     @Environment(AppRouter.self)
     private var router: AppRouter
 
+    // Held here, not inside each tab's own content view: `Tab(role:
+    // .search)` has been observed to reconstruct its content on every
+    // activation (unlike the four plain tabs), which would otherwise
+    // recreate `searchLifecycle` on every switch to 検索. Hoisting every
+    // tab root's state to `RootView`, which is itself created once at the
+    // app root, keeps all five at a single creation regardless.
+    @State private var homeLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "home")
+    @State private var calendarLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "calendar")
+    @State private var reportLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "report")
+    @State private var budgetLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "budget")
+    @State private var searchLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
+
     internal var body: some View {
         @Bindable var router: AppRouter = self.router
 
         TabView(selection: $router.selectedTab) {
             Tab("ホーム", systemImage: "house", value: AppTab.home) {
                 MainTabScreen(path: $router.homePath) {
-                    HomeTabContent()
+                    HomeTabContent(lifecycle: self.homeLifecycle)
                 }
             }
             Tab("カレンダー", systemImage: "calendar", value: AppTab.calendar) {
                 MainTabScreen(path: $router.calendarPath) {
-                    CalendarTabContent()
+                    CalendarTabContent(lifecycle: self.calendarLifecycle)
                 }
             }
             Tab("レポート", systemImage: "chart.bar", value: AppTab.report) {
                 MainTabScreen(path: $router.reportPath) {
-                    ReportTabContent()
+                    ReportTabContent(lifecycle: self.reportLifecycle)
                 }
             }
             Tab("予算", systemImage: "creditcard", value: AppTab.budget) {
                 MainTabScreen(path: $router.budgetPath) {
-                    BudgetTabContent()
+                    BudgetTabContent(lifecycle: self.budgetLifecycle)
                 }
             }
             Tab(value: AppTab.search, role: .search) {
-                SearchTabContent(path: $router.searchPath)
+                SearchTabContent(path: $router.searchPath, lifecycle: self.searchLifecycle)
             } label: {
                 Label("検索", systemImage: "magnifyingglass")
             }

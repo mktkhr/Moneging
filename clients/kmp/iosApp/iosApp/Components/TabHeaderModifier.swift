@@ -6,10 +6,19 @@ import SwiftUI
 ///
 /// Matches `scratchpad/design/project/OptionB.dc.html`'s header. Applied by
 /// `MainTabScreen`, so every main tab reuses the same header.
+///
+/// The ledger name uses a custom `Menu`-backed title row (`safeAreaInset`)
+/// rather than SwiftUI's `toolbarTitleMenu`: the latter renders reliably,
+/// but empirically its tap target does not open the menu in this project's
+/// toolchain, which would leave the ledger switcher unusable.
 internal struct TabHeaderModifier: ViewModifier {
     private static let firstMonth: Int = 1
     private static let lastMonth: Int = 12
     private static let monthChipSpacing: CGFloat = 4
+    private static let titleSpacing: CGFloat = 6
+    private static let titleHorizontalPadding: CGFloat = 16
+    private static let titleTopPadding: CGFloat = 8
+    private static let titleBottomPadding: CGFloat = 4
 
     @Environment(SharedStateStore.self)
     private var store: SharedStateStore
@@ -28,6 +37,7 @@ internal struct TabHeaderModifier: ViewModifier {
                     Text(ledger.name)
                 }
             }
+            .accessibilityIdentifier("ledger-menu-\(ledger.id)")
         }
         Divider()
         Button {
@@ -35,6 +45,30 @@ internal struct TabHeaderModifier: ViewModifier {
         } label: {
             Label("家計簿を追加", systemImage: "plus")
         }
+        .accessibilityIdentifier("ledger-menu-add")
+    }
+
+    private var ledgerTitleRow: some View {
+        HStack {
+            Menu {
+                self.ledgerMenuContent
+            } label: {
+                HStack(spacing: Self.titleSpacing) {
+                    Text(self.store.selectedLedgerName)
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.primary)
+                    Image(systemName: "chevron.down")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                }
+            }
+            .accessibilityIdentifier("ledger-title-menu")
+            Spacer()
+        }
+        .padding(.horizontal, Self.titleHorizontalPadding)
+        .padding(.top, Self.titleTopPadding)
+        .padding(.bottom, Self.titleBottomPadding)
+        .background(Theme.background)
     }
 
     private var monthChip: some View {
@@ -51,14 +85,14 @@ internal struct TabHeaderModifier: ViewModifier {
             }
         }
         .accessibilityLabel("表示する月（\(self.store.selectedMonth)月）")
+        .accessibilityIdentifier("month-chip")
     }
 
     internal func body(content: Content) -> some View {
         content
-            .navigationTitle(self.store.selectedLedgerName)
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarTitleMenu {
-                self.ledgerMenuContent
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                self.ledgerTitleRow
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -71,6 +105,7 @@ internal struct TabHeaderModifier: ViewModifier {
                         Image(systemName: "bell")
                     }
                     .accessibilityLabel("お知らせ（未読あり）")
+                    .accessibilityIdentifier("notifications-button")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -79,6 +114,7 @@ internal struct TabHeaderModifier: ViewModifier {
                         Image(systemName: "person.crop.circle")
                     }
                     .accessibilityLabel("アカウント")
+                    .accessibilityIdentifier("account-button")
                 }
             }
     }

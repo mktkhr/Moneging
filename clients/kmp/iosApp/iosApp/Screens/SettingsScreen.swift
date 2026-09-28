@@ -18,6 +18,7 @@ internal struct SettingsScreen: View {
                         NavigationLink(value: Route.settingsDetail(item)) {
                             Text(item.label)
                         }
+                        .accessibilityIdentifier("settings-\(item.identifier)")
                     }
                 }
             }
