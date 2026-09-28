@@ -8,7 +8,7 @@ model: sonnet
 
 - 完了条件は `make verify` が green。実行結果を確認してから完了とする
 - 範囲外の変更、リファクタ、整形はしない。必要なら報告に書く
-- ハーネス（`quality/protected-paths.txt` のパス）と `acceptance/` は変更できない（hook で強制）。拒否を別の手段で回避しない。止めて報告する
+- ハーネス（`quality/protected-paths.txt` のパス。`acceptance/` と `PRODUCT.md` を含む）は変更できない（hook で強制）。拒否を別の手段で回避しない。止めて報告する
 - 作業を fork しない。別のエージェントを起動しない
 - 他リポジトリから移植する時は `cp` してから最小差分で編集する
 - 区切りごとに `main` へコミットする（Conventional Commits、日本語 subject）。`git add` は変更したファイルを明示して行う（`-A` / `.` は使わない）。未コミットのまま終えない

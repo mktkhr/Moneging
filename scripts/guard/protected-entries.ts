@@ -1,8 +1,7 @@
 /**
  * The registry of protected paths (quality/protected-paths.txt) and the one
- * question every guard asks of it: is a path protected. Which callers the
- * registry binds is decided by role (scripts/guard/roles.ts);
- * ALWAYS_PROTECTED binds every caller, the main session included.
+ * question every guard asks of it: is a path protected. ALWAYS_PROTECTED is
+ * refused alongside it and is not committed content.
  */
 import path from "node:path";
 
@@ -22,8 +21,8 @@ export function isProtected(relative: string, entries: readonly string[]): boole
 }
 
 /**
- * Refused to every caller, path tools and Bash writes alike: `.git` and the
+ * Refused to every session, path tools and Bash writes alike: `.git` and the
  * human's own local Claude settings (never committed) are never a session's
- * to touch.
+ * to touch, not even through an apply script's review.
  */
 export const ALWAYS_PROTECTED: readonly string[] = [".git", ".claude/settings.local.json"];

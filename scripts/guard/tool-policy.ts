@@ -3,27 +3,26 @@
  * change reaches git. Exit code 2 blocks the call and shows stderr to Claude.
  *
  * Governs Edit, MultiEdit, Write and NotebookEdit (by path) and Bash (by
- * command, in scripts/guard/bash-policy.ts). What a caller may write depends
- * on its role (scripts/guard/roles.ts): subagents doing product work cannot
- * touch the harness (quality/protected-paths.txt) or the acceptance tests;
- * the acceptance writer cannot touch the harness or product code; a reviewer
- * writes nothing; the main session, which changes the harness only after the
- * human approves it in conversation, is bound only by the always-protected
- * paths.
+ * command, in scripts/guard/bash-policy.ts). The protected list is
+ * quality/protected-paths.txt, the same list the pre-commit hook and
+ * `make guard-protected` read. A protected path is refused unconditionally,
+ * the main session included: a harness change is an apply script the human
+ * approves, never something a session writes in place. A reviewer subagent
+ * (scripts/guard/roles.ts) writes nothing inside the repository at all.
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-import { bannedCommand, isBannedTarget } from "./bash-policy.ts";
-import { isProtected, protectedEntries } from "./protected-entries.ts";
-import { type Role, roleOf } from "./roles.ts";
+import { bannedCommand } from "./bash-policy.ts";
+import { ALWAYS_PROTECTED, isProtected, protectedEntries } from "./protected-entries.ts";
+import { isReviewer } from "./roles.ts";
 
 export interface HookInput {
   readonly tool_name: string;
   readonly tool_input: Readonly<Record<string, unknown>>;
   readonly cwd?: string;
-  readonly agent_id?: string;
-  readonly agent_type?: string;
+  readonly agent_id?: unknown;
+  readonly agent_type?: unknown;
 }
 
 export { bannedCommand, isProtected, protectedEntries };
@@ -70,12 +69,12 @@ function resolveRelative(root: string, target: string): string | null {
   return path.relative(realpathSync(root), resolved).split(path.sep).join("/");
 }
 
-/** null to allow the call, or the reason to refuse it. The role defaults to the most restricted subagent. */
+/** null to allow the call, or the reason to refuse it. */
 export function decide(
   input: HookInput,
   root: string,
   entries: readonly string[],
-  role: Role = "restricted",
+  reviewer = false,
 ): string | null {
   if (PATH_TOOLS.has(input.tool_name)) {
     const target = input.tool_input["file_path"] ?? input.tool_input["notebook_path"];
@@ -92,16 +91,17 @@ export function decide(
       )
     )
       return "only the Stop hook records a verified tree";
-
-    const banned = candidates.find((candidate) => isBannedTarget(candidate, entries, role));
-
-    if (banned !== undefined) return `${relative} is not writable by this role (${role})`;
+    if (candidates.some((candidate) => isProtected(candidate, ALWAYS_PROTECTED)))
+      return "git internals and the local Claude settings are never a session's to edit";
+    if (candidates.some((candidate) => isProtected(candidate, entries)))
+      return `${relative} is part of the harness (quality/protected-paths.txt)`;
+    if (reviewer) return "a reviewer writes nothing inside the repository";
 
     return null;
   }
 
   if (input.tool_name === "Bash" && typeof input.tool_input["command"] === "string") {
-    return bannedCommand(input.tool_input["command"], entries, root, input.cwd, role);
+    return bannedCommand(input.tool_input["command"], entries, root, input.cwd, reviewer);
   }
 
   return null;
@@ -121,15 +121,17 @@ function main(): number {
       return 2;
     }
 
-    const reason = decide(parsed, root, entries, roleOf(parsed));
+    const reason = decide(parsed, root, entries, isReviewer(parsed));
 
     if (reason === null) return 0;
 
     process.stderr.write(
       `Refused by the Repository Harness: ${reason}.\n` +
         "Fix the product code instead. A refusal is information about the plan, not an obstacle\n" +
-        "to route around. If the harness or the acceptance tests must change, stop and report what\n" +
-        "and why; the main session makes that change after the human approves it.\n",
+        "to route around. If the harness itself must change, write the change as a bundle outside\n" +
+        "the repository (full replacement files plus an apply.sh that copies them in, runs\n" +
+        "make harness-check, commits and moves refs/harness/approved), explain it, and stop:\n" +
+        "running it is the human's approval (docs/handbook/harness.md).\n",
     );
 
     return 2;

@@ -5,34 +5,20 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 ## 3層
 
 1. **PreToolUse（ツール実行前）**: `scripts/guard/tool-policy.ts` が Edit/Write/
-   NotebookEdit/Bash を検査する。書き込めるパスは呼び出し元の役割で決まる
-   （下の表）。`--no-verify`、`core.hooksPath` の書き換え、`git push --force`、
-   `git add -f` などハーネスを回避する Bash コマンドは、役割に関わらず常に拒否
-   される。
+   NotebookEdit/Bash を検査する。保護パス（下記）への書き込みは、メインセッション
+   を含むすべてのセッションで拒否される。`--no-verify`、`core.hooksPath` の書き換え、
+   `git push --force`、`git add -f`、`MONEGING_ALLOW_HARNESS_CHANGE` の使用なども
+   常に拒否される。`reviewer` サブエージェントはリポジトリ内に何も書き込めない。
 2. **Stop（ターン終了時）**: `scripts/guard/stop-gate.sh` が未追跡ファイルの有無
    を確認し、`make -k verify` を実行する。`harness-check` はベースラインに関係
    なく常にグリーンでなければならない。それ以外のゲートは、前のターンで通って
    いたものが新たに落ちた場合だけターンを止める。3回連続で拒否すると諦めて
    ユーザーに伝える（その判定は同一のツリー状態にキャッシュされ、ツリーが変わ
    るまで再判定しない）。
-3. **git hooks**: `hooks/pre-commit` はステージ済みの Kotlin/Swift の整形を確認
-   する。`hooks/pre-push` は `make check` をフルで実行する。
-
-## 役割ごとの書き込み範囲
-
-役割は hook 入力の `agent_id` / `agent_type` で判定する（`scripts/guard/roles.ts`）。
-名前の無いサブエージェントは実装者と同じ扱い。
-
-| 役割 | ハーネス・`PRODUCT.md` | `acceptance/` | それ以外 | コミット |
-|---|---|---|---|---|
-| メインセッション | 可（ユーザーの承認後） | 可 | 可 | 可 |
-| 実装者・その他のサブエージェント | 不可 | 不可 | 可 | 作業ツリーに不可のパスの変更があると拒否 |
-| `acceptance-writer` | 不可 | 可 | 不可 | 作業ツリーに不可のパスの変更があると拒否 |
-| `reviewer` | 不可 | 不可 | 不可 | 不可 |
-
-`.git` と `.claude/settings.local.json` は全員に対して常に拒否される。
-サブエージェントは `git reset --hard` / `clean` / `stash` / `checkout .` も使えない
-（メインセッションの未コミットの変更を消さないため）。
+3. **git hooks**: `hooks/pre-commit` はステージ済みの保護パス変更を拒否し
+   （`MONEGING_ALLOW_HARNESS_CHANGE=1` が無い限り）、Kotlin/Swift の整形を確認
+   する。`hooks/pre-push` は `make check` をフルで実行する。`make guard-protected`
+   は `refs/harness/approved` からの保護パスの差分を検出する。
 
 ## 何が保護されているか
 
@@ -41,9 +27,23 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 `CLAUDE.md` `.gitignore` `clients/kmp/.gitignore`、Gradle の一部設定ファイル、
 `clients/kmp/build-logic` `clients/kmp/.editorconfig`
 `clients/kmp/iosApp/Configuration/Config.xcconfig` `PRODUCT.md` `acceptance/`。
+`.git` と `.claude/settings.local.json` も常に拒否される。
 
-ハーネスを変えるときは、メインセッションが変更内容を提示し、ユーザーが会話で
-承認してから変更・コミットする。
+## ハーネスの変え方（変更スクリプト）
+
+ハーネスはセッションが直接編集しない。変更は、リポジトリの外に置く変更一式で
+1回で入れる。
+
+1. セッションが変更一式をリポジトリの外（例: `~/.cache/moneging-harness/<名前>/`）
+   に作る。中身は差し替えるファイル一式と `apply.sh`。
+2. `apply.sh` は、想定した HEAD であることの確認 → ファイルのコピー →
+   `make harness-check` → `MONEGING_ALLOW_HARNESS_CHANGE=1` でのコミット →
+   `refs/harness/approved` の更新、を1回で行う。途中で失敗したら何も残さない。
+3. セッションは内容を説明して止まる。人間が確認し、実行を許可する
+   （`apply.sh` を含むコマンドは、`.claude/settings.json` の `permissions.ask` により
+   毎回確認される）。
+
+受け入れテスト（`acceptance/`）と `PRODUCT.md` も同じ手順で変更する。
 
 ## 初回セットアップ
 
@@ -54,7 +54,7 @@ make hooks     # git hooks を hooks/ に向ける
 
 ## 主な make ターゲット
 
-- `make verify` — 高速チェック一式（harness-check,
+- `make verify` — 高速チェック一式（harness-check, guard-protected,
   guard-ignored, guard-toolchain, guard-suppressions, fmt-check, lint,
   kmp-test）。Stop hook が実行するのと同じ。
 - `make check` — verify に加え、Android/iOS のビルド、`swiftlint analyze`、
