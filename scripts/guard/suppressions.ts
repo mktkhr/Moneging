@@ -37,12 +37,18 @@ interface Rule {
 
 /**
  * A property whose only acceptable value is fixed. Every mention of it is a
- * finding unless it assigns exactly that value (`= v`, `.set(v)`) or locks it
- * (`.disallowChanges()`): `.set(flag)`, `= project.hasProperty(...)`,
- * `.convention(true)`, a multi-line assignment and so on are all flagged.
+ * finding unless it assigns exactly that value (`= v`, `.set(v)`), locks it
+ * (`.disallowChanges()`) or only reads it (`.orNull`, `.get()`,
+ * `.isPresent` - the convention plugin's final-state verification):
+ * `.set(flag)`, `= project.hasProperty(...)`, `.convention(true)`, passing
+ * the property itself somewhere, a multi-line assignment and so on are all
+ * flagged.
+ * The Java-setter form (`setIgnoreFailures(v)`) is held to the same value.
  */
 interface ValueGuard {
   readonly name: string;
+  /** The property name as it appears after `set` in its Java setter. */
+  readonly setter: string;
   readonly allowed: string;
 }
 
@@ -51,10 +57,14 @@ const EXCLUDED_PREFIXES = ["quality/", "scripts/guard/", ".claude/", "docs/"];
 // Kotlin/Java source (product, tests and build scripts alike).
 const KOTLIN_RULES: readonly Rule[] = [
   // @Suppress, @Suppress ("X"), @kotlin.Suppress, @file:/@get:/@field:...
-  // use-site targets, @file:[Suppress(...)], @SuppressWarnings, @SuppressLint.
+  // use-site targets, @file:[Suppress(...)], @SuppressWarnings, @SuppressLint,
+  // and any of them with backtick-quoted names (@`Suppress`, @`kotlin`.`Suppress`).
+  // Suppress anywhere inside a bracketed annotation list
+  // (@file:[JvmName("a") Suppress("x")]), also across lines, is caught by
+  // bracketSuppressLines().
   {
     directive: "@Suppress",
-    pattern: /@\s*(?:[a-z]+\s*:\s*)?\[?\s*(?:[\w.]+\.)?Suppress(?:Warnings|Lint)?\b/u,
+    pattern: /@\s*(?:`?[a-z]+`?\s*:\s*)?\[?\s*(?:[\w.`]+\.)?`?Suppress(?:Warnings|Lint)?\b/u,
   },
   // An alias for any of the above.
   { directive: "Suppress-alias", pattern: /\btypealias\s+\w+\s*=\s*(?:[\w.]+\.)?Suppress\w*/u },
@@ -84,32 +94,39 @@ const XML_RULES: readonly Rule[] = [
 
 // Gradle build logic: *.kts, *.gradle and the convention plugin sources.
 const BUILD_RULES: readonly Rule[] = [
-  { directive: "task-disabled", pattern: /\b(?:is)?[Ee]nabled\s*=\s*false\b|\benabled\.set\(\s*false\s*\)/u },
-  { directive: "task-disabled", pattern: /\bonlyIf\s*(?:\(|\{)\s*(?:\{\s*)?false\b/u },
+  {
+    directive: "task-disabled",
+    pattern: /\b(?:is)?[Ee]nabled\s*=\s*false\b|\benabled\.set\(\s*false\s*\)|\bset(?:Is)?Enabled\s*\(\s*false\b/u,
+  },
+  { directive: "task-disabled", pattern: /\b(?:set)?[Oo]nlyIf\s*(?:\(|\{)\s*(?:\{\s*)?false\b/u },
   // Android Lint DSL: turning issues off or narrowing the check set.
   {
     directive: "lint-disable",
-    pattern: /\b(?:disable|checkOnly|informational)\s*(?:\+=|=|\(|\.add(?:All)?\s*\()/u,
+    pattern: /\b(?:disable|checkOnly|informational|set(?:Disable|CheckOnly|Informational))\s*(?:\+=|=|\(|\.add(?:All)?\s*\()/u,
   },
   { directive: "compiler-nowarn", pattern: /-nowarn\b|-Xsuppress-warning|-Xwarning-level/u },
 ];
 
 const BUILD_VALUE_GUARDS: readonly ValueGuard[] = [
-  { name: "(?:is)?[Ii]gnoreFailures", allowed: "false" },
-  { name: "allWarningsAsErrors", allowed: "true" },
-  { name: "suppressWarnings", allowed: "false" },
-  { name: "ignoreWarnings", allowed: "false" },
-  { name: "warningsAsErrors", allowed: "true" },
-  { name: "abortOnError", allowed: "true" },
-  { name: "checkAllWarnings", allowed: "true" },
-  { name: "checkTestSources", allowed: "true" },
-  { name: "ignoreTestSources", allowed: "false" },
-  { name: "allRules", allowed: "true" },
-  { name: "buildUponDefaultConfig", allowed: "true" },
-  { name: "disableDefaultRuleSets", allowed: "false" },
-  { name: "failOnSeverity", allowed: "(?:[\\w.]*FailOnSeverity\\.)?Info" },
-  { name: "ignored(?:Variants|BuildTypes|Flavors)", allowed: "emptyList\\(\\)" },
-  { name: "baseline(?:File)?", allowed: "null(?:\\s+as\\s+[\\w.]+\\?)?" },
+  { name: "(?:is)?[Ii]gnoreFailures", setter: "(?:Is)?IgnoreFailures", allowed: "false" },
+  { name: "allWarningsAsErrors", setter: "AllWarningsAsErrors", allowed: "true" },
+  { name: "suppressWarnings", setter: "SuppressWarnings", allowed: "false" },
+  { name: "ignoreWarnings", setter: "IgnoreWarnings", allowed: "false" },
+  { name: "warningsAsErrors", setter: "WarningsAsErrors", allowed: "true" },
+  { name: "abortOnError", setter: "AbortOnError", allowed: "true" },
+  { name: "checkAllWarnings", setter: "CheckAllWarnings", allowed: "true" },
+  { name: "checkTestSources", setter: "CheckTestSources", allowed: "true" },
+  { name: "ignoreTestSources", setter: "IgnoreTestSources", allowed: "false" },
+  { name: "allRules", setter: "AllRules", allowed: "true" },
+  { name: "buildUponDefaultConfig", setter: "BuildUponDefaultConfig", allowed: "true" },
+  { name: "disableDefaultRuleSets", setter: "DisableDefaultRuleSets", allowed: "false" },
+  { name: "failOnSeverity", setter: "FailOnSeverity", allowed: "(?:[\\w.]*FailOnSeverity\\.)?Info" },
+  {
+    name: "ignored(?:Variants|BuildTypes|Flavors)",
+    setter: "Ignored(?:Variants|BuildTypes|Flavors)",
+    allowed: "emptyList\\(\\)",
+  },
+  { name: "baseline(?:File)?", setter: "Baseline(?:File)?", allowed: "null(?:\\s+as\\s+[\\w.]+\\?)?" },
 ];
 
 const EDITORCONFIG_RULES: readonly Rule[] = [
@@ -134,21 +151,59 @@ function valueGuardFindings(line: string): string[] {
   for (const guard of BUILD_VALUE_GUARDS) {
     const mention = new RegExp(`\\b(${guard.name})\\b`, "gu");
     const accepted = new RegExp(
-      `^\\s*(?:=\\s*${guard.allowed}(?![\\w.(])|\\.set\\(\\s*${guard.allowed}\\s*\\)|\\.disallowChanges\\(\\s*\\))`,
+      `^\\s*(?:=\\s*${guard.allowed}(?![\\w.(])|\\.set\\(\\s*${guard.allowed}\\s*\\)|\\.disallowChanges\\(\\s*\\)|\\.(?:orNull|isPresent)(?![\\w(])|\\.get\\(\\s*\\))`,
       "u",
     );
+
+    const setter = new RegExp(`\\b(set${guard.setter})\\s*\\(`, "gu");
+    const acceptedSetter = new RegExp(`^\\s*${guard.allowed}\\s*\\)`, "u");
+    let found = false;
 
     for (const match of line.matchAll(mention)) {
       const rest = line.slice((match.index ?? 0) + match[0].length);
 
       if (!accepted.test(rest)) {
         directives.push(match[1] ?? guard.name);
+        found = true;
+        break;
+      }
+    }
+    if (found) continue;
+    for (const match of line.matchAll(setter)) {
+      const rest = line.slice((match.index ?? 0) + match[0].length);
+
+      if (!acceptedSetter.test(rest)) {
+        directives.push(match[1] ?? guard.setter);
         break;
       }
     }
   }
 
   return directives;
+}
+
+/**
+ * 0-based indexes of the lines holding `Suppress` (or SuppressWarnings /
+ * SuppressLint) inside a bracketed annotation list - `@[A B]`,
+ * `@file:[A B]` - wherever it sits in the list and across lines.
+ */
+function bracketSuppressLines(content: string): Set<number> {
+  const lines = new Set<number>();
+  const list = /@\s*(?:`?[a-z]+`?\s*:\s*)?\[([^\]]*)\]/gu;
+  const suppress = /(?:^|[^\w`])`?Suppress(?:Warnings|Lint)?\b/gu;
+
+  for (const match of content.matchAll(list)) {
+    const inner = match[1] ?? "";
+    const innerStart = (match.index ?? 0) + match[0].indexOf("[") + 1;
+
+    for (const hit of inner.matchAll(suppress)) {
+      const offset = innerStart + (hit.index ?? 0) + hit[0].indexOf("S");
+
+      lines.add(content.slice(0, offset).split("\n").length - 1);
+    }
+  }
+
+  return lines;
 }
 
 function isCommentLine(line: string): boolean {
@@ -195,10 +250,13 @@ export function scanContent(file: string, content: string): Finding[] {
 
   if (rules.length === 0 && !buildFile) return findings;
 
+  const bracketed = /\.(?:kt|kts|java|gradle)$/u.test(file) ? bracketSuppressLines(content) : new Set<number>();
+
   content.split(/\r?\n/u).forEach((line, index) => {
     const code = line.trim();
     const directives = new Set<string>();
 
+    if (bracketed.has(index)) directives.add("@Suppress");
     for (const rule of rules) {
       if (rule.pattern.test(line)) directives.add(rule.directive);
     }
