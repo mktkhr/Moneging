@@ -96,12 +96,17 @@ internal enum Theme {
     /// The style's base corner radius: a card/row's own rounding (takamai
     /// `StyleTokens.radius`; Soft = 22).
     internal static let radius: CGFloat = CGFloat(ThemeTokensKt.defaultStyleTokens.radius)
-    /// A button's own corner radius (takamai `StyleTokens.btnRadius`; Soft
-    /// = 999, i.e. a full pill).
-    internal static let btnRadius: CGFloat = CGFloat(ThemeTokensKt.defaultStyleTokens.btnRadius)
     /// A chip's own corner radius (takamai `StyleTokens.chipRadius`; Soft =
     /// 999, i.e. a full pill).
     internal static let chipRadius: CGFloat = CGFloat(ThemeTokensKt.defaultStyleTokens.chipRadius)
+
+    // `btnRadius` (takamai `StyleTokens.btnRadius`; a rounded-rect button's
+    // own corner radius) is not mapped here: nothing in this shell paints a
+    // rounded-rect button yet (the floating 記録する button is a `Circle`;
+    // every other button is plain/list-styled), and an unused `CGFloat`
+    // fails `swiftlint-analyze`'s `unused_declaration` - see the same note
+    // above for `accentTint`/`glassSurface`. `ThemeTokensKt.defaultStyleTokens.btnRadius`
+    // stays available as data for whenever a consumer needs it.
     /// This style's own drop shadow's blur radius (takamai
     /// `StyleSchemeTokens.shadow`; 0 when the style has none).
     internal static let shadowBlurRadius: CGFloat = CGFloat(Self.light.shadowBlurRadius)
