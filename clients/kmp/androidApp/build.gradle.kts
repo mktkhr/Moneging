@@ -3,38 +3,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.detekt)
-    alias(libs.plugins.ktlintGradle)
+    // Static-analysis policy (compiler warnings, detekt, ktlint, Android
+    // Lint): clients/kmp/build-logic.
+    id("moneging.quality")
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11
-        allWarningsAsErrors = true
-    }
-}
-
-detekt {
-    allRules = true
-    buildUponDefaultConfig = false
-    config.setFrom(files("${rootProject.projectDir}/../../quality/kotlin/detekt.yml"))
-}
-
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-    // See sharedUI/build.gradle.kts: a relative "**/build/**" glob does not
-    // match generated source roots that already live under build/, so
-    // filter by absolute path instead.
-    exclude { it.file.path.contains("/build/") }
-}
-
-ktlint {
-    version.set("1.8.0")
-    android.set(true)
-    ignoreFailures.set(false)
-    filter {
-        // See the detekt exclusion above: generated source roots live under
-        // build/ and a relative glob does not match them.
-        exclude { it.file.path.contains("/build/") }
     }
 }
 
@@ -87,15 +63,5 @@ android {
     }
     buildFeatures {
         compose = true
-    }
-    lint {
-        // Every Android Lint check, including the ones off by default, and
-        // any warning fails the build: the product bends to the policy.
-        checkAllWarnings = true
-        lintConfig = file("${rootProject.projectDir}/../../quality/kotlin/android-lint.xml")
-        warningsAsErrors = true
-        abortOnError = true
-        checkDependencies = true
-        checkTestSources = true
     }
 }

@@ -2,10 +2,11 @@
 <!--
   Moneging Android Lint policy.
 
-  Part of the Repository Harness. Every check is on (checkAllWarnings) and
-  every warning is an error (warningsAsErrors) in each module's
-  build.gradle.kts; this file only lists what is deliberately off, each with
-  the reason.
+  Part of the Repository Harness. Applied to every Android module
+  (androidApp, sharedLogic, sharedUI) by the build-logic convention plugin
+  (clients/kmp/build-logic), which also turns every check on
+  (checkAllWarnings) and makes every warning an error (warningsAsErrors).
+  This file only lists what is deliberately off, each with the reason.
 -->
 <lint>
     <!--

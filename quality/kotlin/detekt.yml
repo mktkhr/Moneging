@@ -3,46 +3,86 @@
 # This file is part of the Repository Harness. It is intentionally strict:
 # the product code must bend to the policy, not the other way around.
 #
-# All rules are activated (`detekt { allRules = true }` in each module's
-# build.gradle.kts), including experimental/inactive ones. maxIssues is 0:
-# any finding fails the build. No baseline file is used.
+# Tool: dev.detekt 2.0.0-alpha.6. All rules are active (`allRules`), any
+# finding fails (`failOnSeverity = Info`), no baseline - all set and locked
+# in the build-logic convention plugin
+# (clients/kmp/build-logic/.../QualityConventionPlugin.kt).
 #
-# Version choice: io.gitlab.arturbosch.detekt 1.23.8, empirically verified
-# against Kotlin 2.4.20 rather than assumed from prior research. Prior
-# research flagged that detekt 1.23.8 (built/tested against Kotlin 2.0.21)
-# might break on newer Kotlin compiler-metadata versions the way it does on
-# Kotlin 2.3.0 (detekt/detekt#8865). That was re-tested here directly:
-# `./gradlew detekt` plus every per-source-set, type-resolution-requiring
-# task the plugin generates for this project's three KMP modules
-# (detektMetadataMain, detektMetadataCommonMain, detektMetadataIosMain,
-# detektAndroidMain, detektAndroidHostTest, detektIosArm64Main/Test,
-# detektIosSimulatorArm64Main/Test) ran to completion with no
-# configuration/execution failure of any kind - only real lint findings, or
-# NO-SOURCE where a source set is legitimately empty. On that evidence,
-# 1.23.8 was kept rather than moving to the pre-1.0 dev.detekt 2.0.0-alpha.6
-# line.
-#
-# Known gap (not a suppression - a real coverage limit of this plugin
-# version): detekt-gradle-plugin 1.23.8 does not generate a type-resolution
-# task for the shared `commonTest`/`iosTest` Kotlin Multiplatform
-# intermediate source sets (only per-leaf-target Main/Test and Android
-# host/device test variants get one). Each module's build.gradle.kts works
-# around this by also pointing the plain, non-type-resolution `detekt` task
-# at every source directory (`detekt.source.setFrom(...)`), so commonTest and
-# iosTest are still scanned - without type resolution, but under the same
-# `allRules`/`maxIssues: 0` policy as everything else.
-
-build:
-  maxIssues: 0
-  excludeCorrectable: false
+# Coverage (detekt 2.0.0-alpha.6):
+# - Type resolution: the Android compilations of each module
+#   (sharedLogic/sharedUI: detektMainAndroid = commonMain + androidMain,
+#   detektHostTestAndroid / detektDeviceTestAndroid = the test source sets;
+#   androidApp: detektMain / detektTest and the per-variant tasks).
+# - Without type resolution: iosMain/iosTest (and the other Apple/native
+#   source sets). detekt 2.0.0-alpha.6 builds its Analysis API session for
+#   the JVM platform only and registers compilation tasks for JVM/Android
+#   targets only, so Kotlin/Native code cannot be type-resolved; the
+#   detekt<SourceSet>SourceSet tasks still apply every non-type-resolution
+#   rule to it.
+# - Tests get the same rules as product code: the default config's
+#   test-path `excludes` (and ImplicitUnitReturnType's `ignoreAnnotated:
+#   [Test]`) are cleared below.
 
 config:
   validation: true
   warningsAsErrors: true
 
+# Every rule below had a default `excludes:` of test paths in detekt's
+# default config; `[]` applies it to tests too.
+comments:
+  KDocReferencesNonPublicProperty:
+    excludes: []
+  UndocumentedPublicClass:
+    excludes: []
+  UndocumentedPublicFunction:
+    excludes: []
+  UndocumentedPublicProperty:
+    excludes: []
+complexity:
+  StringLiteralDuplication:
+    excludes: []
+  TooManyFunctions:
+    excludes: []
+exceptions:
+  InstanceOfCheckForException:
+    excludes: []
+  ThrowingExceptionsWithoutMessageOrCause:
+    excludes: []
+  TooGenericExceptionCaught:
+    excludes: []
 naming:
   FunctionNaming:
     # @Composable functions follow Compose's PascalCase convention (they are
     # conceptually factories for UI, not plain functions); this is detekt's
     # own documented knob for that convention, not a suppression.
     ignoreAnnotated: ['Composable']
+    excludes: []
+performance:
+  ForEachOnRange:
+    excludes: []
+  SpreadOperator:
+    excludes: []
+potential-bugs:
+  LateinitUsage:
+    excludes: []
+  MissingPackageDeclaration:
+    excludes: []
+  UnsafeCallOnNullableType:
+    excludes: []
+  ImplicitUnitReturnType:
+    # Default ignoreAnnotated: ['Test'] exempts tests; tests get the rule too.
+    ignoreAnnotated: []
+style:
+  MagicNumber:
+    excludes: []
+
+# Console output: only the one-line-per-finding report (detekt's own default
+# selection); the full reports are still written under build/reports/detekt.
+console-reports:
+  active: true
+  exclude:
+    - 'ProjectStatisticsReport'
+    - 'ComplexityReport'
+    - 'NotificationReport'
+    - 'IssuesReport'
+    - 'FileBasedIssuesReport'

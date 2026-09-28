@@ -32,3 +32,10 @@ clients/kmp/settings.gradle.kts
 clients/kmp/build.gradle.kts
 clients/kmp/gradle.properties
 clients/kmp/gradle/wrapper
+# The Kotlin toolchain's strictness switches (compiler warnings, detekt,
+# ktlint, Android Lint) live in the build-logic convention plugin; module
+# build scripts only apply it. ktlint reads its rule set from .editorconfig,
+# and the iOS build's warnings-as-errors switch lives in Config.xcconfig.
+clients/kmp/build-logic
+clients/kmp/.editorconfig
+clients/kmp/iosApp/Configuration/Config.xcconfig

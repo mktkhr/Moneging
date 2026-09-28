@@ -5,15 +5,12 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.detekt)
-    alias(libs.plugins.ktlintGradle)
+    // Static-analysis policy (compiler warnings, detekt, ktlint, Android
+    // Lint): clients/kmp/build-logic.
+    id("moneging.quality")
 }
 
 kotlin {
-    compilerOptions {
-        allWarningsAsErrors = true
-    }
-
     android {
         namespace = "io.github.mktkhr.moneging.sharedUI"
         compileSdk =
@@ -30,14 +27,6 @@ kotlin {
         }
         androidResources {
             enable = true
-        }
-        lint {
-            // Same policy as androidApp: every check on, warnings fail.
-            checkAllWarnings = true
-            lintConfig = file("${rootProject.projectDir}/../../quality/kotlin/android-lint.xml")
-            warningsAsErrors = true
-            abortOnError = true
-            checkTestSources = true
         }
         withHostTest {
             isIncludeAndroidResources = true
@@ -73,42 +62,4 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
-}
-
-detekt {
-    allRules = true
-    buildUponDefaultConfig = false
-    config.setFrom(files("${rootProject.projectDir}/../../quality/kotlin/detekt.yml"))
-    // See sharedLogic/build.gradle.kts: detekt-gradle-plugin 1.23.8 has no
-    // type-resolution task for the shared commonTest KMP source set, so the
-    // plain `detekt` task is pointed at every source directory instead.
-    source.setFrom(
-        "src/commonMain/kotlin",
-        "src/commonTest/kotlin",
-    )
-}
-
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-    // detekt's KMP type-resolution tasks add the Compose resource generator's
-    // output directory as its own source root (it lives under build/), so a
-    // relative "**/build/**" glob never matches; filter by absolute path.
-    exclude { it.file.path.contains("/build/") }
-}
-
-tasks.named("check") {
-    // See sharedLogic/build.gradle.kts: make `check` depend on every
-    // Detekt-type task, not just the plain one the plugin wires in by
-    // default, so the type-resolution-requiring KMP tasks always run too.
-    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
-}
-
-ktlint {
-    version.set("1.8.0")
-    ignoreFailures.set(false)
-    filter {
-        // The Compose resource generator's output directory is added as its
-        // own source root under build/, so a relative "**/build/**" glob
-        // never matches; filter by absolute path instead.
-        exclude { it.file.path.contains("/build/") }
-    }
 }

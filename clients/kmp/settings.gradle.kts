@@ -1,6 +1,9 @@
 rootProject.name = "Moneging"
 
 pluginManagement {
+    // The convention plugin (id "moneging.quality") that owns every
+    // strictness switch; each module only applies it.
+    includeBuild("build-logic")
     repositories {
         google {
             mavenContent {
