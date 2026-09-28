@@ -1,8 +1,16 @@
 /// A single row inside the 記録する sheet (`RecordMenu.dc.html`).
+///
+/// Declared in alphabetical order (SwiftLint's `sorted_enum_cases`); the
+/// sheet's own row order comes from `sheetOrder`, not from this
+/// declaration order or `CaseIterable.allCases`.
 internal enum RecordOption: CaseIterable, Hashable {
     case manual
     case photoPick
     case receiptScan
+
+    /// Row order for the 記録する sheet: 手で入力する → レシートを撮る →
+    /// 写真を選ぶ.
+    internal static let sheetOrder: [Self] = [.manual, .receiptScan, .photoPick]
 
     /// The row's title.
     internal var title: String {

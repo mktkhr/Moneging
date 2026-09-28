@@ -13,8 +13,9 @@ internal struct RecordMenuSheet: View {
         VStack(alignment: .leading, spacing: Self.titleSpacing) {
             Text("記録する")
                 .font(.title2.weight(.bold))
+                .accessibilityIdentifier("record-sheet-title")
             VStack(spacing: Self.rowSpacing) {
-                ForEach(RecordOption.allCases, id: \.self) { option in
+                ForEach(RecordOption.sheetOrder, id: \.self) { option in
                     Button {
                         self.onChoose(option)
                     } label: {
@@ -26,7 +27,12 @@ internal struct RecordMenuSheet: View {
             }
         }
         .padding(Self.padding)
-        .presentationDetents([.medium])
+        // `.contain`, not the default: exposes this whole content view as
+        // its own accessibility element (so a UI test can read its frame,
+        // matching `fittedSheet`'s own measured height) while keeping the
+        // title/row buttons individually accessible underneath it.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("record-sheet-content")
     }
 }
 

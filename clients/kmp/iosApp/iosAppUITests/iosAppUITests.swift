@@ -113,6 +113,106 @@ final class IosAppUITests: XCTestCase {
         }
     }
 
+    /// The floating 記録する button hides on a pushed screen, and shows
+    /// again after going back.
+    ///
+    /// Shows on a main tab's root screen, hides once a screen is pushed on
+    /// top of it (e.g. 設定 from ホーム), and shows again once the user
+    /// pops back - driven by the tab's own navigation path
+    /// (`AppRouter.isRecordButtonVisible`), not merely by which tab is
+    /// selected.
+    func testRecordButtonHiddenOnPushedScreenAndVisibleAfterBack() throws {
+        switchToTab("ホーム")
+
+        let recordButton = app.buttons["record-button"]
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5), "ホームのルートで記録ボタンが表示されない")
+
+        app.buttons["account-button"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
+        XCTAssertFalse(recordButton.exists, "設定 画面でも記録ボタンが表示されている")
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5), "ホームへ戻った後に記録ボタンが再表示されない")
+    }
+
+    /// The 記録する sheet's three rows render top-to-bottom in the required
+    /// order: 手で入力する → レシートを撮る → 写真を選ぶ.
+    func testRecordSheetRowsAreInRequiredOrder() throws {
+        switchToTab("ホーム")
+        app.buttons["record-button"].tap()
+
+        let manualRow = app.buttons["record-option-manual"]
+        let receiptRow = app.buttons["record-option-receipt-scan"]
+        let photoRow = app.buttons["record-option-photo-pick"]
+        XCTAssertTrue(manualRow.waitForExistence(timeout: 5))
+        XCTAssertTrue(receiptRow.exists)
+        XCTAssertTrue(photoRow.exists)
+
+        XCTAssertLessThan(
+            manualRow.frame.minY,
+            receiptRow.frame.minY,
+            "「手で入力する」が「レシートを撮る」より下にある",
+        )
+        XCTAssertLessThan(
+            receiptRow.frame.minY,
+            photoRow.frame.minY,
+            "「レシートを撮る」が「写真を選ぶ」より下にある",
+        )
+    }
+
+    /// The 記録する sheet hugs its own content: no extra empty space below
+    /// the rows. Every number here is read from real elements' frames or
+    /// from the height the app itself measured and applied
+    /// (`record-sheet-measured-height`, `FittedSheetModifier.swift`'s own
+    /// contract), never a hard-coded constant.
+    func testRecordSheetHugsItsOwnContentHeight() throws {
+        switchToTab("ホーム")
+        app.buttons["record-button"].tap()
+
+        let manualRow = app.buttons["record-option-manual"]
+        let receiptRow = app.buttons["record-option-receipt-scan"]
+        let photoRow = app.buttons["record-option-photo-pick"]
+        XCTAssertTrue(manualRow.waitForExistence(timeout: 5))
+
+        // Inter-row gaps must match each other: no row carries extra
+        // slack the others don't (a self-consistency check between real
+        // elements, not a constant).
+        let gapBetweenFirstTwo = receiptRow.frame.minY - manualRow.frame.maxY
+        let gapBetweenLastTwo = photoRow.frame.minY - receiptRow.frame.maxY
+        XCTAssertEqual(
+            gapBetweenFirstTwo,
+            gapBetweenLastTwo,
+            accuracy: 1,
+            "行の間隔が均一でない（余分な空白がある可能性）",
+        )
+
+        // `record-sheet-content` unions its accessible children's own
+        // frames (the title and the three rows), so its height excludes
+        // the sheet's own padding - `appliedHeight` (what the app measured
+        // and fed to `presentationDetents`, `record-sheet-measured-height`)
+        // includes it. Their difference is everything else the sheet
+        // shows: that padding, the safe area, the system's own card
+        // margin - real chrome, not empty filler - so it must stay under
+        // a single row's own measured height, not balloon past it. The
+        // original defect this guards (before `FittedSheetModifier`'s
+        // current two-step measurement) left roughly 71pt of chrome here,
+        // taller than any row; fixed, it is roughly 50pt.
+        let content = app.otherElements["record-sheet-content"]
+        XCTAssertTrue(content.waitForExistence(timeout: 5))
+        let measuredHeightElement = app.staticTexts["record-sheet-measured-height"]
+        XCTAssertTrue(measuredHeightElement.waitForExistence(timeout: 5))
+        let appliedHeightText = try XCTUnwrap(measuredHeightElement.value as? String, "適用された高さが読み取れない")
+        let appliedHeight = try XCTUnwrap(Double(appliedHeightText), "適用された高さが数値でない: \(appliedHeightText)")
+
+        let chrome = appliedHeight - content.frame.height
+        XCTAssertGreaterThan(chrome, 0, "コンテンツが適用された高さに収まっていない")
+        XCTAssertLessThan(
+            chrome,
+            manualRow.frame.height,
+            "コンテンツ以外の余白（パディング・セーフエリア）が行の高さより大きい（余分な空白がある）",
+        )
+    }
+
     /// Tapping the large title opens the ledger-switch menu; picking the
     /// other ledger changes the title everywhere it is shown.
     func testLedgerMenuSwitchesLedger() throws {
@@ -176,23 +276,30 @@ final class IosAppUITests: XCTestCase {
         }
     }
 
-    /// Saves PNG screenshots of ホーム, the record sheet, the ledger menu,
-    /// 設定, カレンダー, and 検索 for manual review. Written directly to
-    /// the host filesystem (the simulator UI test runner process has host
-    /// file access), outside the repository.
-    func testCaptureAppScreenshots() throws {
-        let outputDirectory =
-            "/private/tmp/claude-502/-Users-taka-ghq-github-com-mktkhr-Moneging"
-            + "/cb07a61f-4e13-4f0b-8b94-7ebb182b377a/scratchpad/shell-shots"
+    /// Where every screenshot test writes its PNGs: directly to the host
+    /// filesystem (the simulator UI test runner process has host file
+    /// access), outside the repository.
+    private static let screenshotOutputDirectory =
+        "/private/tmp/claude-502/-Users-taka-ghq-github-com-mktkhr-Moneging"
+        + "/cb07a61f-4e13-4f0b-8b94-7ebb182b377a/scratchpad/shell-shots"
+
+    /// Saves a PNG screenshot of the current screen as `<name>.png` under
+    /// `screenshotOutputDirectory`.
+    private func saveScreenshot(_ name: String) throws {
         try FileManager.default.createDirectory(
-            atPath: outputDirectory,
+            atPath: Self.screenshotOutputDirectory,
             withIntermediateDirectories: true,
         )
+        let data = app.screenshot().image.pngData()
+        let png = try XCTUnwrap(data, "\(name) の PNG 化に失敗した")
+        try png.write(to: URL(fileURLWithPath: "\(Self.screenshotOutputDirectory)/\(name).png"))
+    }
 
+    /// Saves PNG screenshots of ホーム, the record sheet, the ledger menu,
+    /// 設定, カレンダー, and 検索 for manual review.
+    func testCaptureAppScreenshots() throws {
         func save(_ name: String) throws {
-            let data = app.screenshot().image.pngData()
-            let png = try XCTUnwrap(data, "\(name) の PNG 化に失敗した")
-            try png.write(to: URL(fileURLWithPath: "\(outputDirectory)/\(name).png"))
+            try self.saveScreenshot(name)
         }
 
         switchToTab("ホーム")
@@ -246,5 +353,19 @@ final class IosAppUITests: XCTestCase {
         switchToTab("検索")
         XCTAssertTrue(app.staticTexts["search-creation-count"].waitForExistence(timeout: 5))
         try save("06-search")
+    }
+
+    /// Saves a PNG screenshot of ホーム, for manual review of the dark-mode `Theme`.
+    ///
+    /// The simulator's own appearance (light vs. dark) is outside this
+    /// test's control - run under the default (light) appearance, this
+    /// simply re-saves the same screenshot `testCaptureAppScreenshots`
+    /// already takes; the verification runbook re-runs this one test alone
+    /// with the simulator's appearance forced to dark first
+    /// (`xcrun simctl ui <device> appearance dark`), which overwrites this
+    /// file with the actual dark-mode rendering.
+    func testCaptureHomeScreenshotForCurrentAppearance() throws {
+        switchToTab("ホーム")
+        try self.saveScreenshot("07-home-dark")
     }
 }

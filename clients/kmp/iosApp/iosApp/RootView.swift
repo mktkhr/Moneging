@@ -25,6 +25,13 @@ internal struct RootView: View {
     @State private var budgetLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "budget")
     @State private var searchLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
 
+    // The 記録する sheet's content height, measured once from a hidden
+    // copy rendered in ordinary (non-modal) layout below - see
+    // `measureHeight(into:)`'s and `FittedSheetModifier`'s doc comments
+    // for why measurement happens here rather than inside the sheet
+    // itself.
+    @State private var recordSheetHeight: CGFloat?
+
     internal var body: some View {
         @Bindable var router: AppRouter = self.router
 
@@ -57,7 +64,7 @@ internal struct RootView: View {
         }
         .tint(Theme.accent)
         .overlay(alignment: .bottomTrailing) {
-            if router.selectedTab != .search {
+            if router.isRecordButtonVisible {
                 FloatingRecordButton {
                     router.isRecordSheetPresented = true
                 }
@@ -65,10 +72,22 @@ internal struct RootView: View {
                 .padding(.bottom, Self.recordButtonBottomInset)
             }
         }
+        .background {
+            // Invisible: exists only so `measureHeight(into:)` can read the
+            // record sheet's true content height once, in ordinary layout,
+            // before the sheet below ever presents it.
+            RecordMenuSheet { _ in
+                // No-op: this copy is never shown, so it never chooses.
+            }
+            .measureHeight(into: self.$recordSheetHeight)
+            .hidden()
+            MeasuredHeightMarker(screenID: "record-sheet", height: self.recordSheetHeight)
+        }
         .sheet(isPresented: $router.isRecordSheetPresented) {
             RecordMenuSheet { option in
                 router.chooseRecordOption(option)
             }
+            .fittedSheet(height: self.recordSheetHeight)
         }
     }
 }
