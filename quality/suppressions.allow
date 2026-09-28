@@ -1,0 +1,4 @@
+# Registry of every static-analysis suppression allowed in this repository.
+# Checked by scripts/guard/suppressions.sh.
+# Format: <file> :: <directive> :: <trimmed source line>
+# Prefer fixing the finding. Add an entry only with a reason in the comment above it.
