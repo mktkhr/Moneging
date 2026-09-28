@@ -56,10 +56,10 @@ internal struct TabHeaderModifier: ViewModifier {
                 HStack(spacing: Self.titleSpacing) {
                     Text(self.store.selectedLedgerName)
                         .font(.largeTitle.bold())
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Theme.text)
                     Image(systemName: "chevron.down")
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Theme.text)
                 }
             }
             .accessibilityIdentifier("ledger-title-menu")
@@ -104,6 +104,7 @@ internal struct TabHeaderModifier: ViewModifier {
                     } label: {
                         Image(systemName: "bell")
                     }
+                    .foregroundStyle(Theme.mutedText)
                     .accessibilityLabel("お知らせ（未読あり）")
                     .accessibilityIdentifier("notifications-button")
                 }
@@ -113,6 +114,7 @@ internal struct TabHeaderModifier: ViewModifier {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
+                    .foregroundStyle(Theme.mutedText)
                     .accessibilityLabel("アカウント")
                     .accessibilityIdentifier("account-button")
                 }

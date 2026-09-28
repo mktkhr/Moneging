@@ -13,7 +13,7 @@ internal struct FloatingRecordButton: View {
         Button(action: self.action) {
             Image(systemName: "plus")
                 .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.onAccent)
                 .frame(width: Theme.recordButtonDiameter, height: Theme.recordButtonDiameter)
                 .background(Theme.accent, in: Circle())
                 .shadow(

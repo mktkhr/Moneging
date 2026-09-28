@@ -9,7 +9,6 @@ internal struct HomeTabContent: View {
     private static let recentListSpacing: CGFloat = 8
     private static let rowPadding: CGFloat = 12
     private static let rowCornerRadius: CGFloat = 12
-    private static let rowBorderOpacity: Double = 0.08
     private static let contentPadding: CGFloat = 16
     private static let budgetCardHeight: CGFloat = 132
     private static let pendingCardHeight: CGFloat = 64
@@ -24,18 +23,18 @@ internal struct HomeTabContent: View {
             VStack(alignment: .leading, spacing: Self.recentListSpacing) {
                 Text("最近の記録")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.mutedText)
                 ForEach(1...Self.recentRecordCount, id: \.self) { index in
                     Text("記録 \(index)")
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(Self.rowPadding)
                         .background(
-                            Theme.background,
+                            Theme.surface,
                             in: RoundedRectangle(cornerRadius: Self.rowCornerRadius),
                         )
                         .overlay {
                             RoundedRectangle(cornerRadius: Self.rowCornerRadius)
-                                .strokeBorder(.primary.opacity(Self.rowBorderOpacity))
+                                .strokeBorder(Theme.line)
                         }
                         .accessibilityIdentifier("home-recent-record-\(index)")
                 }

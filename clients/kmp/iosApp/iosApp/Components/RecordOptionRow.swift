@@ -19,22 +19,22 @@ internal struct RecordOptionRow: View {
                 .frame(width: Self.iconSize, height: Self.iconSize)
                 .overlay {
                     Image(systemName: self.option.systemImage)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.onAccent)
                         .accessibilityHidden(true)
                 }
             VStack(alignment: .leading, spacing: Self.textSpacing) {
                 Text(self.option.title)
                     .font(.body.weight(.bold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Theme.text)
                 Text(self.option.subtitle)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.mutedText)
             }
             Spacer()
         }
         .padding(.horizontal, Self.horizontalPadding)
         .frame(minHeight: Self.minHeight)
-        .background(Theme.background, in: RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Self.cornerRadius))
     }
 }
 

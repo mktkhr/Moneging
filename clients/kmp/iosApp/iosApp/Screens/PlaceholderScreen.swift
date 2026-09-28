@@ -17,7 +17,7 @@ internal struct PlaceholderScreen: View {
                 .font(.title2.weight(.bold))
             Text(self.subtitle)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.mutedText)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

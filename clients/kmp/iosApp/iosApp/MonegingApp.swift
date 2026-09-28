@@ -20,5 +20,6 @@ internal struct MonegingApp: App {
         doInitKoin()
         self._router = State(wrappedValue: AppRouter())
         self._store = State(wrappedValue: SharedStateStore(viewModel: sharedAppViewModel()))
+        Theme.applyTabBarAppearance()
     }
 }

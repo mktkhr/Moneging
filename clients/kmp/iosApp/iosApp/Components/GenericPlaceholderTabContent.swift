@@ -9,7 +9,6 @@ internal struct GenericPlaceholderTabContent: View {
     private static let rowSpacing: CGFloat = 8
     private static let rowPadding: CGFloat = 12
     private static let rowCornerRadius: CGFloat = 12
-    private static let rowBorderOpacity: Double = 0.08
     private static let contentPadding: CGFloat = 16
 
     internal let screenID: String
@@ -24,12 +23,12 @@ internal struct GenericPlaceholderTabContent: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(Self.rowPadding)
                     .background(
-                        Theme.background,
+                        Theme.surface,
                         in: RoundedRectangle(cornerRadius: Self.rowCornerRadius),
                     )
                     .overlay {
                         RoundedRectangle(cornerRadius: Self.rowCornerRadius)
-                            .strokeBorder(.primary.opacity(Self.rowBorderOpacity))
+                            .strokeBorder(Theme.line)
                     }
                     .accessibilityIdentifier("\(self.screenID)-row-\(index)")
             }
