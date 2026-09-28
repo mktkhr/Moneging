@@ -83,16 +83,11 @@ internal enum Theme {
     /// Diameter of the floating record button.
     internal static let recordButtonDiameter: CGFloat = 62
 
-    /// Applies `mutedText` as the tab bar's unselected item colour.
-    ///
-    /// Covers icons and labels; `.tint(Theme.accent)` on the `TabView`
-    /// already covers the selected item. `UITabBarAppearance`/
-    /// `unselectedItemTintColor` is the supported way to set this: no
-    /// public SwiftUI modifier configures a `TabView`'s unselected tint
-    /// directly. Called once, at app launch (`MonegingApp.init`).
-    internal static func applyTabBarAppearance() {
-        UITabBar.appearance().unselectedItemTintColor = UIColor(Self.mutedText)
-    }
+    // The tab bar's unselected items keep the system look on purpose: as of
+    // iOS 26 their colour cannot be customised (Liquid Glass tab bars ignore
+    // `unselectedItemTintColor` and `UITabBarAppearance`; Apple DTS,
+    // https://developer.apple.com/forums/thread/818449). Only the selected
+    // item is tinted, via `.tint(Theme.accent)` on the `TabView`.
 }
 
 extension Color {
