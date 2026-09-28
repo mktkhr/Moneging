@@ -4,6 +4,7 @@
 !.gitignore
 !README.md
 !CLAUDE.md
+!PRODUCT.md
 
 # Harness
 !Makefile
