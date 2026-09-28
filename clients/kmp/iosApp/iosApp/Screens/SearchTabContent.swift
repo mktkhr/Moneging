@@ -3,21 +3,25 @@ import SwiftUI
 /// 検索 tab root: its own `NavigationStack` with a search field and
 /// placeholder results, bound to `AppRouter.searchPath` like every other
 /// tab.
+///
+/// Unlike every other tab's own content view (`HomeTabContent`,
+/// `CalendarTabContent`, `ReportTabContent`, `BudgetTabContent`, each of
+/// which owns its own `lifecycle` `@State`), this one receives `lifecycle`
+/// from `RootView` instead. `Tab(value:role: .search)` was verified on the
+/// simulator (`testTabRootsAreNotRecreatedAcrossManySwitches`,
+/// iosAppUITests) to reconstruct its content on every activation: with
+/// `lifecycle` held here as `@State`, `search-creation-count` climbed to
+/// "5" after three round trips through every tab, where every other tab's
+/// counter stayed "1". Hoisting it to `RootView` (created once at the app
+/// root, so never recreated itself) keeps this tab's state alive across
+/// switches the same way the others' local `@State` does -
+/// `search-creation-count` stays "1" with that arrangement, confirmed the
+/// same way.
 internal struct SearchTabContent: View {
     private static let suggestionCount: Int = 20
 
     internal let path: Binding<NavigationPath>
-
-    // Held here (the tab root's own content view), not at `RootView`; see
-    // `HomeTabContent`'s own doc comment on `lifecycle` for why. 検索 uses
-    // `Tab(role: .search)`, which an earlier version of this file suspected
-    // of reconstructing its content on every activation (unlike the four
-    // plain tabs) and hoisted this state to `RootView` to work around.
-    // Verified on the simulator (`testTabRootsAreNotRecreatedAcrossManySwitches`,
-    // iosAppUITests: `search-creation-count` stays "1" across many
-    // tab-switch round trips) that this is not the case, so this state
-    // lives here like every other tab's.
-    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
+    internal let lifecycle: TabRootLifecycle
 
     @State private var query: String = ""
 
@@ -42,5 +46,8 @@ internal struct SearchTabContent: View {
 }
 
 #Preview {
-    SearchTabContent(path: .constant(NavigationPath()))
+    SearchTabContent(
+        path: .constant(NavigationPath()),
+        lifecycle: TabRootLifecycle(screenID: "search"),
+    )
 }

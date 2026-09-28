@@ -6,11 +6,11 @@ import XCTest
 /// running under) for manual review.
 ///
 /// Run by the `iosAppScreenshots` test plan
-/// (`iosApp.xcodeproj/xcshareddata/xcshareddata/xctestplans` -
-/// `iosAppScreenshots.xctestplan`), not by the default `iosApp` test plan:
-/// a screenshot test asserts nothing, so it does not belong in the suite
-/// `make check`/CI runs by default, only in an explicit, separate run (see
-/// `docs/handbook/harness.md`'s verification runbook).
+/// (`iosApp.xcodeproj/xcshareddata/xctestplans/iosAppScreenshots.xctestplan`),
+/// not by the default `iosApp` test plan: a screenshot test asserts
+/// nothing, so it does not belong in the suite `make check`/CI runs by
+/// default, only in an explicit, separate run (e.g. `xcodebuild test
+/// -testPlan iosAppScreenshots ...`).
 ///
 /// Screenshots are `XCTAttachment`s with `lifetime = .keepAlways`, attached
 /// to the test's own activity - not written to a hard-coded filesystem

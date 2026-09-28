@@ -354,12 +354,14 @@ final class IosAppUITests: XCTestCase {
     /// Round-tripping through every tab several times must never recreate
     /// any tab root's state object: every creation counter stays at 1.
     ///
-    /// Also the evidence for where `lifecycle` state lives on each tab
-    /// content view (`HomeTabContent`, `SearchTabContent`, etc., not
-    /// `RootView`): 検索 uses `Tab(role: .search)`, once suspected of
-    /// reconstructing its content on every activation, but
-    /// `search-creation-count` stays "1" here exactly like every other
-    /// tab's counter.
+    /// Also the evidence for where `lifecycle` state must live on each tab:
+    /// 検索's `Tab(role: .search)` really does reconstruct its content on
+    /// every activation (unlike the other four, plain tabs) - proven here,
+    /// this exact test failed with `search-creation-count` at `"5"` while
+    /// `SearchTabContent` held `lifecycle` as its own `@State`, which is
+    /// why `RootView` holds it instead (see `RootView.searchLifecycle`'s
+    /// own doc comment) while every other tab's content view owns its own
+    /// (see `HomeTabContent.lifecycle`'s own doc comment).
     func testTabRootsAreNotRecreatedAcrossManySwitches() throws {
         for _ in 0..<3 {
             for tab in tabNames {

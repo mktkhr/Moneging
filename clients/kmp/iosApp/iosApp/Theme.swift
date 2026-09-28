@@ -48,7 +48,7 @@ internal enum Theme {
         light: Self.light.text,
         dark: Self.dark.text,
     )
-    /// Secondary/muted text, and the tab bar's/toolbar's unselected icons.
+    /// Secondary/muted text, and the toolbar's own icons (お知らせ/アカウント).
     internal static let mutedText: Color = Color(
         light: Self.light.mutedText,
         dark: Self.dark.mutedText,
