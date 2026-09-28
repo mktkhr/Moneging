@@ -3,6 +3,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
+    // SKIE turns this module's suspend functions/Flows into Swift
+    // async/await and AsyncSequence for the iOS app; only sharedLogic
+    // produces the exported framework, so no root apply-false wiring.
+    alias(libs.plugins.skie)
     // Static-analysis policy (compiler warnings, detekt, ktlint, Android
     // Lint): clients/kmp/build-logic.
     id("moneging.quality")
@@ -43,7 +47,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // put your Multiplatform dependencies here
+            implementation(libs.koin.core)
+            implementation(libs.androidx.lifecycle.viewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
