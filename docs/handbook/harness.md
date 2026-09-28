@@ -23,14 +23,16 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 役割は hook 入力の `agent_id` / `agent_type` で判定する（`scripts/guard/roles.ts`）。
 名前の無いサブエージェントは実装者と同じ扱い。
 
-| 役割 | ハーネス | `acceptance/` | 製品コード | コミット |
+| 役割 | ハーネス・`PRODUCT.md` | `acceptance/` | それ以外 | コミット |
 |---|---|---|---|---|
 | メインセッション | 可（ユーザーの承認後） | 可 | 可 | 可 |
-| 実装者・その他のサブエージェント | 不可 | 不可 | 可 | 不可のパスを含むと拒否 |
-| `acceptance-writer` | 不可 | 可 | 不可 | 不可のパスを含むと拒否 |
+| 実装者・その他のサブエージェント | 不可 | 不可 | 可 | 作業ツリーに不可のパスの変更があると拒否 |
+| `acceptance-writer` | 不可 | 可 | 不可 | 作業ツリーに不可のパスの変更があると拒否 |
 | `reviewer` | 不可 | 不可 | 不可 | 不可 |
 
 `.git` と `.claude/settings.local.json` は全員に対して常に拒否される。
+サブエージェントは `git reset --hard` / `clean` / `stash` / `checkout .` も使えない
+（メインセッションの未コミットの変更を消さないため）。
 
 ## 何が保護されているか
 
@@ -38,7 +40,7 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
 `scripts/hooks/` `scripts/quiet.sh` `Makefile` `mise.toml` `.claude/`
 `CLAUDE.md` `.gitignore` `clients/kmp/.gitignore`、Gradle の一部設定ファイル、
 `clients/kmp/build-logic` `clients/kmp/.editorconfig`
-`clients/kmp/iosApp/Configuration/Config.xcconfig`。
+`clients/kmp/iosApp/Configuration/Config.xcconfig` `PRODUCT.md` `acceptance/`。
 
 ハーネスを変えるときは、メインセッションが変更内容を提示し、ユーザーが会話で
 承認してから変更・コミットする。
@@ -52,7 +54,7 @@ make hooks     # git hooks を hooks/ に向ける
 
 ## 主な make ターゲット
 
-- `make verify` — 高速チェック一式（harness-check, guard-protected,
+- `make verify` — 高速チェック一式（harness-check,
   guard-ignored, guard-toolchain, guard-suppressions, fmt-check, lint,
   kmp-test）。Stop hook が実行するのと同じ。
 - `make check` — verify に加え、Android/iOS のビルド、`swiftlint analyze`、

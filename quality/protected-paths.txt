@@ -40,3 +40,8 @@ clients/kmp/gradle/wrapper
 clients/kmp/build-logic
 clients/kmp/.editorconfig
 clients/kmp/iosApp/Configuration/Config.xcconfig
+
+# The spec and its executable acceptance criteria: product work reads them,
+# it does not bend them to fit (the acceptance writer owns acceptance/).
+PRODUCT.md
+acceptance

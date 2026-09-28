@@ -5,14 +5,18 @@
 // and the `gh ... label` rule (no CI label gate here). Added: git add -f/--force,
 // and the commit backstop for restricted roles.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
-import { type ChangeLister, bannedCommand } from "./bash-policy.ts";
+import { type ChangeLister, bannedCommand, listChangedPaths } from "./bash-policy.ts";
 import { protectedEntries } from "./protected-entries.ts";
 import type { Role } from "./roles.ts";
 
 const entries = protectedEntries(
-  "# comment\nquality\nhooks\nMakefile\n.claude\nCLAUDE.md\nscripts/guard\n",
+  "# comment\nquality\nhooks\nMakefile\n.claude\nCLAUDE.md\nscripts/guard\nPRODUCT.md\nacceptance\n",
 );
 const root = "/repo";
 const ROLES: readonly Role[] = ["main", "restricted", "acceptance-writer", "reviewer"];
@@ -109,6 +113,16 @@ describe("bannedCommand: acceptance/ and product code by role", () => {
     assert.equal(banned("echo x > acceptance/shared/A.kt", "acceptance-writer"), null);
   });
 
+  it("refuses everything outside acceptance/ to the acceptance writer", () => {
+    assert.notEqual(banned("echo x > docs/handbook/x.md", "acceptance-writer"), null);
+    assert.notEqual(banned("echo x > PRODUCT.md", "acceptance-writer"), null);
+    assert.equal(banned("echo x > /tmp/scratch.txt", "acceptance-writer"), null);
+  });
+
+  it("refuses PRODUCT.md to a restricted subagent", () => {
+    assert.notEqual(banned("echo x >> PRODUCT.md", "restricted"), null);
+  });
+
   it("refuses product code to the acceptance writer, allows it to a restricted subagent", () => {
     assert.notEqual(banned("echo x > clients/kmp/Money.kt", "acceptance-writer"), null);
     assert.equal(banned("echo x > clients/kmp/Money.kt", "restricted"), null);
@@ -133,16 +147,6 @@ describe("bannedCommand: commit backstop", () => {
     assert.equal(banned("git commit -m x", "restricted", undefined, staged("clients/a.kt")), null);
   });
 
-  it("asks the lister for unstaged changes too on commit -a", () => {
-    let includeUnstaged = false;
-    const lister: ChangeLister = (_root, unstaged) => {
-      includeUnstaged = unstaged;
-      return [];
-    };
-
-    banned("git commit -am x", "restricted", undefined, lister);
-    assert.equal(includeUnstaged, true);
-  });
 
   it("refuses an acceptance writer commit that stages product code", () => {
     assert.notEqual(
@@ -216,5 +220,102 @@ describe("bannedCommand skips the verb when scanning tokens as paths", () => {
 
   it("refuses a write reaching a protected path above the cwd", () => {
     assert.notEqual(banned("sed -i s/a/b/ ../../quality/x", "restricted", "scripts/guard/archcheck"), null);
+  });
+});
+
+describe("bannedCommand: commit-producing commands and destructive git for subagents", () => {
+  for (const command of ["git cherry-pick abc", "git revert HEAD", "git merge x", "git -C . commit -m x", "git pull"]) {
+    it(`checks ${command} against the working tree`, () => {
+      assert.notEqual(banned(command, "restricted", undefined, staged("quality/x")), null);
+      assert.equal(banned(command, "restricted", undefined, staged("clients/a.kt")), null);
+    });
+  }
+
+  it("does not treat a log format string as a commit", () => {
+    assert.equal(banned("git log --pretty='commit %H'", "reviewer"), null);
+  });
+
+  for (const command of ["git reset --hard", "git clean -fdx", "git stash", "git checkout .", "git restore -- ."]) {
+    it(`refuses ${command} to subagents, allows it to main`, () => {
+      assert.notEqual(banned(command, "restricted"), null);
+      assert.notEqual(banned(command, "reviewer"), null);
+      assert.equal(banned(command, "main"), null);
+    });
+  }
+});
+
+describe("bannedCommand: cd and directory variables", () => {
+  it("resolves writes after a cd against the new directory", () => {
+    assert.notEqual(banned("cd quality && echo hi > x.txt", "restricted"), null);
+    assert.equal(banned("cd clients && echo hi > x.txt", "restricted"), null);
+  });
+
+  it("expands $PWD and $CLAUDE_PROJECT_DIR", () => {
+    assert.notEqual(banned("echo x > $PWD/quality/x", "restricted"), null);
+    assert.notEqual(banned("echo x > ${CLAUDE_PROJECT_DIR}/CLAUDE.md", "restricted"), null);
+  });
+});
+
+describe("listChangedPaths against a real git repository", () => {
+  function repo(): string {
+    const dir = mkdtempSync(path.join(tmpdir(), "bash-policy-"));
+    const git = (...args: string[]): void => {
+      execFileSync("git", args, { cwd: dir, stdio: "ignore" });
+    };
+
+    git("init", "-q");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "t");
+    mkdirSync(path.join(dir, "quality"));
+    writeFileSync(path.join(dir, "quality", "protected-paths.txt"), "quality\n");
+    git("add", ".");
+    git("commit", "-q", "-m", "init");
+
+    return dir;
+  }
+
+  it("lists both sides of a staged rename", () => {
+    const dir = repo();
+
+    try {
+      mkdirSync(path.join(dir, "docs"));
+      execFileSync("git", ["mv", "quality/protected-paths.txt", "docs/pp.txt"], { cwd: dir });
+      const files = listChangedPaths(dir);
+
+      assert.ok(files.includes("quality/protected-paths.txt"));
+      assert.ok(files.includes("docs/pp.txt"));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("lists a non-ASCII name unquoted", () => {
+    const dir = repo();
+
+    try {
+      writeFileSync(path.join(dir, "quality", "テスト.txt"), "x");
+      assert.ok(listChangedPaths(dir).includes("quality/テスト.txt"));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("lists unstaged and untracked changes, so add-then-commit in one command is caught", () => {
+    const dir = repo();
+
+    try {
+      writeFileSync(path.join(dir, "quality", "protected-paths.txt"), "changed\n");
+      writeFileSync(path.join(dir, "quality", "new.txt"), "x");
+      const files = listChangedPaths(dir);
+
+      assert.ok(files.includes("quality/protected-paths.txt"));
+      assert.ok(files.includes("quality/new.txt"));
+      assert.notEqual(
+        bannedCommand("git add quality/new.txt && git commit -m x", ["quality"], dir, undefined, "restricted"),
+        null,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

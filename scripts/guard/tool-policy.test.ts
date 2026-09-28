@@ -11,7 +11,7 @@ import { roleOf } from "./roles.ts";
 import { decide, isProtected, protectedEntries } from "./tool-policy.ts";
 
 const entries = protectedEntries(
-  "# comment\nquality\nhooks\nMakefile\n.claude\nCLAUDE.md\nscripts/guard\n",
+  "# comment\nquality\nhooks\nMakefile\n.claude\nCLAUDE.md\nscripts/guard\nPRODUCT.md\nacceptance\n",
 );
 const root = "/repo";
 
@@ -203,6 +203,30 @@ describe("decide, acceptance writer", () => {
   });
 });
 
+describe("decide, path tools", () => {
+  it("refuses a path tool call without a string path", () => {
+    assert.notEqual(decide({ tool_name: "Write", tool_input: {} }, root, entries, "main"), null);
+  });
+
+  it("checks NotebookEdit and MultiEdit paths", () => {
+    assert.notEqual(
+      decide({ tool_name: "NotebookEdit", tool_input: { notebook_path: "/repo/quality/x.ipynb" } }, root, entries),
+      null,
+    );
+    assert.notEqual(
+      decide({ tool_name: "MultiEdit", tool_input: { file_path: "/repo/Makefile" } }, root, entries),
+      null,
+    );
+  });
+
+  it("refuses the acceptance writer anything outside acceptance/", () => {
+    assert.notEqual(
+      decide({ tool_name: "Write", tool_input: { file_path: "/repo/docs/handbook/x.md" } }, root, entries, "acceptance-writer"),
+      null,
+    );
+  });
+});
+
 describe("decide, reviewer", () => {
   it("refuses any write inside the repository", () => {
     const write = { tool_name: "Write", tool_input: { file_path: "/repo/clients/kmp/x.kt" } };
@@ -214,12 +238,17 @@ describe("decide, reviewer", () => {
 describe("roleOf", () => {
   it("is main without an agent_id", () => {
     assert.equal(roleOf({ tool_name: "Bash" }), "main");
-    assert.equal(roleOf({ agent_type: "implementer" }), "main");
   });
 
   it("names the acceptance writer and the reviewer", () => {
     assert.equal(roleOf({ agent_id: "a", agent_type: "acceptance-writer" }), "acceptance-writer");
     assert.equal(roleOf({ agent_id: "a", agent_type: "reviewer" }), "reviewer");
+  });
+
+  it("treats a present but empty agent_id, or an agent_type alone, as a subagent", () => {
+    assert.equal(roleOf({ agent_id: "" }), "restricted");
+    assert.equal(roleOf({ agent_type: "implementer" }), "restricted");
+    assert.equal(roleOf({ agent_id: null, agent_type: "reviewer" }), "reviewer");
   });
 
   it("treats every other subagent as restricted", () => {

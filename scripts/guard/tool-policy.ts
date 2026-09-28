@@ -80,7 +80,7 @@ export function decide(
   if (PATH_TOOLS.has(input.tool_name)) {
     const target = input.tool_input["file_path"] ?? input.tool_input["notebook_path"];
 
-    if (typeof target !== "string") return null;
+    if (typeof target !== "string") return "the tool call names no file path the harness can check";
 
     const relative = path.relative(root, path.resolve(root, target)).split(path.sep).join("/");
     const resolved = resolveRelative(root, target);

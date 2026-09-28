@@ -20,6 +20,10 @@
 !.claude/agents/
 !.claude/agents/**
 
+# Executable acceptance criteria (PRODUCT.md §7)
+!acceptance/
+!acceptance/**
+
 # KMP client (ignores delegated to clients/kmp/.gitignore)
 !clients/
 !clients/kmp/
