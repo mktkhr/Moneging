@@ -15,7 +15,7 @@ internal struct RootView: View {
     // Held here, not inside `SearchTabContent` itself (unlike every other
     // tab's own content view - see `HomeTabContent`'s doc comment on its
     // own `lifecycle`): `Tab(role: .search)` was verified on the simulator
-    // (`testTabRootsAreNotRecreatedAcrossManySwitches`, iosAppUITests) to
+    // (`testTabRootsAreNotRecreatedAcrossTabSwitches`, TabNavigationUITests) to
     // reconstruct its content on every activation, unlike the four plain
     // tabs - with this state held inside `SearchTabContent` instead,
     // `search-tab-root`'s creation count climbed to "5" after three round trips

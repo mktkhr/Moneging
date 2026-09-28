@@ -18,6 +18,9 @@ internal struct MonegingApp: App {
         // The shared Koin container must be running before `SharedStateStore`
         // resolves the shared `AppState` from it, so this runs first.
         doInitKoin()
+        #if DEBUG
+            UITestAnimationSwitch.applyLaunchArgument()
+        #endif
         self._router = State(wrappedValue: AppRouter())
         self._store = State(wrappedValue: SharedStateStore(appState: sharedAppState()))
     }

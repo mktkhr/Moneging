@@ -10,8 +10,8 @@ internal struct HomeTabContent: View {
     // is where docs/handbook/architecture.md rule 3 puts screen state, and
     // `RootView` itself is created once at the app root, so this state
     // object is created exactly once for as long as `HomeTabContent` is
-    // never recreated. See `testTabRootsAreNotRecreatedAcrossManySwitches`
-    // (iosAppUITests) for how that is verified on the simulator.
+    // never recreated. See `testTabRootsAreNotRecreatedAcrossTabSwitches`
+    // (TabNavigationUITests) for how that is verified on the simulator.
     @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "home")
 
     internal var body: some View {

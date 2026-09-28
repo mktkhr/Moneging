@@ -8,8 +8,8 @@ import SwiftUI
 /// `CalendarTabContent`, `ReportTabContent`, `BudgetTabContent`, each of
 /// which owns its own `lifecycle` `@State`), this one receives `lifecycle`
 /// from `RootView` instead. `Tab(value:role: .search)` was verified on the
-/// simulator (`testTabRootsAreNotRecreatedAcrossManySwitches`,
-/// iosAppUITests) to reconstruct its content on every activation: with
+/// simulator (`testTabRootsAreNotRecreatedAcrossTabSwitches`,
+/// TabNavigationUITests) to reconstruct its content on every activation: with
 /// `lifecycle` held here as `@State`, `search-tab-root`'s creation count climbed to
 /// "5" after three round trips through every tab, where every other tab's
 /// counter stayed "1". Hoisting it to `RootView` (created once at the app
