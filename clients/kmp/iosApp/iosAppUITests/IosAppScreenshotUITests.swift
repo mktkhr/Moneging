@@ -55,11 +55,21 @@ final class IosAppScreenshotUITests: XCTestCase {
         add(attachment)
     }
 
-    /// Attaches PNG screenshots of ホーム, the ledger menu, the record
-    /// sheet, 設定, カレンダー, and 検索.
+    /// Attaches PNG screenshots of ホーム (top and scrolled to its end),
+    /// the ledger menu, the record sheet, 設定, カレンダー, and 検索.
     func testCaptureAppScreenshots() throws {
         switchToTab("ホーム")
         attachScreenshot("01-home")
+
+        let lastRow = app.staticTexts["home-recent-record-24"]
+        var scrollAttempts = 0
+        while !(lastRow.exists && lastRow.isHittable) && scrollAttempts < 30 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        attachScreenshot("01b-home-scrolled-to-bottom")
+        app.swipeDown()
+        app.swipeDown()
 
         let titleMenu = app.buttons["ledger-title-menu"]
         XCTAssertTrue(titleMenu.waitForExistence(timeout: 5))
