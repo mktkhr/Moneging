@@ -7,6 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
+/**
+ * The application's single Android entry point activity.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -18,6 +21,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Android Studio preview of [App].
+ */
 @Preview
 @Composable
 fun AppAndroidPreview() {

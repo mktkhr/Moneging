@@ -3,10 +3,17 @@ package io.github.mktkhr.moneging
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class SharedLogicAndroidHostTest {
+private const val EXPECTED_SUM = 3
 
+/**
+ * Smoke test for the `sharedLogic` module's Android host test source set.
+ */
+class SharedLogicAndroidHostTest {
+    /**
+     * Verifies the test runner itself is wired up correctly.
+     */
     @Test
     fun example() {
-        assertEquals(3, 1 + 2)
+        assertEquals(EXPECTED_SUM, 1 + 2)
     }
 }

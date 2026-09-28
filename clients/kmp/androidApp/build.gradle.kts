@@ -3,12 +3,34 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlintGradle)
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11
+        allWarningsAsErrors = true
     }
+}
+
+detekt {
+    allRules = true
+    buildUponDefaultConfig = false
+    config.setFrom(files("${rootProject.projectDir}/../../quality/kotlin/detekt.yml"))
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    // See sharedUI/build.gradle.kts: a relative "**/build/**" glob does not
+    // match generated source roots that already live under build/, so
+    // filter by absolute path instead.
+    exclude { it.file.path.contains("/build/") }
+}
+
+ktlint {
+    version.set("1.8.0")
+    android.set(true)
+    ignoreFailures.set(false)
 }
 dependencies {
     implementation(project(":sharedUI"))
