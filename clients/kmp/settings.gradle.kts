@@ -14,6 +14,14 @@ pluginManagement {
     }
 }
 
+plugins {
+    // Lets Gradle auto-provision JDKs it doesn't find locally - required for
+    // `./gradlew updateDaemonJvm` to resolve a concrete JDK build, and useful
+    // generally so a toolchain-based build works without every developer
+    // having pre-installed the exact JDK clients/kmp/gradle/gradle-daemon-jvm.properties names.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 dependencyResolutionManagement {
     repositories {
         google {

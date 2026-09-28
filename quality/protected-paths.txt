@@ -13,6 +13,9 @@ scripts/guard
 scripts/hooks
 scripts/quiet.sh
 Makefile
+# Toolchain pins (harness: a version drift here silently changes what
+# guard scripts, tests and the Gradle build run under).
+mise.toml
 # Claude Code configuration and the instructions it loads.
 .claude
 CLAUDE.md

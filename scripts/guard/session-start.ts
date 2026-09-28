@@ -3,14 +3,61 @@
  * state, printed to stdout so it lands in Claude's context at the start of
  * the turn. Read-only; it never changes the lock, only reports it (see
  * scripts/guard/harness-lock.ts for what LOCKED/UNLOCKED mean).
+ *
+ * Also warns, in one line, when this session's own `node` (the one Claude
+ * Code's hooks run from PATH, not necessarily the one mise activates in the
+ * human's own zsh - see scripts/guard/toolchain.ts) does not match
+ * mise.toml's pinned major, older or newer, same as `make guard-toolchain`.
+ * This is best-effort, not a substitute for that guard: a `node` too old to
+ * even run this file's native-TypeScript syntax fails before ever reaching
+ * this warning, so it only catches a mismatch mild enough for the hook to
+ * still execute.
  */
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { readLockState } from "./harness-lock.ts";
+import { majorOf, pinnedVersion } from "./toolchain.ts";
+
+/**
+ * One line when `runningVersion` (process.version's format, e.g. "v22.1.0")
+ * has a different major version than mise.toml's node pin, older or newer;
+ * null when it matches, or when either version cannot be read - this hook
+ * must not fail the session over a missing or unparsable mise.toml.
+ */
+export function nodeVersionWarning(miseToml: string | null, runningVersion: string): string | null {
+  if (miseToml === null) return null;
+
+  const pinned = pinnedVersion(miseToml, "node");
+
+  if (pinned === null) return null;
+
+  const pinnedMajor = majorOf(pinned);
+  const runningMajor = majorOf(runningVersion.replace(/^v/u, ""));
+
+  if (pinnedMajor === null || runningMajor === null || runningMajor === pinnedMajor) return null;
+
+  return (
+    `node ${runningVersion} does not match mise.toml's pin (node ${pinned}); Claude Code hooks run ` +
+    "node from PATH, not through mise - run `mise install` (`make tools`) or check your shell's PATH."
+  );
+}
+
+function readMiseToml(root: string): string | null {
+  try {
+    return readFileSync(path.join(root, "mise.toml"), "utf8");
+  } catch {
+    return null;
+  }
+}
 
 function main(): number {
   const root = process.env["CLAUDE_PROJECT_DIR"] ?? process.cwd();
   const state = readLockState(root);
+
+  const nodeWarning = nodeVersionWarning(readMiseToml(root), process.version);
+
+  if (nodeWarning !== null) process.stdout.write(`${nodeWarning}\n`);
 
   const howToChange =
     "to change it, the human edits quality/harness-lock.txt, commits it with " +

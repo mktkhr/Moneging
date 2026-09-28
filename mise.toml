@@ -1,0 +1,21 @@
+# Toolchain pins for the Repository Harness.
+#
+# node: the harness's guard scripts and tests run as native TypeScript
+# (`node --test scripts/**/*.test.ts`, `node scripts/guard/*.ts`), which needs
+# Node >= 24. Pinned to the 26.x already in use in this environment.
+#
+# java: this is the JDK `./gradlew` itself runs on, used only to satisfy
+# `make tools`/`mise install` and scripts/guard/toolchain.ts (guard-toolchain,
+# which checks the major version only). The Gradle *daemon* JVM is a separate,
+# stricter pin Gradle manages itself via its Java toolchain support:
+# clients/kmp/gradle/gradle-daemon-jvm.properties names
+# toolchainVendor=ADOPTIUM, toolchainVersion=21 (Eclipse Adoptium's Temurin
+# distribution), and Gradle downloads/selects that JVM on its own (see
+# https://docs.gradle.org/current/userguide/gradle_daemon_jvm_criteria.html).
+# Pinned to the matching vendor (Temurin) and major version here too, so the
+# two do not quietly diverge.
+#
+# Run `make tools` (`mise install`) to install these exact versions.
+[tools]
+node = "26.5.0"
+java = "temurin-21.0.10+7.0.LTS"

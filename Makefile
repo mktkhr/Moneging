@@ -18,7 +18,7 @@ IOS_PROJ   := iosApp/iosApp.xcodeproj
 IOS_SCHEME := iosApp
 IOS_DERIVED := $(ROOT)/clients/kmp/build/DerivedData
 
-.PHONY: help hooks harness-approve harness-check guard-protected \
+.PHONY: help tools hooks harness-approve harness-check guard-protected guard-ignored guard-toolchain \
         kmp-test kmp-build kmp-test-all ios-build verify check
 
 ## ---------------------------------------------------------------- overview
@@ -26,6 +26,9 @@ help: ## Show this help
 	grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 ## ---------------------------------------------------------------- harness
+tools: ## Install the exact toolchain versions pinned in mise.toml
+	$(Q) tools mise install
+
 hooks: ## Point git at the repository owned hooks (hooks/) and anchor refs/harness/approved
 	$(Q) hooks sh scripts/hooks/install.sh
 
@@ -44,6 +47,12 @@ harness-check: ## The harness itself: tests of the guards and the harness lock (
 guard-protected: ## Fail when a protected path changed relative to the base while LOCKED (fails when no base exists)
 	$(Q) guard-protected sh scripts/guard/protected-paths.sh
 
+guard-ignored: ## Fail when a protected path is git-ignored
+	$(Q) guard-ignored sh scripts/guard/ignored-paths.sh
+
+guard-toolchain: ## Fail when the running node/java major does not match mise.toml
+	$(Q) guard-toolchain node scripts/guard/toolchain.ts
+
 ## ---------------------------------------------------------------- clients/kmp (Kotlin Multiplatform)
 kmp-test: ## Fast Android host unit tests of sharedLogic and sharedUI
 	$(Q) kmp-test:sharedLogic sh -c "cd $(KMP) && $(GRADLEW) :sharedLogic:testAndroidHostTest"
@@ -61,6 +70,6 @@ ios-build: ## Build iosApp for a generic iOS Simulator destination, unsigned
 	  CODE_SIGNING_ALLOWED=NO build"
 
 ## ---------------------------------------------------------------- aggregate
-verify: harness-check guard-protected kmp-test ## Fast checks: harness, protection, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
+verify: harness-check guard-protected guard-ignored guard-toolchain kmp-test ## Fast checks: harness, protection, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
 
 check: verify kmp-build kmp-test-all ios-build ## Every quality gate: verify, plus the Android and iOS builds and the full sharedLogic test suite. Run before pushing

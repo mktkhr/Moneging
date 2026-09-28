@@ -7,6 +7,7 @@
 
 # Harness
 !Makefile
+!mise.toml
 !hooks/
 !hooks/**
 !scripts/
@@ -23,5 +24,11 @@
 !clients/kmp/
 !clients/kmp/**
 
-# Never commit (agent-only design docs)
+# Human-facing docs
+!docs/
+!docs/handbook/
+!docs/handbook/**
+
+# Never commit (agent-only design docs). Must stay last: it re-ignores
+# docs/superpowers/ after the docs/ allow above.
 docs/superpowers/
