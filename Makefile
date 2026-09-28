@@ -17,9 +17,12 @@ GRADLEW    := ./gradlew
 IOS_PROJ   := iosApp/iosApp.xcodeproj
 IOS_SCHEME := iosApp
 IOS_DERIVED := $(ROOT)/clients/kmp/build/DerivedData
+IOS_SRC    := $(KMP)/iosApp/iosApp
+SWIFTLINT  := mise exec -- swiftlint
+SWIFT_FORMAT := xcrun swift-format
 
 .PHONY: help tools hooks harness-approve harness-check guard-protected guard-ignored guard-toolchain \
-        kmp-test kmp-build kmp-test-all ios-build verify check
+        guard-suppressions kmp-test kmp-build kmp-test-all ios-build fmt fmt-check lint verify check
 
 ## ---------------------------------------------------------------- overview
 help: ## Show this help
@@ -53,6 +56,9 @@ guard-ignored: ## Fail when a protected path is git-ignored
 guard-toolchain: ## Fail when the running node/java major does not match mise.toml
 	$(Q) guard-toolchain node scripts/guard/toolchain.ts
 
+guard-suppressions: ## Every lint suppression (Kotlin, Swift, Gradle escape hatches) must be registered in quality/suppressions.allow
+	$(Q) guard-suppressions sh scripts/guard/suppressions.sh
+
 ## ---------------------------------------------------------------- clients/kmp (Kotlin Multiplatform)
 kmp-test: ## Fast Android host unit tests of sharedLogic and sharedUI
 	$(Q) kmp-test:sharedLogic sh -c "cd $(KMP) && $(GRADLEW) :sharedLogic:testAndroidHostTest"
@@ -69,7 +75,24 @@ ios-build: ## Build iosApp for a generic iOS Simulator destination, unsigned
 	  -destination 'generic/platform=iOS Simulator' -derivedDataPath $(IOS_DERIVED) \
 	  CODE_SIGNING_ALLOWED=NO build"
 
+## ---------------------------------------------------------------- formatting & static analysis
+fmt: ## Reformat product code in place: ktlintFormat (Kotlin) + swift-format (Swift)
+	$(Q) fmt:kotlin sh -c "cd $(KMP) && $(GRADLEW) ktlintFormat"
+	$(Q) fmt:swift $(SWIFT_FORMAT) format --configuration quality/swift/swift-format.json --recursive --in-place $(IOS_SRC)
+
+fmt-check: ## Check formatting without modifying: ktlintCheck (Kotlin) + swift-format lint --strict (Swift)
+	$(Q) fmt-check:kotlin sh -c "cd $(KMP) && $(GRADLEW) ktlintCheck"
+	$(Q) fmt-check:swift $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive $(IOS_SRC)
+
+lint: guard-suppressions ## Full static-analysis gate: detekt + ktlint check + Android Lint + swiftlint --strict + swift-format lint --strict + guard-suppressions
+	$(Q) lint:ktlint sh -c "cd $(KMP) && $(GRADLEW) ktlintCheck"
+	$(Q) lint:detekt sh -c "cd $(KMP) && $(GRADLEW) detekt"
+	$(Q) lint:detekt-kmp sh -c "cd $(KMP) && $(GRADLEW) :sharedLogic:check :sharedUI:check -x testAndroidHostTest -x allTests -x iosSimulatorArm64Test"
+	$(Q) lint:android sh -c "cd $(KMP) && $(GRADLEW) :androidApp:lint"
+	$(Q) lint:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml $(IOS_SRC)
+	$(Q) lint:swift-format $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive $(IOS_SRC)
+
 ## ---------------------------------------------------------------- aggregate
-verify: harness-check guard-protected guard-ignored guard-toolchain kmp-test ## Fast checks: harness, protection, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
+verify: harness-check guard-protected guard-ignored guard-toolchain guard-suppressions fmt-check lint kmp-test ## Fast checks: harness, protection, formatting, static analysis, sharedLogic/sharedUI host tests. What the Claude Code Stop hook runs
 
 check: verify kmp-build kmp-test-all ios-build ## Every quality gate: verify, plus the Android and iOS builds and the full sharedLogic test suite. Run before pushing

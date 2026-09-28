@@ -20,8 +20,17 @@
 # targets shell out to the mise-installed binary rather than relying on
 # whatever version Homebrew or Xcode happens to have on PATH).
 #
+# ktlint: the standalone CLI, pinned to the same 1.8.0 that
+# org.jlleitschuh.gradle.ktlint drives in each module's build.gradle.kts.
+# `hooks/pre-commit` shells out to this mise-installed binary directly
+# (staged files only, no Gradle daemon) so the fast path stays fast; `make
+# fmt`/`fmt-check`/`lint` go through Gradle instead, since it is the only way
+# to apply/check the whole tree with the project's ktlint_official
+# `.editorconfig` picked up the same way IDEs and the Gradle plugin see it.
+#
 # Run `make tools` (`mise install`) to install these exact versions.
 [tools]
 node = "26.5.0"
 java = "temurin-21.0.10+7.0.LTS"
 swiftlint = "0.65.1"
+ktlint = "1.8.0"

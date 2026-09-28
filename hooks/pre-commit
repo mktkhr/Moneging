@@ -5,11 +5,26 @@
 # same check runs again in `make check`. Output is one line on success and
 # the diagnostics on failure (scripts/quiet.sh).
 #
-# Staged-file linting (formatting, static analysis) is not wired in yet; this
-# is deliberately just the protected-paths check for now, fast enough to run
-# on every commit.
+# Kotlin/Swift formatting is checked here with the standalone, mise-pinned
+# CLIs (ktlint, `xcrun swift-format`) directly on the staged files only, not
+# through Gradle/`make fmt-check` - seconds, not the whole tree. The full
+# static-analysis suite (detekt, ktlintCheck across the whole project,
+# Android Lint, swiftlint) stays in `make lint`/`make check`, which
+# hooks/pre-push already runs on every push.
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 Q="sh scripts/quiet.sh"
 
 $Q pre-commit:protected-paths sh scripts/guard/protected-paths.sh --staged
+
+staged_all=$(git diff --cached --name-only --diff-filter=ACM)
+
+staged_kt=$(printf '%s\n' "$staged_all" | grep -E '^clients/kmp/.*\.(kt|kts)$' | grep -v '/build/' || true)
+if [ -n "$staged_kt" ]; then
+  $Q pre-commit:ktlint sh -c 'mise exec -- ktlint "$@"' _ $staged_kt
+fi
+
+staged_swift=$(printf '%s\n' "$staged_all" | grep -E '^clients/kmp/iosApp/iosApp/.*\.swift$' || true)
+if [ -n "$staged_swift" ]; then
+  $Q pre-commit:swift-format sh -c 'xcrun swift-format lint --strict --configuration quality/swift/swift-format.json "$@"' _ $staged_swift
+fi

@@ -12,7 +12,8 @@
 #   Swift   swiftlint:disable (incl. :next / :this), swift-format-ignore,
 #           XCTSkip (incl. XCTSkipIf / XCTSkipUnless), .disabled( on
 #           Swift Testing tests
-#   Gradle  ignoreFailures / isIgnoreFailures, disabled tasks
+#   Gradle  ignoreFailures / isIgnoreFailures set to true (false is the
+#           strict, wanted value and is not flagged), disabled tasks
 #           (enabled = false / enabled.set(false)), detekt/Android Lint
 #           baseline files
 #
@@ -25,7 +26,7 @@ set -eu
 cd "$(dirname "$0")/../.."
 
 registry="quality/suppressions.allow"
-pattern='@Suppress\(|@file:Suppress\(|@SuppressWarnings\(|ktlint-disable|ktlint:disable|@Ignore\b|swiftlint:disable|swift-format-ignore|XCTSkip|\.disabled\(|ignoreFailures|isIgnoreFailures|baseline\.set\(|baselineFile|enabled\s*=\s*false|enabled\.set\(false\)'
+pattern='@Suppress\(|@file:Suppress\(|@SuppressWarnings\(|ktlint-disable|ktlint:disable|@Ignore\b|swiftlint:disable|swift-format-ignore|XCTSkip|\.disabled\(|(ignoreFailures|isIgnoreFailures)[[:space:]]*(\.set\([[:space:]]*|=[[:space:]]*)true|baseline\.set\(|baselineFile|enabled[[:space:]]*=[[:space:]]*false|enabled\.set\(false\)'
 
 # Paths that are product or tooling source. Build output, caches and IDE state
 # are never scanned.
