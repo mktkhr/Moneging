@@ -7,7 +7,17 @@ internal struct SearchTabContent: View {
     private static let suggestionCount: Int = 20
 
     internal let path: Binding<NavigationPath>
-    internal let lifecycle: TabRootLifecycle
+
+    // Held here (the tab root's own content view), not at `RootView`; see
+    // `HomeTabContent`'s own doc comment on `lifecycle` for why. 検索 uses
+    // `Tab(role: .search)`, which an earlier version of this file suspected
+    // of reconstructing its content on every activation (unlike the four
+    // plain tabs) and hoisted this state to `RootView` to work around.
+    // Verified on the simulator (`testTabRootsAreNotRecreatedAcrossManySwitches`,
+    // iosAppUITests: `search-creation-count` stays "1" across many
+    // tab-switch round trips) that this is not the case, so this state
+    // lives here like every other tab's.
+    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
 
     @State private var query: String = ""
 
@@ -32,8 +42,5 @@ internal struct SearchTabContent: View {
 }
 
 #Preview {
-    SearchTabContent(
-        path: .constant(NavigationPath()),
-        lifecycle: TabRootLifecycle(screenID: "search"),
-    )
+    SearchTabContent(path: .constant(NavigationPath()))
 }

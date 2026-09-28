@@ -2,7 +2,9 @@ import SwiftUI
 
 /// カレンダー tab root content: placeholder only, scrollable.
 internal struct CalendarTabContent: View {
-    internal let lifecycle: TabRootLifecycle
+    // Held here (the tab root's own content view); see `HomeTabContent`'s
+    // own doc comment on `lifecycle` for why.
+    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "calendar")
 
     internal var body: some View {
         GenericPlaceholderTabContent(
@@ -15,6 +17,6 @@ internal struct CalendarTabContent: View {
 
 #Preview {
     ScrollView {
-        CalendarTabContent(lifecycle: TabRootLifecycle(screenID: "calendar"))
+        CalendarTabContent()
     }
 }

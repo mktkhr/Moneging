@@ -6,13 +6,11 @@ internal struct PlaceholderScreen: View {
     /// The subtitle shown when a call site has nothing more specific to say.
     internal static let defaultSubtitle: String = "この画面はまだ準備中です"
 
-    private static let contentSpacing: CGFloat = 8
-
     internal let title: String
     internal let subtitle: String
 
     internal var body: some View {
-        VStack(spacing: Self.contentSpacing) {
+        VStack(spacing: Theme.spacing8) {
             Text(self.title)
                 .font(.title2.weight(.bold))
             Text(self.subtitle)

@@ -14,11 +14,6 @@ import SwiftUI
 internal struct TabHeaderModifier: ViewModifier {
     private static let firstMonth: Int = 1
     private static let lastMonth: Int = 12
-    private static let monthChipSpacing: CGFloat = 4
-    private static let titleSpacing: CGFloat = 6
-    private static let titleHorizontalPadding: CGFloat = 16
-    private static let titleTopPadding: CGFloat = 8
-    private static let titleBottomPadding: CGFloat = 4
 
     @Environment(SharedStateStore.self)
     private var store: SharedStateStore
@@ -53,7 +48,7 @@ internal struct TabHeaderModifier: ViewModifier {
             Menu {
                 self.ledgerMenuContent
             } label: {
-                HStack(spacing: Self.titleSpacing) {
+                HStack(spacing: Theme.spacing6) {
                     Text(self.store.selectedLedgerName)
                         .font(.largeTitle.bold())
                         .foregroundStyle(Theme.text)
@@ -65,9 +60,9 @@ internal struct TabHeaderModifier: ViewModifier {
             .accessibilityIdentifier("ledger-title-menu")
             Spacer()
         }
-        .padding(.horizontal, Self.titleHorizontalPadding)
-        .padding(.top, Self.titleTopPadding)
-        .padding(.bottom, Self.titleBottomPadding)
+        .padding(.horizontal, Theme.spacing16)
+        .padding(.top, Theme.spacing8)
+        .padding(.bottom, Theme.spacing4)
         .background(Theme.background)
     }
 
@@ -79,7 +74,7 @@ internal struct TabHeaderModifier: ViewModifier {
                 }
             }
         } label: {
-            HStack(spacing: Self.monthChipSpacing) {
+            HStack(spacing: Theme.spacing4) {
                 Text("\(self.store.selectedMonth)月")
                 Image(systemName: "chevron.down")
             }
@@ -105,7 +100,13 @@ internal struct TabHeaderModifier: ViewModifier {
                         Image(systemName: "bell")
                     }
                     .foregroundStyle(Theme.mutedText)
-                    .accessibilityLabel("お知らせ（未読あり）")
+                    // No unread-notifications state exists yet (`AppUiState`
+                    // has no notifications field), so the actual state is
+                    // "no unread" - the label says only "お知らせ", not
+                    // "お知らせ（未読あり）". Once unread state exists, this
+                    // label should read it and add "（未読あり）" only when
+                    // true.
+                    .accessibilityLabel("お知らせ")
                     .accessibilityIdentifier("notifications-button")
                 }
                 ToolbarItem(placement: .topBarTrailing) {

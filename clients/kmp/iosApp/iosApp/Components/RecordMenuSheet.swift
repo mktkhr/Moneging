@@ -3,18 +3,14 @@ import SwiftUI
 /// 記録する: the sheet the floating record button presents, matching
 /// `scratchpad/design/project/RecordMenu.dc.html`.
 internal struct RecordMenuSheet: View {
-    private static let titleSpacing: CGFloat = 14
-    private static let rowSpacing: CGFloat = 10
-    private static let padding: CGFloat = 20
-
     internal let onChoose: (RecordOption) -> Void
 
     internal var body: some View {
-        VStack(alignment: .leading, spacing: Self.titleSpacing) {
+        VStack(alignment: .leading, spacing: Theme.spacing14) {
             Text("記録する")
                 .font(.title2.weight(.bold))
                 .accessibilityIdentifier("record-sheet-title")
-            VStack(spacing: Self.rowSpacing) {
+            VStack(spacing: Theme.spacing10) {
                 ForEach(RecordOption.sheetOrder, id: \.self) { option in
                     Button {
                         self.onChoose(option)
@@ -26,7 +22,7 @@ internal struct RecordMenuSheet: View {
                 }
             }
         }
-        .padding(Self.padding)
+        .padding(Theme.spacing20)
         // `.contain`, not the default: exposes this whole content view as
         // its own accessibility element (so a UI test can compare its frame
         // with the presented sheet's, checking `fittedSheet()`) while keeping the

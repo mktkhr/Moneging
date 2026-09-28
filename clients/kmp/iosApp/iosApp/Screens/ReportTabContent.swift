@@ -2,7 +2,9 @@ import SwiftUI
 
 /// レポート tab root content: placeholder only, scrollable.
 internal struct ReportTabContent: View {
-    internal let lifecycle: TabRootLifecycle
+    // Held here (the tab root's own content view); see `HomeTabContent`'s
+    // own doc comment on `lifecycle` for why.
+    @State private var lifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "report")
 
     internal var body: some View {
         GenericPlaceholderTabContent(
@@ -15,6 +17,6 @@ internal struct ReportTabContent: View {
 
 #Preview {
     ScrollView {
-        ReportTabContent(lifecycle: TabRootLifecycle(screenID: "report"))
+        ReportTabContent()
     }
 }

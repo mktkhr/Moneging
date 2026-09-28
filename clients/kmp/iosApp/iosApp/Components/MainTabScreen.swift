@@ -19,6 +19,26 @@ internal struct MainTabScreen<Content: View>: View {
             .background(Theme.background)
             .tabHeader()
             .appNavigationDestinations()
+            // Measured before this tab root's own `.safeAreaInset` below,
+            // so it reads the tab bar's own (system) bottom safe area, not
+            // the space that `.safeAreaInset` reserves on top of it.
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(
+                            key: TabBarBottomInsetPreferenceKey.self,
+                            value: proxy.safeAreaInsets.bottom,
+                        )
+                },
+            )
+            // Reserves space below the tab root's own scrollable content so
+            // its last row is never covered by the floating 記録する button
+            // (`RootView`'s overlay): the button's own footprint (diameter
+            // plus the same margin `RootView` gives it above the tab bar).
+            .safeAreaInset(edge: .bottom) {
+                Color.clear
+                    .frame(height: Theme.recordButtonDiameter + Theme.spacing16)
+            }
         }
     }
 }

@@ -77,11 +77,98 @@ internal enum Theme {
     // (`sharedLogic`'s `theme` package) - for whenever a consumer needs
     // them; mapping either here is then a one-line addition.
 
+    /// A floating element's own drop shadow colour: the current style's
+    /// `shadow` token (`StyleSchemeTokens.shadow` in `ThemeTokens.kt`,
+    /// parsed by `parseCssBoxShadow` in `ThemeColorMath.kt`), tracking
+    /// light/dark like every other colour here.
+    internal static let shadowColor: Color = Color(
+        light: Self.light.shadowColor,
+        dark: Self.dark.shadowColor,
+    )
+
+    // MARK: - Shape
+
+    // Ported from the current style's own tokens
+    // (`ThemeTokensKt.defaultStyleTokens`, `sharedLogic`'s `ThemeTokens.kt`,
+    // itself ported from takamai's `tokens.ts` `StyleTokens`) - see
+    // `Theme`'s own doc comment for the source and read date.
+
+    /// The style's base corner radius: a card/row's own rounding (takamai
+    /// `StyleTokens.radius`; Soft = 22).
+    internal static let radius: CGFloat = CGFloat(ThemeTokensKt.defaultStyleTokens.radius)
+    /// A button's own corner radius (takamai `StyleTokens.btnRadius`; Soft
+    /// = 999, i.e. a full pill).
+    internal static let btnRadius: CGFloat = CGFloat(ThemeTokensKt.defaultStyleTokens.btnRadius)
+    /// A chip's own corner radius (takamai `StyleTokens.chipRadius`; Soft =
+    /// 999, i.e. a full pill).
+    internal static let chipRadius: CGFloat = CGFloat(ThemeTokensKt.defaultStyleTokens.chipRadius)
+    /// This style's own drop shadow's blur radius (takamai
+    /// `StyleSchemeTokens.shadow`; 0 when the style has none).
+    internal static let shadowBlurRadius: CGFloat = CGFloat(Self.light.shadowBlurRadius)
+    /// This style's own drop shadow's vertical offset (takamai
+    /// `StyleSchemeTokens.shadow`; 0 when the style has none).
+    internal static let shadowOffsetY: CGFloat = CGFloat(Self.light.shadowOffsetY)
+
+    // MARK: - Spacing scale
+
+    // takamai's own `tokens.ts` has no generic spacing scale (only the
+    // shape tokens above); this shell's own paddings/spacings/insets each
+    // come from one of these steps, so there is exactly one place that
+    // decides "how much space" anywhere in the shell.
+
+    /// 2pt.
+    internal static let spacing2: CGFloat = 2
+    /// 4pt.
+    internal static let spacing4: CGFloat = 4
+    /// 6pt.
+    internal static let spacing6: CGFloat = 6
+    /// 8pt.
+    internal static let spacing8: CGFloat = 8
+    /// 10pt.
+    internal static let spacing10: CGFloat = 10
+    /// 12pt.
+    internal static let spacing12: CGFloat = 12
+    /// 14pt.
+    internal static let spacing14: CGFloat = 14
+    /// 16pt.
+    internal static let spacing16: CGFloat = 16
+    /// 20pt.
+    internal static let spacing20: CGFloat = 20
+
+    // MARK: - Sizes
+
     /// Minimum tappable dimension for icon-only controls (HIG minimum).
     internal static let minimumTapTarget: CGFloat = 44
 
     /// Diameter of the floating record button.
     internal static let recordButtonDiameter: CGFloat = 62
+
+    /// Side length of a `RecordOptionRow` row's leading icon square.
+    internal static let iconSize: CGFloat = 40
+
+    /// Minimum height of a `RecordOptionRow`.
+    internal static let recordOptionRowMinHeight: CGFloat = 64
+
+    /// Minimum height of ホーム's "読み取り中・確認待ち" placeholder card.
+    internal static let pendingCardMinHeight: CGFloat = 64
+
+    /// Minimum height of ホーム's "今月の残り予算" placeholder card.
+    internal static let budgetCardMinHeight: CGFloat = 132
+
+    /// Line width of a `PlaceholderCard` card's dashed border.
+    internal static let dashedBorderLineWidth: CGFloat = 1.5
+
+    // MARK: - Debug marker
+
+    /// Font size `TabRootLifecycleMarker` renders at: small enough to be
+    /// visually negligible, never zero (SwiftUI clamps/ignores a
+    /// non-positive font size, which would stop it rendering - and being
+    /// read - at all).
+    internal static let debugMarkerFontSize: CGFloat = 1
+    /// Opacity `TabRootLifecycleMarker` renders at: near-zero, not zero, so
+    /// it stays in the accessibility tree/hit-testable by XCUITest while
+    /// staying visually negligible.
+    internal static let debugMarkerOpacity: Double = 0.01
 
     // The tab bar's unselected items keep the system look on purpose: as of
     // iOS 26 their colour cannot be customised (Liquid Glass tab bars ignore

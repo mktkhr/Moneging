@@ -7,69 +7,74 @@ import SwiftUI
 /// floating 記録する button and its sheet live here once, shared by the
 /// four main tabs, so switching tabs never duplicates or recreates them.
 internal struct RootView: View {
-    private static let recordButtonTrailingInset: CGFloat = 16
-    private static let recordButtonBottomInset: CGFloat = 78
-
     @Environment(AppRouter.self)
     private var router: AppRouter
 
-    // Held here, not inside each tab's own content view: `Tab(role:
-    // .search)` has been observed to reconstruct its content on every
-    // activation (unlike the four plain tabs), which would otherwise
-    // recreate `searchLifecycle` on every switch to 検索. Hoisting every
-    // tab root's state to `RootView`, which is itself created once at the
-    // app root, keeps all five at a single creation regardless.
-    @State private var homeLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "home")
-    @State private var calendarLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "calendar")
-    @State private var reportLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "report")
-    @State private var budgetLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "budget")
-    @State private var searchLifecycle: TabRootLifecycle = TabRootLifecycle(screenID: "search")
+    /// The tab bar's own current height, read back from `MainTabScreen`
+    /// through `TabBarBottomInsetPreferenceKey` (its safe-area inset is
+    /// exactly the tab bar's reserved space) - never hard-coded, since the
+    /// tab bar's height varies (Liquid Glass's collapsed/expanded states,
+    /// Dynamic Type, device).
+    @State private var tabBarBottomInset: CGFloat = 0
 
     internal var body: some View {
         @Bindable var router: AppRouter = self.router
 
+        GeometryReader { proxy in
+            let sheetMaxHeight: CGFloat = proxy.size.height - proxy.safeAreaInsets.top
+            self.tabs(router: router, sheetMaxHeight: sheetMaxHeight)
+        }
+    }
+
+    @ViewBuilder
+    private func tabs(router: AppRouter, sheetMaxHeight: CGFloat) -> some View {
+        @Bindable var router: AppRouter = router
+
         TabView(selection: $router.selectedTab) {
             Tab("ホーム", systemImage: "house", value: AppTab.home) {
                 MainTabScreen(path: $router.homePath) {
-                    HomeTabContent(lifecycle: self.homeLifecycle)
+                    HomeTabContent()
                 }
             }
             Tab("カレンダー", systemImage: "calendar", value: AppTab.calendar) {
                 MainTabScreen(path: $router.calendarPath) {
-                    CalendarTabContent(lifecycle: self.calendarLifecycle)
+                    CalendarTabContent()
                 }
             }
             Tab("レポート", systemImage: "chart.bar", value: AppTab.report) {
                 MainTabScreen(path: $router.reportPath) {
-                    ReportTabContent(lifecycle: self.reportLifecycle)
+                    ReportTabContent()
                 }
             }
             Tab("予算", systemImage: "creditcard", value: AppTab.budget) {
                 MainTabScreen(path: $router.budgetPath) {
-                    BudgetTabContent(lifecycle: self.budgetLifecycle)
+                    BudgetTabContent()
                 }
             }
             Tab(value: AppTab.search, role: .search) {
-                SearchTabContent(path: $router.searchPath, lifecycle: self.searchLifecycle)
+                SearchTabContent(path: $router.searchPath)
             } label: {
                 Label("検索", systemImage: "magnifyingglass")
             }
         }
         .tint(Theme.accent)
+        .onPreferenceChange(TabBarBottomInsetPreferenceKey.self) { newValue in
+            self.tabBarBottomInset = newValue
+        }
         .overlay(alignment: .bottomTrailing) {
             if router.isRecordButtonVisible {
                 FloatingRecordButton {
                     router.isRecordSheetPresented = true
                 }
-                .padding(.trailing, Self.recordButtonTrailingInset)
-                .padding(.bottom, Self.recordButtonBottomInset)
+                .padding(.trailing, Theme.spacing16)
+                .padding(.bottom, self.tabBarBottomInset + Theme.spacing16)
             }
         }
         .sheet(isPresented: $router.isRecordSheetPresented) {
             RecordMenuSheet { option in
                 router.chooseRecordOption(option)
             }
-            .fittedSheet()
+            .fittedSheet(maxHeight: sheetMaxHeight)
         }
     }
 }

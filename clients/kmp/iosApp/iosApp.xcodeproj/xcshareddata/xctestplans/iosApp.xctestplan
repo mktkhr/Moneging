@@ -1,0 +1,31 @@
+{
+  "configurations" : [
+    {
+      "id" : "9E93B2D4-0D8A-4B23-9C3D-2C9C0A6D0B31",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:iosApp.xcodeproj",
+      "identifier" : "AD8DB20D7B3F5E11B416A88D",
+      "name" : "iosApp"
+    }
+  },
+  "testTargets" : [
+    {
+      "skippedTests" : [
+        "IosAppScreenshotUITests"
+      ],
+      "target" : {
+        "containerPath" : "container:iosApp.xcodeproj",
+        "identifier" : "4192418D1F4D85EF5FFA2F31",
+        "name" : "iosAppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -382,3 +382,12 @@ val defaultStyle: ThemeStyle = ThemeStyle.Soft
 
 /** What a user who never chose has (takamai `defaultColor`; matches takamai backend's `DefaultAppearance`). */
 val defaultColor: ThemeColor = ThemeColor.Terracotta
+
+/**
+ * [defaultStyle]'s own [StyleTokens] (`themeStyles.getValue(defaultStyle)`).
+ * A client with no client-side style/colour picker yet (this shell) reads
+ * shape tokens (`radius`/`btnRadius`/`chipRadius`) from here rather than
+ * indexing [themeStyles] itself.
+ */
+val defaultStyleTokens: StyleTokens
+    get() = themeStyles.getValue(defaultStyle)

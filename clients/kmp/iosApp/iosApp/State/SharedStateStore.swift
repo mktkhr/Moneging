@@ -20,11 +20,17 @@ internal final class SharedStateStore {
     internal private(set) var selectedLedgerId: String
 
     private let appState: AppState
-    /// The observation loop reading `appState.uiState`.
+    /// Holds the observation loop reading `appState.uiState`, so `deinit`
+    /// (not main-actor-isolated even on an `@MainActor` class - no
+    /// isolated `deinit` here) can cancel it without needing main-actor
+    /// isolation itself.
     ///
-    /// Started once in `init`. Cancelled in `deinit` so this store never
-    /// leaves a loop running past its own lifetime.
-    private let observationTask: Task<Void, Never>
+    /// A `let` box (`ObservationTaskBox`) around a `var`, not a plain
+    /// `nonisolated var` property on `SharedStateStore` directly: Swift
+    /// does not allow `nonisolated` on a mutable stored property, and this
+    /// box is a separate object, so `@Observable`'s tracking macro does
+    /// not apply to its mutation either.
+    private let observationTask: ObservationTaskBox = ObservationTaskBox()
 
     /// The name of the ledger currently selected.
     internal var selectedLedgerName: String {
@@ -39,7 +45,8 @@ internal final class SharedStateStore {
         self.selectedLedgerId = initial.selectedLedgerId
 
         let stateFlow: SkieSwiftStateFlow<AppUiState> = appState.uiState
-        self.observationTask = Task { [weak self] in
+        let taskBox: ObservationTaskBox = self.observationTask
+        taskBox.task = Task { [weak self] in
             for await state in stateFlow {
                 guard let self else {
                     return
@@ -66,6 +73,6 @@ internal final class SharedStateStore {
     }
 
     deinit {
-        self.observationTask.cancel()
+        self.observationTask.task?.cancel()
     }
 }

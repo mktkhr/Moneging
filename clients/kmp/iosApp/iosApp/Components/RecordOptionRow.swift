@@ -2,27 +2,19 @@ import SwiftUI
 
 /// A single row inside `RecordMenuSheet`.
 internal struct RecordOptionRow: View {
-    private static let iconSize: CGFloat = 40
-    private static let iconCornerRadius: CGFloat = 12
-    private static let rowSpacing: CGFloat = 14
-    private static let textSpacing: CGFloat = 2
-    private static let horizontalPadding: CGFloat = 16
-    private static let minHeight: CGFloat = 64
-    private static let cornerRadius: CGFloat = 18
-
     internal let option: RecordOption
 
     internal var body: some View {
-        HStack(spacing: Self.rowSpacing) {
-            RoundedRectangle(cornerRadius: Self.iconCornerRadius)
+        HStack(spacing: Theme.spacing14) {
+            RoundedRectangle(cornerRadius: Theme.chipRadius)
                 .fill(Theme.accent)
-                .frame(width: Self.iconSize, height: Self.iconSize)
+                .frame(width: Theme.iconSize, height: Theme.iconSize)
                 .overlay {
                     Image(systemName: self.option.systemImage)
                         .foregroundStyle(Theme.onAccent)
                         .accessibilityHidden(true)
                 }
-            VStack(alignment: .leading, spacing: Self.textSpacing) {
+            VStack(alignment: .leading, spacing: Theme.spacing2) {
                 Text(self.option.title)
                     .font(.body.weight(.bold))
                     .foregroundStyle(Theme.text)
@@ -32,9 +24,9 @@ internal struct RecordOptionRow: View {
             }
             Spacer()
         }
-        .padding(.horizontal, Self.horizontalPadding)
-        .frame(minHeight: Self.minHeight)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .padding(.horizontal, Theme.spacing16)
+        .frame(minHeight: Theme.recordOptionRowMinHeight)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius))
     }
 }
 

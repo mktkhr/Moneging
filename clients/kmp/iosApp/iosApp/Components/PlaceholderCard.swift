@@ -3,11 +3,6 @@ import SwiftUI
 /// A placeholder section card with a dashed border, matching the
 /// mockup's `[今月の残り予算]`-style bracketed placeholders.
 internal struct PlaceholderCard: View {
-    private static let cornerRadius: CGFloat = 20
-    private static let dashLineWidth: CGFloat = 1.5
-    private static let dashPatternOn: CGFloat = 6
-    private static let dashPatternOff: CGFloat = 4
-
     internal let title: String
     internal let minHeight: CGFloat
 
@@ -17,12 +12,12 @@ internal struct PlaceholderCard: View {
             .foregroundStyle(Theme.mutedText)
             .frame(maxWidth: .infinity, minHeight: self.minHeight)
             .overlay {
-                RoundedRectangle(cornerRadius: Self.cornerRadius)
+                RoundedRectangle(cornerRadius: Theme.radius)
                     .strokeBorder(
                         Theme.line,
                         style: StrokeStyle(
-                            lineWidth: Self.dashLineWidth,
-                            dash: [Self.dashPatternOn, Self.dashPatternOff],
+                            lineWidth: Theme.dashedBorderLineWidth,
+                            dash: [Theme.spacing6, Theme.spacing4],
                         ),
                     )
             }
@@ -30,5 +25,5 @@ internal struct PlaceholderCard: View {
 }
 
 #Preview {
-    PlaceholderCard(title: "今月の残り予算", minHeight: 132)
+    PlaceholderCard(title: "今月の残り予算", minHeight: Theme.budgetCardMinHeight)
 }

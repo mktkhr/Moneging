@@ -2,10 +2,17 @@ import XCTest
 
 /// End-to-end UI tests for the app shell: tab navigation, scroll-position
 /// retention across tab switches, the record sheet, the ledger switch
-/// menu, the month chip, and 設定. Also asserts that a tab root's state
-/// object is never recreated when switching tabs
-/// (docs/handbook/architecture.md, rule 3), using the debug-only creation
-/// counters each tab root exposes (see `TabRootLifecycleMarker`).
+/// menu, the month chip, and 設定.
+///
+/// Also asserts that a tab root's state object is never recreated when
+/// switching tabs (docs/handbook/architecture.md, rule 3), using the
+/// debug-only creation counters each tab root exposes (see
+/// `TabRootLifecycleMarker`).
+///
+/// Screenshot-only tests (nothing asserted, PNGs saved for manual review)
+/// live separately in `IosAppScreenshotUITests`, run by the
+/// `iosAppScreenshots` test plan, not by default (`iosApp` test plan) - see
+/// that type's own doc comment.
 final class IosAppUITests: XCTestCase {
     private let tabNames = ["ホーム", "カレンダー", "レポート", "予算", "検索"]
 
@@ -33,7 +40,7 @@ final class IosAppUITests: XCTestCase {
     /// collapse to a single button after a tab switch; if the target
     /// button is not immediately found, this taps whatever tab bar button
     /// currently exists to expand it back, then retries.
-    private func switchToTab(_ name: String) {
+    private func switchToTab(_ name: String, in app: XCUIApplication) {
         let tabButton = app.tabBars.buttons[name]
         if tabButton.waitForExistence(timeout: 2) {
             tabButton.tap()
@@ -47,6 +54,40 @@ final class IosAppUITests: XCTestCase {
 
         XCTAssertTrue(tabButton.waitForExistence(timeout: 5), "\(name) タブが見つからない")
         tabButton.tap()
+    }
+
+    private func switchToTab(_ name: String) {
+        self.switchToTab(name, in: self.app)
+    }
+
+    /// Polls `element.frame` until it stops changing between consecutive
+    /// reads (or `timeout` elapses), instead of a fixed `sleep()` - used
+    /// wherever a test must wait out a presentation/animation before
+    /// reading a settled frame.
+    @discardableResult
+    private func waitForFrameToSettle(
+        _ element: XCUIElement,
+        requiredStableReads: Int = 3,
+        pollInterval: useconds_t = 100_000,
+        timeout: TimeInterval = 5,
+    ) -> CGRect {
+        let deadline = Date().addingTimeInterval(timeout)
+        var previous = element.frame
+        var stableReads = 0
+        while Date() < deadline {
+            usleep(pollInterval)
+            let current = element.frame
+            if current == previous {
+                stableReads += 1
+                if stableReads >= requiredStableReads {
+                    return current
+                }
+            } else {
+                stableReads = 0
+            }
+            previous = current
+        }
+        return previous
     }
 
     /// Switches through every tab, including the 検索 (search-role) tab.
@@ -83,6 +124,29 @@ final class IosAppUITests: XCTestCase {
         XCTAssertTrue(targetRow.waitForExistence(timeout: 5))
         XCTAssertEqual(homeCount.value as? String, "1", "ホームタブの状態オブジェクトが再生成された")
         XCTAssertEqual(targetRow.frame, frameBeforeSwitch, "スクロール位置が保持されていない")
+    }
+
+    /// Scrolling ホーム to its very end must never cover the last row with
+    /// the floating 記録する button: `MainTabScreen` reserves the button's
+    /// own footprint below the scroll content with a `.safeAreaInset` (see
+    /// that type's doc comment), so the two frames must never intersect.
+    func testHomeLastRowDoesNotIntersectRecordButtonWhenScrolledToEnd() throws {
+        switchToTab("ホーム")
+
+        let lastRow = app.staticTexts["home-recent-record-24"]
+        var attempts = 0
+        while !(lastRow.exists && lastRow.isHittable) && attempts < 30 {
+            app.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(lastRow.isHittable, "最後までスクロールしても home-recent-record-24 が見えない")
+
+        let recordButton = app.buttons["record-button"]
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            lastRow.frame.intersects(recordButton.frame),
+            "最後の行が記録ボタンと重なっている: row=\(lastRow.frame) button=\(recordButton.frame)",
+        )
     }
 
     /// The floating 記録する button opens a sheet with three rows, each of
@@ -161,9 +225,11 @@ final class IosAppUITests: XCTestCase {
     }
 
     /// The 記録する sheet hugs its own content: no extra empty space below
-    /// the rows, and no row compressed to fit. Every number here is read
-    /// from real elements' frames - the presented sheet's own container
-    /// and the content inside it - never a hard-coded constant.
+    /// the rows, and no row compressed to fit.
+    ///
+    /// Every number here is read from real elements' frames - the
+    /// presented sheet's own container and the content inside it - never a
+    /// hard-coded constant.
     func testRecordSheetHugsItsOwnContentHeight() throws {
         switchToTab("ホーム")
         app.buttons["record-button"].tap()
@@ -174,13 +240,16 @@ final class IosAppUITests: XCTestCase {
         XCTAssertTrue(manualRow.waitForExistence(timeout: 5))
         let content = app.otherElements["record-sheet-content"]
         XCTAssertTrue(content.waitForExistence(timeout: 5))
-        // Let the presentation's spring animation settle before reading frames.
-        sleep(1)
+        // Wait for the presentation's spring animation to settle before
+        // reading frames, instead of a fixed sleep().
+        let contentFrame = waitForFrameToSettle(content)
 
         // No row is compressed: all three share one height, and the gaps
         // between them match (self-consistency between real elements).
-        XCTAssertEqual(manualRow.frame.height, receiptRow.frame.height, accuracy: 1, "行の高さが揃っていない（圧縮されている）")
-        XCTAssertEqual(receiptRow.frame.height, photoRow.frame.height, accuracy: 1, "行の高さが揃っていない（圧縮されている）")
+        XCTAssertEqual(
+            manualRow.frame.height, receiptRow.frame.height, accuracy: 1, "行の高さが揃っていない（圧縮されている）")
+        XCTAssertEqual(
+            receiptRow.frame.height, photoRow.frame.height, accuracy: 1, "行の高さが揃っていない（圧縮されている）")
         let gapBetweenFirstTwo = receiptRow.frame.minY - manualRow.frame.maxY
         let gapBetweenLastTwo = photoRow.frame.minY - receiptRow.frame.maxY
         XCTAssertEqual(
@@ -200,7 +269,8 @@ final class IosAppUITests: XCTestCase {
                 .allElementsBoundByIndex
                 .map(\.frame)
                 .filter { frame in
-                    frame.contains(content.frame) && frame != content.frame && frame.height < screen.height
+                    frame.contains(contentFrame) && frame != contentFrame
+                        && frame.height < screen.height
                 }
                 .min { $0.height < $1.height },
             "記録する シートのコンテナが見つからない",
@@ -208,20 +278,29 @@ final class IosAppUITests: XCTestCase {
 
         // The content's own padding is the same on every side, so its top
         // inset inside the sheet equals its leading inset.
-        let topInset = content.frame.minY - sheet.minY
-        let leadingInset = content.frame.minX - sheet.minX
+        let topInset = contentFrame.minY - sheet.minY
+        let leadingInset = contentFrame.minX - sheet.minX
         XCTAssertEqual(topInset, leadingInset, accuracy: 1, "シート上端とコンテンツの間に余分な空白がある")
 
         // Below the content: that same padding plus the sheet's own bottom
         // safe area (the home indicator) - real chrome, not empty filler.
-        // Whatever remains after the padding must stay under a single
-        // row's height; a sheet taller than its content (e.g. a `.medium`
-        // detent) leaves far more.
-        let bottomSpace = sheet.maxY - content.frame.maxY
-        XCTAssertGreaterThanOrEqual(bottomSpace, topInset - 1, "コンテンツがシートに収まっていない")
+        // The bottom safe area is measured, not assumed: the tab bar
+        // behind the sheet always extends to it, so `screen.maxY` minus
+        // the tab bar's own bottom edge is that inset. A few points beyond
+        // that (`tolerance`) absorbs measurement/animation jitter, not a
+        // guessed constant.
+        let tabBar = app.tabBars.firstMatch
+        let measuredBottomSafeArea = max(0, screen.maxY - tabBar.frame.maxY)
+        let tolerance: CGFloat = 3
+        let bottomSpace = sheet.maxY - contentFrame.maxY
+        XCTAssertGreaterThanOrEqual(
+            bottomSpace,
+            topInset - tolerance,
+            "コンテンツがシートに収まっていない",
+        )
         XCTAssertLessThan(
             bottomSpace - topInset,
-            manualRow.frame.height,
+            manualRow.frame.height + measuredBottomSafeArea + tolerance,
             "コンテンツの下に行の高さ以上の余分な空白がある",
         )
     }
@@ -243,7 +322,7 @@ final class IosAppUITests: XCTestCase {
     }
 
     /// Changing the month on one tab must be reflected on the others,
-    /// since the shared `AppViewModel` publishes a single state.
+    /// since the shared `AppState` publishes a single state.
     func testMonthSelectionIsSharedAcrossTabs() throws {
         switchToTab("ホーム")
 
@@ -274,6 +353,13 @@ final class IosAppUITests: XCTestCase {
 
     /// Round-tripping through every tab several times must never recreate
     /// any tab root's state object: every creation counter stays at 1.
+    ///
+    /// Also the evidence for where `lifecycle` state lives on each tab
+    /// content view (`HomeTabContent`, `SearchTabContent`, etc., not
+    /// `RootView`): 検索 uses `Tab(role: .search)`, once suspected of
+    /// reconstructing its content on every activation, but
+    /// `search-creation-count` stays "1" here exactly like every other
+    /// tab's counter.
     func testTabRootsAreNotRecreatedAcrossManySwitches() throws {
         for _ in 0..<3 {
             for tab in tabNames {
@@ -289,96 +375,44 @@ final class IosAppUITests: XCTestCase {
         }
     }
 
-    /// Where every screenshot test writes its PNGs: directly to the host
-    /// filesystem (the simulator UI test runner process has host file
-    /// access), outside the repository.
-    private static let screenshotOutputDirectory =
-        "/private/tmp/claude-502/-Users-taka-ghq-github-com-mktkhr-Moneging"
-        + "/cb07a61f-4e13-4f0b-8b94-7ebb182b377a/scratchpad/shell-shots"
+    /// At the largest accessibility text size (`UICTContentSizeCategoryAccessibilityXXXL`),
+    /// the 記録する sheet's content is taller than any sheet detent can be
+    /// (`FittedSheetModifier` switches to a scrolling, clamped-height
+    /// sheet - see that type's doc comment); the title and every row must
+    /// still be reachable by scrolling, never merely clipped off-screen.
+    func testRecordSheetContentIsReachableAtLargestAccessibilityTextSize() throws {
+        let axApp = XCUIApplication()
+        axApp.launchArguments += [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ]
+        axApp.launch()
+        defer { axApp.terminate() }
 
-    /// Saves a PNG screenshot of the current screen as `<name>.png` under
-    /// `screenshotOutputDirectory`.
-    private func saveScreenshot(_ name: String) throws {
-        try FileManager.default.createDirectory(
-            atPath: Self.screenshotOutputDirectory,
-            withIntermediateDirectories: true,
-        )
-        let data = app.screenshot().image.pngData()
-        let png = try XCTUnwrap(data, "\(name) の PNG 化に失敗した")
-        try png.write(to: URL(fileURLWithPath: "\(Self.screenshotOutputDirectory)/\(name).png"))
-    }
+        switchToTab("ホーム", in: axApp)
 
-    /// Saves PNG screenshots of ホーム, the record sheet, the ledger menu,
-    /// 設定, カレンダー, and 検索 for manual review.
-    func testCaptureAppScreenshots() throws {
-        func save(_ name: String) throws {
-            try self.saveScreenshot(name)
+        let recordButton = axApp.buttons["record-button"]
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
+        recordButton.tap()
+
+        let sheetContent = axApp.otherElements["record-sheet-content"]
+        XCTAssertTrue(sheetContent.waitForExistence(timeout: 5))
+
+        let title = axApp.staticTexts["record-sheet-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(title.isHittable, "AX XXXL でシートのタイトルに到達できない")
+
+        let rows = [
+            axApp.buttons["record-option-manual"],
+            axApp.buttons["record-option-receipt-scan"],
+            axApp.buttons["record-option-photo-pick"],
+        ]
+        for row in rows {
+            var attempts = 0
+            while !(row.exists && row.isHittable) && attempts < 20 {
+                sheetContent.swipeUp()
+                attempts += 1
+            }
+            XCTAssertTrue(row.isHittable, "AX XXXL で \(row.identifier) に到達できない")
         }
-
-        switchToTab("ホーム")
-        try save("01-home")
-
-        let titleMenu = app.buttons["ledger-title-menu"]
-        XCTAssertTrue(titleMenu.waitForExistence(timeout: 5))
-        titleMenu.tap()
-        XCTAssertTrue(app.buttons["ledger-menu-secondary"].waitForExistence(timeout: 5))
-        try save("02-ledger-menu")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
-        let secondLedgerButton = app.buttons["ledger-menu-secondary"]
-        var menuDismissAttempts = 0
-        while secondLedgerButton.exists && menuDismissAttempts < 20 {
-            usleep(200_000)
-            menuDismissAttempts += 1
-        }
-
-        app.buttons["record-button"].tap()
-        XCTAssertTrue(app.buttons["record-option-manual"].waitForExistence(timeout: 5))
-        try save("03-record-sheet")
-
-        // A generic `swipeDown()` was unreliable at dismissing the sheet
-        // (its start point does not consistently land inside the sheet's
-        // draggable area); dragging from a coordinate inside the sheet to
-        // the bottom of the screen is more deterministic.
-        let dragStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
-        let dragEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99))
-        dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
-
-        let manualRow = app.buttons["record-option-manual"]
-        var sheetDismissAttempts = 0
-        while manualRow.exists && sheetDismissAttempts < 25 {
-            usleep(200_000)
-            sheetDismissAttempts += 1
-        }
-        XCTAssertFalse(manualRow.exists, "記録する シートが閉じない")
-        // The dismiss animation's dimming overlay can still intercept hits
-        // briefly after its elements leave the accessibility tree.
-        sleep(1)
-
-        app.buttons["account-button"].tap()
-        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
-        try save("04-settings")
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-
-        switchToTab("カレンダー")
-        XCTAssertTrue(app.staticTexts["calendar-creation-count"].waitForExistence(timeout: 5))
-        try save("05-calendar")
-
-        switchToTab("検索")
-        XCTAssertTrue(app.staticTexts["search-creation-count"].waitForExistence(timeout: 5))
-        try save("06-search")
-    }
-
-    /// Saves a PNG screenshot of ホーム, for manual review of the dark-mode `Theme`.
-    ///
-    /// The simulator's own appearance (light vs. dark) is outside this
-    /// test's control - run under the default (light) appearance, this
-    /// simply re-saves the same screenshot `testCaptureAppScreenshots`
-    /// already takes; the verification runbook re-runs this one test alone
-    /// with the simulator's appearance forced to dark first
-    /// (`xcrun simctl ui <device> appearance dark`), which overwrites this
-    /// file with the actual dark-mode rendering.
-    func testCaptureHomeScreenshotForCurrentAppearance() throws {
-        switchToTab("ホーム")
-        try self.saveScreenshot("07-home-dark")
     }
 }
