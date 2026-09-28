@@ -9,11 +9,14 @@ import dev.detekt.gradle.extensions.FailOnSeverity
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.RegularFile
+import org.gradle.api.specs.Spec
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
+import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 import java.io.File
 
 /**
@@ -35,6 +38,13 @@ import java.io.File
  *   `quality/kotlin/android-lint.xml`, test sources included. Kotlin
  *   Multiplatform library modules also get `com.android.lint`, without which
  *   AGP 9 never analyses their main (commonMain + androidMain) code.
+ *
+ * Locking a value only stops a later write to that one property. A module
+ * build script can still reach the tasks themselves (`enabled`, `onlyIf`,
+ * `setSource`, `exclude`, `setDependsOn`, `excludedTaskNames`, a task-level
+ * config file...), so once the task graph is known the final state of every
+ * policy task in it is verified as well (QualityPolicy.kt), and the
+ * build fails when anything was weakened.
  */
 class QualityConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -42,14 +52,27 @@ class QualityConventionPlugin : Plugin<Project> {
             target.rootProject.layout.projectDirectory
                 .dir("../../quality/kotlin")
                 .asFile
+        val policy =
+            QualityPolicy(
+                detektConfig = File(qualityDir, "detekt.yml"),
+                lintConfig = File(qualityDir, "android-lint.xml"),
+            )
         target.lockKotlinWarnings()
         target.applyKtlintPolicy()
-        target.applyDetektPolicy(File(qualityDir, "detekt.yml"))
-        target.applyAndroidLintPolicy(File(qualityDir, "android-lint.xml"))
+        target.applyDetektPolicy(policy.detektConfig)
+        target.applyAndroidLintPolicy(policy.lintConfig)
+        target.verifyFinalPolicyState(policy)
     }
 }
 
-private const val BUILD_OUTPUT_SEGMENT = "/build/"
+// Matches the files under this project's own build directory (generated
+// sources, e.g. the Compose resource generator's). Resolved when the spec
+// runs, relative to the project, so a checkout that happens to live under
+// some other directory named `build` is not excluded wholesale.
+private fun Project.buildOutputSpec(): Spec<FileTreeElement> {
+    val buildDirectory = layout.buildDirectory
+    return Spec { element -> element.file.toPath().startsWith(buildDirectory.get().asFile.toPath()) }
+}
 
 private fun Project.lockKotlinWarnings() {
     tasks.withType(KotlinCompilationTask::class.java).configureEach { task ->
@@ -75,12 +98,14 @@ private fun Project.applyKtlintPolicy() {
     ktlint.android.set(pluginManager.hasPlugin("com.android.application"))
     ktlint.ignoreFailures.set(false)
     ktlint.ignoreFailures.disallowChanges()
+    val buildOutput = buildOutputSpec()
     ktlint.filter { filter ->
-        // Generated source roots (e.g. the Compose resource generator's)
-        // live under build/; a relative "**/build/**" glob does not match
-        // them, so filter by absolute path.
-        filter.exclude { it.file.path.contains(BUILD_OUTPUT_SEGMENT) }
+        // Generated source roots live under the build directory; a relative
+        // "**/build/**" glob does not match them (the pattern is relative to
+        // each source root), so match the files themselves.
+        filter.exclude(buildOutput)
     }
+    recordSourceRootsOf(BaseKtLintCheckTask::class.java)
 }
 
 private fun Project.applyDetektPolicy(configFile: File) {
@@ -113,14 +138,26 @@ private fun Project.applyDetektPolicy(configFile: File) {
     detekt.ignoredBuildTypes.disallowChanges()
     detekt.ignoredFlavors.set(emptyList())
     detekt.ignoredFlavors.disallowChanges()
+    val buildOutput = buildOutputSpec()
     tasks.withType(Detekt::class.java).configureEach { task ->
-        task.exclude { it.file.path.contains(BUILD_OUTPUT_SEGMENT) }
+        task.exclude(buildOutput)
         task.ignoreFailures.set(false)
         task.failOnSeverity.set(FailOnSeverity.Info)
         task.baseline.set(null as RegularFile?)
         task.allRules.set(true)
         task.buildUponDefaultConfig.set(true)
+        // Not locked here: the detekt plugin configures many of its tasks
+        // (baseline, config, sources) in its own register action, which
+        // Gradle runs after the configureEach actions - disallowChanges()
+        // would break it. The final values are verified instead
+        // (QualityPolicy.kt).
+
+        // Type-resolution tasks always log "There were N compiler errors":
+        // expect/actual pairs analysed as one module (3 errors each). Any
+        // other count fails the task - see DetektCompilerErrors.kt.
+        task.verifyCompilerErrorCount()
     }
+    recordSourceRootsOf(Detekt::class.java)
     val detektAll =
         tasks.register("detektAll") { task ->
             task.description = "Runs every detekt task of this project (type-resolution and source-set ones)."
@@ -141,6 +178,9 @@ private fun Project.applyAndroidLintPolicy(config: File) {
         // Without this plugin AGP 9 registers Android Lint for the module's
         // host tests only, never for its main code.
         pluginManager.apply("com.android.lint")
+        // com.android.lint has its own `lint {}` extension, read by its JVM
+        // lint tasks (lintJvm / lintReportJvm).
+        extensions.getByType(Lint::class.java).applyPolicy(config)
         extensions
             .getByType(KotlinMultiplatformExtension::class.java)
             .targets
