@@ -5,3 +5,11 @@ PRODUCT_BUNDLE_IDENTIFIER=io.github.mktkhr.moneging
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0
+
+// Fail the build on any Swift compiler warning, not just report it. Set here
+// (project-level XCBuildConfiguration, inherited by the iosApp target's own
+// Debug/Release configurations, which have no baseConfigurationReference of
+// their own) rather than only in project.pbxproj, so it stays a one-line,
+// diffable setting alongside the rest of this file instead of another
+// buildSettings entry buried in the generated project file.
+SWIFT_TREAT_WARNINGS_AS_ERRORS=YES

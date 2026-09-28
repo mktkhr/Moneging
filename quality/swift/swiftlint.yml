@@ -1,0 +1,80 @@
+# SwiftLint configuration for clients/kmp/iosApp.
+#
+# `opt_in_rules: [all]` turns on every opt-in rule (supported since
+# SwiftLint 0.61; verified against the pinned 0.65.1 with
+# `swiftlint lint --config <this-file-with-only-"opt_in_rules: - all">`),
+# so new rules a future SwiftLint release adds are on by default instead of
+# silently staying off until someone remembers to list them. Near-total
+# strictness is the explicit goal; nothing is disabled for convenience.
+#
+# The real gate (warnings must fail too):
+#   swiftlint lint --strict --config quality/swift/swiftlint.yml clients/kmp/iosApp/iosApp
+#
+# analyzer_rules additionally require a full compiler log, since they need
+# whole-module type information sourcekit alone cannot provide:
+#   xcodebuild clean build -project clients/kmp/iosApp/iosApp.xcodeproj \
+#     -scheme iosApp -destination 'generic/platform=iOS Simulator' \
+#     CODE_SIGNING_ALLOWED=NO | tee /tmp/xcodebuild.log
+#   swiftlint analyze --strict --compiler-log-path /tmp/xcodebuild.log \
+#     --config quality/swift/swiftlint.yml clients/kmp/iosApp/iosApp/*.swift
+opt_in_rules:
+  - all
+
+# The five rules SwiftLint only runs under `swiftlint analyze` (each needs a
+# compiler log, not just sourcekit). Listing them here is enough for `lint`
+# to leave them to `analyze` silently (verified empirically: with
+# `opt_in_rules: [all]` and no matching disabled_rules entry, plain `lint`
+# neither runs them nor warns about them, while `analyze` does run them and
+# reports their violations) - they must NOT also appear in disabled_rules,
+# or `analyze` stops running them too.
+analyzer_rules:
+  - capture_variable
+  - explicit_self
+  - typesafe_array_init
+  - unused_declaration
+  - unused_import
+
+disabled_rules:
+  # --- genuinely mutually-contradictory rules -------------------------------
+  # contrasted_opening_brace requires the opening brace on its own line;
+  # the default (kept) `opening_brace` rule requires it on the same line as
+  # the declaration. SwiftLint's own descriptions cross-reference each other
+  # as alternative brace styles ("Check out the `X` rule for a different
+  # style") - enabling both fails one of them on every declaration.
+  - contrasted_opening_brace
+
+  # redundant_self flags `self.` wherever Swift does not require it (inside
+  # closures, by default); the analyzer's `explicit_self` (kept, see above)
+  # requires `self.` on every instance member access, including inside
+  # closures. Verified empirically: `self.x = 1` inside a closure fails
+  # redundant_self, and removing `self.` there fails explicit_self - no
+  # spelling satisfies both.
+  - redundant_self
+
+  # redundant_type_annotation flags a type annotation as unneeded whenever it
+  # can be inferred from a non-literal initializer (e.g. `let url: URL =
+  # URL()`); explicit_type_interface (kept) requires every property to carry
+  # a type annotation. Verified empirically with `let url: URL = URL()`:
+  # omitting the annotation fails explicit_type_interface, adding it back
+  # fails redundant_type_annotation.
+  - redundant_type_annotation
+
+  # extension_access_modifier (kept) wants a shared access-level keyword
+  # hoisted onto the `extension` declaration itself when every member shares
+  # one; no_extension_access_modifier forbids any access-level keyword on the
+  # `extension` declaration. They require opposite things at the same token.
+  - no_extension_access_modifier
+
+# Align column width with quality/swift/swift-format.json's lineLength (100)
+# so the linter and the formatter agree on what "too long" means.
+line_length:
+  warning: 100
+  error: 120
+
+# Trailing commas on multi-line collection/argument literals: required, to
+# match swift-format's multiElementCollectionTrailingCommas (kept diffs
+# smaller when a line is appended).
+trailing_comma:
+  mandatory_comma: true
+
+reporter: "xcode"

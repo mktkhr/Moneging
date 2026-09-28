@@ -15,7 +15,13 @@
 # Pinned to the matching vendor (Temurin) and major version here too, so the
 # two do not quietly diverge.
 #
+# swiftlint: the Swift linter for clients/kmp/iosApp, invoked via
+# `quality/swift/swiftlint.yml` (guard-suppressions and the fmt/lint Make
+# targets shell out to the mise-installed binary rather than relying on
+# whatever version Homebrew or Xcode happens to have on PATH).
+#
 # Run `make tools` (`mise install`) to install these exact versions.
 [tools]
 node = "26.5.0"
 java = "temurin-21.0.10+7.0.LTS"
+swiftlint = "0.65.1"
