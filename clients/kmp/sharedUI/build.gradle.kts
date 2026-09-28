@@ -16,14 +16,28 @@ kotlin {
 
     android {
         namespace = "io.github.mktkhr.moneging.sharedUI"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
-        minSdk = libs.versions.android.minSdk.get().toInt()
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
 
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
         androidResources {
             enable = true
+        }
+        lint {
+            // Same policy as androidApp: every check on, warnings fail.
+            checkAllWarnings = true
+            lintConfig = file("${rootProject.projectDir}/../../quality/kotlin/android-lint.xml")
+            warningsAsErrors = true
+            abortOnError = true
+            checkTestSources = true
         }
         withHostTest {
             isIncludeAndroidResources = true
@@ -81,7 +95,20 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     exclude { it.file.path.contains("/build/") }
 }
 
+tasks.named("check") {
+    // See sharedLogic/build.gradle.kts: make `check` depend on every
+    // Detekt-type task, not just the plain one the plugin wires in by
+    // default, so the type-resolution-requiring KMP tasks always run too.
+    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+}
+
 ktlint {
     version.set("1.8.0")
     ignoreFailures.set(false)
+    filter {
+        // The Compose resource generator's output directory is added as its
+        // own source root under build/, so a relative "**/build/**" glob
+        // never matches; filter by absolute path instead.
+        exclude { it.file.path.contains("/build/") }
+    }
 }

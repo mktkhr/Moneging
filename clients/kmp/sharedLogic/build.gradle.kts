@@ -14,7 +14,7 @@ kotlin {
 
     listOf(
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "SharedLogic"
@@ -24,14 +24,28 @@ kotlin {
 
     android {
         namespace = "io.github.mktkhr.moneging.sharedLogic"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
-        minSdk = libs.versions.android.minSdk.get().toInt()
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
 
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
         androidResources {
             enable = true
+        }
+        lint {
+            // Same policy as androidApp: every check on, warnings fail.
+            checkAllWarnings = true
+            lintConfig = file("${rootProject.projectDir}/../../quality/kotlin/android-lint.xml")
+            warningsAsErrors = true
+            abortOnError = true
+            checkTestSources = true
         }
         withHostTest {
             isIncludeAndroidResources = true
@@ -74,7 +88,24 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     exclude { it.file.path.contains("/build/") }
 }
 
+tasks.named("check") {
+    // detekt-gradle-plugin only wires the plain `detekt` task into `check`
+    // by default; the per-source-set, type-resolution-requiring tasks it
+    // generates for Kotlin Multiplatform (detektMetadataMain,
+    // detektAndroidMain, detektIosArm64Main, ...) are opt-in. Depend on
+    // every Detekt-type task explicitly so `./gradlew build`/`check` cannot
+    // silently skip the deeper, type-aware analysis.
+    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+}
+
 ktlint {
     version.set("1.8.0")
     ignoreFailures.set(false)
+    filter {
+        // See the detekt exclusion above: generated source roots live under
+        // build/ and a relative glob does not match them. sharedLogic has no
+        // generated sources today, but this keeps every module configured
+        // identically.
+        exclude { it.file.path.contains("/build/") }
+    }
 }

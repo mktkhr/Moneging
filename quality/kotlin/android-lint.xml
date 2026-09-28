@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Moneging Android Lint policy.
+
+  Part of the Repository Harness. Every check is on (checkAllWarnings) and
+  every warning is an error (warningsAsErrors) in each module's
+  build.gradle.kts; this file only lists what is deliberately off, each with
+  the reason.
+-->
+<lint>
+    <!--
+      "A newer version of X is available" checks. They query the network and
+      start failing the moment upstream publishes a release, so the same
+      commit would pass today and fail tomorrow. Versions are pinned on
+      purpose (libs.versions.toml, gradle-wrapper.properties) and bumped as a
+      dedicated change; freshness is not a code-quality gate.
+    -->
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <!--
+      Off by default in Android Lint because it misfires, and it does here:
+      it reports MainActivity as unregistered although the merged manifest
+      (androidApp/build/intermediates/merged_manifest/) declares it, with or
+      without checkDependencies/checkTestSources and with a fully qualified
+      android:name. The manifest merger already fails the build on a
+      genuinely broken component reference.
+    -->
+    <issue id="Registered" severity="ignore" />
+</lint>

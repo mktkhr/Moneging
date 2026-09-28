@@ -31,7 +31,13 @@ ktlint {
     version.set("1.8.0")
     android.set(true)
     ignoreFailures.set(false)
+    filter {
+        // See the detekt exclusion above: generated source roots live under
+        // build/ and a relative glob does not match them.
+        exclude { it.file.path.contains("/build/") }
+    }
 }
+
 dependencies {
     implementation(project(":sharedUI"))
 
@@ -43,12 +49,21 @@ dependencies {
 
 android {
     namespace = "io.github.mktkhr.moneging"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
 
     defaultConfig {
         applicationId = "io.github.mktkhr.moneging"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        targetSdk =
+            libs.versions.android.targetSdk
+                .get()
+                .toInt()
         versionCode = 1
         versionName = "1.0"
     }
@@ -62,7 +77,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -72,5 +87,15 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    lint {
+        // Every Android Lint check, including the ones off by default, and
+        // any warning fails the build: the product bends to the policy.
+        checkAllWarnings = true
+        lintConfig = file("${rootProject.projectDir}/../../quality/kotlin/android-lint.xml")
+        warningsAsErrors = true
+        abortOnError = true
+        checkDependencies = true
+        checkTestSources = true
     }
 }

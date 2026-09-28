@@ -7,5 +7,11 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
-    alias(libs.plugins.ktlintGradle) apply false
+    alias(libs.plugins.ktlintGradle)
+}
+// Applied here too (not only `apply false`) so ktlint also checks this
+// project's own build scripts (build.gradle.kts, settings.gradle.kts).
+ktlint {
+    version.set("1.8.0")
+    ignoreFailures.set(false)
 }
