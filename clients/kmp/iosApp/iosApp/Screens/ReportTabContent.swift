@@ -126,10 +126,14 @@ internal struct ReportTabContent: View {
             Text(share.name)
                 .font(.subheadline)
                 .foregroundStyle(Theme.text)
+                .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            // The amount keeps its width, so `5,300円` never breaks before 円;
+            // a long category name gives way instead.
             Text(share.amountText)
                 .font(.subheadline.weight(.bold).monospacedDigit())
                 .foregroundStyle(Theme.text)
+                .fixedSize(horizontal: true, vertical: false)
             Text(share.percentText)
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(Theme.mutedText)
