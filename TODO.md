@@ -3,7 +3,7 @@
 `PRODUCT.md` §8 のステージを順に。ステージは、その基準が `make status` で pass し
 `make check` が green になったら完了。
 
-1. Foundation
+1. Foundation（完了: stage.txt = 1）
 2. Recording money
 3. Reporting and calendar
 4. Budget and savings
