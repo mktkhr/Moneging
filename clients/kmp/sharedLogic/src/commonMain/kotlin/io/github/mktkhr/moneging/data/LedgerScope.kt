@@ -8,6 +8,7 @@ import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.domain.Photo
 import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Transaction
+import io.github.mktkhr.moneging.domain.TransactionQuery
 import kotlinx.datetime.YearMonth
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -23,7 +24,8 @@ interface LedgerScope :
     LedgerPhotos,
     LedgerTransactionReads,
     LedgerTransactionWrites,
-    LedgerPlans {
+    LedgerPlans,
+    LedgerRecurringRules {
     /** The ledger these operations act within. */
     val ledgerId: Uuid
 }
@@ -38,6 +40,15 @@ interface LedgerCategories {
 
     /** Adds a category named [name] (trimmed, not empty). */
     suspend fun createCategory(name: String): Category
+
+    /** Renames this ledger's category [categoryId] to [name] (trimmed, not empty). */
+    suspend fun renameCategory(
+        categoryId: Uuid,
+        name: String,
+    ): Category
+
+    /** Archives this ledger's category [categoryId]: it keeps its history but takes no new transactions. */
+    suspend fun archiveCategory(categoryId: Uuid): Category
 }
 
 /** A ledger's photos. */
@@ -63,12 +74,25 @@ interface LedgerTransactionReads {
 
     /** The totals of the live transactions dated in [month]. */
     suspend fun monthTotals(month: YearMonth): MonthTotals
+
+    /** The live transactions matching every condition of [query], newest first. */
+    suspend fun searchTransactions(query: TransactionQuery): List<Transaction>
 }
 
 /** Writing a ledger's transactions. */
 interface LedgerTransactionWrites {
     /** Records [transaction], stamped with this device's identifier. */
     suspend fun recordTransaction(transaction: NewTransaction): Transaction
+
+    /**
+     * Replaces the content of the transaction [transactionId] with
+     * [transaction], its items as a whole; keeps its identifier, creation,
+     * device and recurring rule.
+     */
+    suspend fun updateTransaction(
+        transactionId: Uuid,
+        transaction: NewTransaction,
+    ): Transaction
 
     /** Changes the memo of the transaction [transactionId]. */
     suspend fun updateMemo(
@@ -80,7 +104,7 @@ interface LedgerTransactionWrites {
     suspend fun deleteTransaction(transactionId: Uuid)
 }
 
-/** A ledger's budgets and recurring rules. */
+/** A ledger's budgets. */
 interface LedgerPlans {
     /** Sets a budget of [amount] for [categoryId] (`null`: the whole month) from the month [from] on. */
     suspend fun setBudget(
@@ -88,7 +112,27 @@ interface LedgerPlans {
         amount: Long,
         from: YearMonth,
     ): Budget
+}
 
-    /** Creates a recurring rule. */
+/** A ledger's recurring rules, and the transactions they record. */
+interface LedgerRecurringRules {
+    /** Creates a recurring rule; it records nothing until [materializeRecurringRules] runs. */
     suspend fun createRecurringRule(rule: NewRecurringRule): RecurringRule
+
+    /** This ledger's live recurring rules, in creation order. */
+    suspend fun recurringRules(): List<RecurringRule>
+
+    /** Replaces the content of the rule [ruleId]; the transactions it recorded stay as they are. */
+    suspend fun updateRecurringRule(
+        ruleId: Uuid,
+        rule: NewRecurringRule,
+    ): RecurringRule
+
+    /**
+     * Records every month of every live rule whose date has come (today in
+     * Asia/Tokyo, by the injected clock) and that is not recorded yet, once
+     * per rule and month however often it runs; a month whose transaction
+     * was deleted stays done. Returns what it recorded.
+     */
+    suspend fun materializeRecurringRules(): List<Transaction>
 }

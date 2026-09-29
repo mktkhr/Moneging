@@ -28,3 +28,9 @@ SELECT COALESCE(MAX(position), -1) + 1 FROM categories WHERE ledger_id = ?;
 
 allCategories:
 SELECT * FROM categories ORDER BY rowid;
+
+renameCategory:
+UPDATE categories SET name = ?, updated_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+archiveCategory:
+UPDATE categories SET archived = 1, updated_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;

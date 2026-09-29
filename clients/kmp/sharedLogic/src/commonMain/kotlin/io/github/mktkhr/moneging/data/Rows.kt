@@ -8,6 +8,7 @@ import io.github.mktkhr.moneging.data.db.Photos
 import io.github.mktkhr.moneging.data.db.Recurring_rules
 import io.github.mktkhr.moneging.data.db.Transactions
 import io.github.mktkhr.moneging.domain.Budget
+import io.github.mktkhr.moneging.domain.BusinessDayAdjustment
 import io.github.mktkhr.moneging.domain.Category
 import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.Ledger
@@ -35,6 +36,7 @@ internal fun Categories.toDomain(): Category =
         ledgerId = ledger_id.toUuid(),
         name = name,
         isArchived = archived.toBoolean(),
+        defaultIndex = position.toInt().takeIf { it < DEFAULT_CATEGORY_NAMES.size },
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
     )
@@ -75,6 +77,8 @@ internal fun Transactions.toDomain(items: List<LineItem>): Transaction =
         deviceId = device_id,
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
+        recurringRuleId = recurring_rule_id?.toUuid(),
+        recurringMonth = recurring_month?.let { YearMonth.parse(it) },
     )
 
 internal fun Budgets.toDomain(): Budget =
@@ -94,11 +98,12 @@ internal fun Recurring_rules.toDomain(): RecurringRule =
         ledgerId = ledger_id.toUuid(),
         direction = Direction.valueOf(direction),
         amount = amount,
-        categoryId = category_id.toUuid(),
-        dayOfMonth = day_of_month.toInt(),
+        categoryId = category_id?.toUuid(),
+        dayOfMonth = day_of_month?.toInt(),
         startMonth = YearMonth.parse(start_month),
         endMonth = end_month?.let { YearMonth.parse(it) },
         memo = memo,
+        adjustment = BusinessDayAdjustment.valueOf(adjustment),
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
     )

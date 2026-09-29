@@ -7,8 +7,10 @@ package io.github.mktkhr.moneging.state
  * functions instead.
  */
 sealed interface AppIntent {
-    /** Change the displayed month. */
+    /** Change the month in view. */
     data class SelectMonth(
+        /** The year of the new month. */
+        val year: Int,
         /** The new month, 1-12. */
         val month: Int,
     ) : AppIntent
@@ -33,6 +35,12 @@ sealed interface AppIntent {
 
     /** Replay the tour from the settings, from the step after the ledger step. */
     data object ReplayTour : AppIntent
+
+    /**
+     * Read today again from the clock (on returning to the foreground and as
+     * time passes); see [AppUiState.withToday].
+     */
+    data object RefreshToday : AppIntent
 
     /** Dismiss the error shown. */
     data object DismissError : AppIntent

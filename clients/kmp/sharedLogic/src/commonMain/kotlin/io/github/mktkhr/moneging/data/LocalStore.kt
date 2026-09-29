@@ -11,6 +11,7 @@ import io.github.mktkhr.moneging.domain.StoredRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
@@ -79,6 +80,17 @@ class LocalStore internal constructor(
             .asFlow()
             .mapToList(context)
             .map { rows -> rows.map { it.toDomain() } }
+
+    /**
+     * Emits at once, then whenever a transaction, a category or a recurring
+     * rule of any ledger changes: when to read a ledger's records again.
+     */
+    fun observeRecordChanges(): Flow<Unit> =
+        merge(
+            database.transactionsQueries.allTransactions().asFlow(),
+            database.categoriesQueries.allCategories().asFlow(),
+            database.recurringRulesQueries.allRecurringRules().asFlow(),
+        ).map { }
 
     /** The ledger [id], or `null` when there is none. */
     suspend fun findLedger(id: Uuid): Ledger? =

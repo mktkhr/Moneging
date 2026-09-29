@@ -52,6 +52,13 @@ data class Transaction(
     val deviceId: String,
     override val createdAt: Instant,
     override val updatedAt: Instant,
+    /** The recurring rule that recorded it; `null` for one recorded by hand. */
+    val recurringRuleId: Uuid?,
+    /**
+     * The month of [recurringRuleId] it is the transaction of (may differ
+     * from [date]'s); `null` when recorded by hand.
+     */
+    val recurringMonth: YearMonth?,
 ) : SyncRecord
 
 /** A planned amount for a ledger, optionally for one category, from a month on. */
@@ -69,7 +76,19 @@ data class Budget(
     override val updatedAt: Instant,
 ) : SyncRecord
 
-/** A transaction that repeats monthly on a day of the month. */
+/** Where a recurring rule's date moves when it is not a business day (PRODUCT.md §3). */
+enum class BusinessDayAdjustment {
+    /** Kept on its date (そのまま). */
+    KEEP,
+
+    /** Moved to the next business day (翌平日). */
+    NEXT_BUSINESS_DAY,
+
+    /** Moved to the previous business day (前の平日). */
+    PREVIOUS_BUSINESS_DAY,
+}
+
+/** An expense or an income that repeats every month (PRODUCT.md §3). */
 data class RecurringRule(
     override val id: Uuid,
     /** The ledger it belongs to. */
@@ -78,16 +97,18 @@ data class RecurringRule(
     val direction: Direction,
     /** Its amount in yen. */
     val amount: Long,
-    /** Its category. */
-    val categoryId: Uuid,
-    /** The day of the month it falls on, 1 to 31. */
-    val dayOfMonth: Int,
+    /** Its category: an expense's, `null` for an income. */
+    val categoryId: Uuid?,
+    /** The day of the month it falls on, 1 to 31; `null` for the month's last day. */
+    val dayOfMonth: Int?,
     /** The first month it applies to. */
     val startMonth: YearMonth,
     /** The last month it applies to, or `null` for no end. */
     val endMonth: YearMonth?,
     /** An optional memo. */
     val memo: String?,
+    /** Where its date moves when it is not a business day. */
+    val adjustment: BusinessDayAdjustment,
     override val createdAt: Instant,
     override val updatedAt: Instant,
 ) : SyncRecord
@@ -122,22 +143,24 @@ data class NewTransaction(
     val items: List<NewLineItem> = emptyList(),
 )
 
-/** A recurring rule to create. */
+/** A recurring rule to create, or the new content of one. */
 data class NewRecurringRule(
     /** Expense or income. */
     val direction: Direction,
     /** Its amount in yen, at least 1. */
     val amount: Long,
-    /** Its category, in the ledger it is created in. */
-    val categoryId: Uuid,
-    /** The day of the month it falls on, 1 to 31. */
-    val dayOfMonth: Int,
+    /** Its category: required for an expense (active, in this ledger), `null` for an income. */
+    val categoryId: Uuid?,
+    /** The day of the month it falls on, 1 to 31, or `null` for the month's last day. */
+    val dayOfMonth: Int?,
     /** The first month it applies to. */
     val startMonth: YearMonth,
     /** The last month it applies to, or `null` for no end. */
     val endMonth: YearMonth? = null,
     /** An optional memo. */
     val memo: String? = null,
+    /** Where its date moves when it is not a business day. */
+    val adjustment: BusinessDayAdjustment = BusinessDayAdjustment.KEEP,
 )
 
 /** A month's totals of live transactions, in yen. */
@@ -146,4 +169,24 @@ data class MonthTotals(
     val expense: Long,
     /** The sum of income. */
     val income: Long,
+) {
+    /** The balance (収支): income minus expense. */
+    val balance: Long
+        get() = income - expense
+}
+
+/** What to search a ledger's transactions for; every non-null condition must hold. */
+data class TransactionQuery(
+    /** The first date, inclusive; `null` for no lower bound. */
+    val from: LocalDate? = null,
+    /** The last date, inclusive; `null` for no upper bound. */
+    val to: LocalDate? = null,
+    /** The transaction's category, or any of its items' categories. */
+    val categoryId: Uuid? = null,
+    /** Text found in the memo, the store name or an item name. */
+    val text: String? = null,
+    /** The least amount, inclusive. */
+    val minAmount: Long? = null,
+    /** The greatest amount, inclusive. */
+    val maxAmount: Long? = null,
 )

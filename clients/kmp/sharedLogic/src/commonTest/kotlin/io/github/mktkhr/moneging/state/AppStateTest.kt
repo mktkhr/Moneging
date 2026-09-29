@@ -2,12 +2,14 @@ package io.github.mktkhr.moneging.state
 
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.YearMonth
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+private const val SELECTED_YEAR = 2026
 private const val SELECTED_MONTH = 4
 private const val MONTH_BELOW_RANGE = 0
 private const val MONTH_ABOVE_RANGE = 13
@@ -36,9 +38,12 @@ class AppStateTest {
             val state = device.launch()
             val ledgerBefore = state.ui.selectedLedgerId
 
-            state.onIntent(AppIntent.SelectMonth(month = SELECTED_MONTH))
+            state.onIntent(AppIntent.SelectMonth(year = SELECTED_YEAR, month = SELECTED_MONTH))
 
-            assertEquals(expected = SELECTED_MONTH, actual = state.ui.selectedMonth)
+            assertEquals(
+                expected = YearMonth(year = SELECTED_YEAR, month = SELECTED_MONTH),
+                actual = state.ui.selectedMonth,
+            )
             assertEquals(expected = ledgerBefore, actual = state.ui.selectedLedgerId)
         }
 
@@ -49,8 +54,8 @@ class AppStateTest {
             val state = device.launch()
             val monthBefore = state.ui.selectedMonth
 
-            state.onIntent(AppIntent.SelectMonth(month = MONTH_BELOW_RANGE))
-            state.onIntent(AppIntent.SelectMonth(month = MONTH_ABOVE_RANGE))
+            state.onIntent(AppIntent.SelectMonth(year = SELECTED_YEAR, month = MONTH_BELOW_RANGE))
+            state.onIntent(AppIntent.SelectMonth(year = SELECTED_YEAR, month = MONTH_ABOVE_RANGE))
 
             assertEquals(expected = monthBefore, actual = state.ui.selectedMonth)
         }

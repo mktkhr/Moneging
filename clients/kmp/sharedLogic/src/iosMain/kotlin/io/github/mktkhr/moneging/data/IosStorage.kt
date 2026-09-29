@@ -39,11 +39,15 @@ fun localDataDirectory(): String {
     return checkNotNull(base?.path) { "Application Support がありません" } + "/" + DIRECTORY_NAME
 }
 
-/** The store kept in [directory] (created if missing), stamping records with [preferences]' device identifier. */
+/**
+ * The store kept in [directory] (created if missing) on [clock], stamping
+ * records with [preferences]' device identifier.
+ */
 @OptIn(ExperimentalForeignApi::class)
 internal fun onDiskStore(
     directory: String,
     preferences: Preferences,
+    clock: Clock,
 ): LocalStore {
     val photos = "$directory/$PHOTOS_DIRECTORY_NAME"
     NSFileManager.defaultManager.createDirectoryAtPath(
@@ -64,7 +68,7 @@ internal fun onDiskStore(
         )
     return LocalStore(
         openDriver = ::openDriver,
-        clock = Clock.System,
+        clock = clock,
         deviceId = deviceId(preferences),
         photoFiles = DirectoryPhotoFiles(photos),
     )

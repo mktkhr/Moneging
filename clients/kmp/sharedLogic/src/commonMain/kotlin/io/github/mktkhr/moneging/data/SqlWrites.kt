@@ -1,17 +1,17 @@
 package io.github.mktkhr.moneging.data
 
 import io.github.mktkhr.moneging.domain.Budget
-import io.github.mktkhr.moneging.domain.NewRecurringRule
+import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.NewTransaction
-import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Transaction
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.YearMonth
 import kotlin.uuid.Uuid
 
-private const val MIN_AMOUNT = 1L
-private const val FIRST_DAY_OF_MONTH = 1
-private const val LAST_DAY_OF_MONTH = 31
+/** The least amount of a transaction, an item or a rule, in yen. */
+internal const val MIN_AMOUNT = 1L
+
+private const val NOT_FOUND = "記録が見つかりません"
 
 /** [LedgerTransactionWrites] over the database, stamping [deviceId] on every transaction. */
 internal class SqlTransactionWrites(
@@ -25,10 +25,43 @@ internal class SqlTransactionWrites(
         return withContext(rows.context) {
             rows.database.transactionWithResult {
                 rows.requireLedger()
-                transaction.categoryId?.let { rows.requireActiveCategory(it) }
-                transaction.items.forEach { rows.requireActiveCategory(it.categoryId) }
+                transaction.categoryIds().forEach { rows.requireActiveCategory(it) }
                 transaction.photoId?.let { rows.requirePhoto(it) }
-                insert(transaction)
+                insertTransaction(rows = rows, deviceId = deviceId, transaction = transaction)
+            }
+        }
+    }
+
+    override suspend fun updateTransaction(
+        transactionId: Uuid,
+        transaction: NewTransaction,
+    ): Transaction {
+        requireShape(transaction)
+        return withContext(rows.context) {
+            rows.database.transactionWithResult {
+                val current = requireNotNull(rows.transaction(transactionId)) { NOT_FOUND }
+                // A category archived since may stay on the transaction; only a newly chosen one must be active.
+                val kept = current.categoryIds()
+                transaction.categoryIds().forEach { id ->
+                    if (id in kept) rows.requireCategory(id) else rows.requireActiveCategory(id)
+                }
+                transaction.photoId?.let { rows.requirePhoto(it) }
+                val now = rows.now().toColumn()
+                queries.updateTransaction(
+                    date = transaction.date.toString(),
+                    direction = transaction.direction.name,
+                    amount = transaction.amount,
+                    categoryId = transaction.categoryId?.toString(),
+                    memo = transaction.memo,
+                    storeName = transaction.storeName,
+                    photoId = transaction.photoId?.toString(),
+                    updatedAt = now,
+                    ledgerId = rows.ledgerKey,
+                    id = transactionId.toString(),
+                )
+                queries.deleteLineItemsOf(transactionId.toString())
+                insertLineItems(rows = rows, transactionId = transactionId, transaction = transaction, now = now)
+                checkNotNull(rows.transaction(transactionId))
             }
         }
     }
@@ -39,7 +72,7 @@ internal class SqlTransactionWrites(
     ): Transaction =
         withContext(rows.context) {
             rows.database.transactionWithResult {
-                requireNotNull(rows.transaction(transactionId)) { "記録が見つかりません" }
+                requireNotNull(rows.transaction(transactionId)) { NOT_FOUND }
                 queries.updateMemo(
                     memo = memo,
                     updated_at = rows.now().toColumn(),
@@ -53,7 +86,7 @@ internal class SqlTransactionWrites(
     override suspend fun deleteTransaction(transactionId: Uuid) {
         withContext(rows.context) {
             rows.database.transaction {
-                requireNotNull(rows.transaction(transactionId)) { "記録が見つかりません" }
+                requireNotNull(rows.transaction(transactionId)) { NOT_FOUND }
                 queries.markTransactionDeleted(
                     deleted_at = rows.now().toColumn(),
                     ledger_id = rows.ledgerKey,
@@ -63,48 +96,88 @@ internal class SqlTransactionWrites(
         }
     }
 
+    // The invariants of PRODUCT.md §3 that need no database: the amount, and
+    // an expense's category or items, an income's lack of both.
     private fun requireShape(transaction: NewTransaction) {
         require(transaction.amount >= MIN_AMOUNT) { "金額は1円以上にしてください" }
-        if (transaction.items.isEmpty()) {
-            requireNotNull(transaction.categoryId) { "カテゴリを選んでください" }
-        } else {
-            require(transaction.categoryId == null) { "明細のある記録にはカテゴリを付けません" }
-            require(transaction.items.all { it.amount >= MIN_AMOUNT }) { "明細の金額は1円以上にしてください" }
-            require(transaction.items.sumOf { it.amount } == transaction.amount) { "明細の合計が金額と一致しません" }
+        when (transaction.direction) {
+            Direction.INCOME -> {
+                require(transaction.categoryId == null) { "収入には分類を付けません" }
+                require(transaction.items.isEmpty()) { "収入は明細に分けられません" }
+            }
+
+            Direction.EXPENSE -> {
+                if (transaction.items.isEmpty()) {
+                    requireNotNull(transaction.categoryId) { "カテゴリを選んでください" }
+                } else {
+                    require(transaction.categoryId == null) { "明細のある記録にはカテゴリを付けません" }
+                    require(transaction.items.all { it.amount >= MIN_AMOUNT }) { "明細の金額は1円以上にしてください" }
+                    require(transaction.items.sumOf { it.amount } == transaction.amount) {
+                        "明細の合計が金額と一致しません"
+                    }
+                }
+            }
         }
     }
+}
 
-    private fun insert(transaction: NewTransaction): Transaction {
-        val now = rows.now().toColumn()
-        val id = Uuid.random()
-        queries.insertTransaction(
-            id = id.toString(),
-            ledger_id = rows.ledgerKey,
-            date = transaction.date.toString(),
-            direction = transaction.direction.name,
-            amount = transaction.amount,
-            category_id = transaction.categoryId?.toString(),
-            memo = transaction.memo,
-            store_name = transaction.storeName,
-            photo_id = transaction.photoId?.toString(),
-            needs_review = false.toColumn(),
-            device_id = deviceId,
+// Every category a transaction names: its own and its items'.
+internal fun NewTransaction.categoryIds(): Set<Uuid> = (listOfNotNull(categoryId) + items.map { it.categoryId }).toSet()
+
+internal fun Transaction.categoryIds(): Set<Uuid> = (listOfNotNull(categoryId) + items.map { it.categoryId }).toSet()
+
+/**
+ * Inserts [transaction] into [rows]' ledger, stamped with [deviceId], as the
+ * month [recurringMonth] of the rule [recurringRuleId] when it is one's.
+ * Validates nothing: the caller has, within the same database transaction.
+ */
+internal fun insertTransaction(
+    rows: LedgerRows,
+    deviceId: String,
+    transaction: NewTransaction,
+    recurringRuleId: Uuid? = null,
+    recurringMonth: YearMonth? = null,
+): Transaction {
+    val now = rows.now().toColumn()
+    val id = Uuid.random()
+    rows.database.transactionsQueries.insertTransaction(
+        id = id.toString(),
+        ledger_id = rows.ledgerKey,
+        date = transaction.date.toString(),
+        direction = transaction.direction.name,
+        amount = transaction.amount,
+        category_id = transaction.categoryId?.toString(),
+        memo = transaction.memo,
+        store_name = transaction.storeName,
+        photo_id = transaction.photoId?.toString(),
+        needs_review = false.toColumn(),
+        device_id = deviceId,
+        created_at = now,
+        updated_at = now,
+        recurring_rule_id = recurringRuleId?.toString(),
+        recurring_month = recurringMonth?.toString(),
+    )
+    insertLineItems(rows = rows, transactionId = id, transaction = transaction, now = now)
+    return checkNotNull(rows.transaction(id))
+}
+
+internal fun insertLineItems(
+    rows: LedgerRows,
+    transactionId: Uuid,
+    transaction: NewTransaction,
+    now: Long,
+) {
+    transaction.items.forEachIndexed { position, item ->
+        rows.database.transactionsQueries.insertLineItem(
+            id = Uuid.random().toString(),
+            transaction_id = transactionId.toString(),
+            position = position.toLong(),
+            amount = item.amount,
+            category_id = item.categoryId.toString(),
+            name = item.name,
             created_at = now,
             updated_at = now,
         )
-        transaction.items.forEachIndexed { position, item ->
-            queries.insertLineItem(
-                id = Uuid.random().toString(),
-                transaction_id = id.toString(),
-                position = position.toLong(),
-                amount = item.amount,
-                category_id = item.categoryId.toString(),
-                name = item.name,
-                created_at = now,
-                updated_at = now,
-            )
-        }
-        return checkNotNull(rows.transaction(id))
     }
 }
 
@@ -143,47 +216,6 @@ internal class SqlPlans(
                     updated_at = now.toColumn(),
                 )
                 budget
-            }
-        }
-    }
-
-    override suspend fun createRecurringRule(rule: NewRecurringRule): RecurringRule {
-        require(rule.amount >= MIN_AMOUNT) { "金額は1円以上にしてください" }
-        require(rule.dayOfMonth in FIRST_DAY_OF_MONTH..LAST_DAY_OF_MONTH) { "日付は1〜31日にしてください" }
-        require(rule.endMonth == null || rule.endMonth >= rule.startMonth) { "終了月は開始月以降にしてください" }
-        return withContext(rows.context) {
-            rows.database.transactionWithResult {
-                rows.requireLedger()
-                rows.requireActiveCategory(rule.categoryId)
-                val now = rows.now()
-                val created =
-                    RecurringRule(
-                        id = Uuid.random(),
-                        ledgerId = rows.ledgerId,
-                        direction = rule.direction,
-                        amount = rule.amount,
-                        categoryId = rule.categoryId,
-                        dayOfMonth = rule.dayOfMonth,
-                        startMonth = rule.startMonth,
-                        endMonth = rule.endMonth,
-                        memo = rule.memo,
-                        createdAt = now,
-                        updatedAt = now,
-                    )
-                rows.database.recurringRulesQueries.insertRecurringRule(
-                    id = created.id.toString(),
-                    ledger_id = rows.ledgerKey,
-                    direction = rule.direction.name,
-                    amount = rule.amount,
-                    category_id = rule.categoryId.toString(),
-                    day_of_month = rule.dayOfMonth.toLong(),
-                    start_month = rule.startMonth.toString(),
-                    end_month = rule.endMonth?.toString(),
-                    memo = rule.memo,
-                    created_at = now.toColumn(),
-                    updated_at = now.toColumn(),
-                )
-                created
             }
         }
     }

@@ -5,6 +5,7 @@ import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.MonthTotals
 import io.github.mktkhr.moneging.domain.Photo
 import io.github.mktkhr.moneging.domain.Transaction
+import io.github.mktkhr.moneging.domain.TransactionQuery
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.YearMonth
 import kotlin.time.Instant
@@ -25,7 +26,8 @@ internal class SqlLedgerScope(
     LedgerPhotos by SqlPhotos(rows, photoFiles),
     LedgerTransactionReads by SqlTransactionReads(rows),
     LedgerTransactionWrites by SqlTransactionWrites(rows, deviceId),
-    LedgerPlans by SqlPlans(rows) {
+    LedgerPlans by SqlPlans(rows),
+    LedgerRecurringRules by SqlRecurringRules(rows, deviceId) {
     override val ledgerId: Uuid = rows.ledgerId
 }
 
@@ -46,32 +48,61 @@ internal class SqlCategories(
     override suspend fun findCategory(id: Uuid): Category? = withContext(rows.context) { rows.category(id) }
 
     override suspend fun createCategory(name: String): Category {
-        val trimmed = name.trim()
-        require(trimmed.isNotEmpty()) { "カテゴリの名前を入力してください" }
+        val trimmed = requireCategoryName(name)
         return withContext(rows.context) {
             rows.database.transactionWithResult {
                 rows.requireLedger()
-                val now = rows.now()
-                val category =
-                    Category(
-                        id = Uuid.random(),
-                        ledgerId = rows.ledgerId,
-                        name = trimmed,
-                        isArchived = false,
-                        createdAt = now,
-                        updatedAt = now,
-                    )
+                val now = rows.now().toColumn()
+                val id = Uuid.random()
                 queries.insertCategory(
-                    id = category.id.toString(),
+                    id = id.toString(),
                     ledger_id = rows.ledgerKey,
-                    name = category.name,
+                    name = trimmed,
                     position = queries.nextCategoryPosition(rows.ledgerKey).executeAsOne(),
-                    created_at = now.toColumn(),
-                    updated_at = now.toColumn(),
+                    created_at = now,
+                    updated_at = now,
                 )
-                category
+                rows.requireCategory(id)
             }
         }
+    }
+
+    override suspend fun renameCategory(
+        categoryId: Uuid,
+        name: String,
+    ): Category {
+        val trimmed = requireCategoryName(name)
+        return withContext(rows.context) {
+            rows.database.transactionWithResult {
+                rows.requireCategory(categoryId)
+                queries.renameCategory(
+                    name = trimmed,
+                    updated_at = rows.now().toColumn(),
+                    ledger_id = rows.ledgerKey,
+                    id = categoryId.toString(),
+                )
+                rows.requireCategory(categoryId)
+            }
+        }
+    }
+
+    override suspend fun archiveCategory(categoryId: Uuid): Category =
+        withContext(rows.context) {
+            rows.database.transactionWithResult {
+                rows.requireCategory(categoryId)
+                queries.archiveCategory(
+                    updated_at = rows.now().toColumn(),
+                    ledger_id = rows.ledgerKey,
+                    id = categoryId.toString(),
+                )
+                rows.requireCategory(categoryId)
+            }
+        }
+
+    private fun requireCategoryName(name: String): String {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "カテゴリの名前を入力してください" }
+        return trimmed
     }
 }
 
@@ -156,5 +187,22 @@ internal class SqlTransactionReads(
                 expense = byDirection[Direction.EXPENSE] ?: 0L,
                 income = byDirection[Direction.INCOME] ?: 0L,
             )
+        }
+
+    override suspend fun searchTransactions(query: TransactionQuery): List<Transaction> =
+        withContext(rows.context) {
+            rows.database.transactionWithResult {
+                val found =
+                    queries.searchTransactions(
+                        ledgerId = rows.ledgerKey,
+                        fromDate = query.from?.toString(),
+                        toDate = query.to?.toString(),
+                        minAmount = query.minAmount,
+                        maxAmount = query.maxAmount,
+                        categoryId = query.categoryId?.toString(),
+                        text = query.text?.takeIf { it.isNotEmpty() },
+                    )
+                found.executeAsList().map { row -> row.toDomain(items = itemsOf(rows.database, row.id)) }
+            }
         }
 }

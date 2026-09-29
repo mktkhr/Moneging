@@ -5,7 +5,11 @@ import io.github.mktkhr.moneging.domain.Category
 import io.github.mktkhr.moneging.domain.LineItem
 import io.github.mktkhr.moneging.domain.StoredRecord
 import io.github.mktkhr.moneging.domain.Transaction
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -28,6 +32,9 @@ internal class LedgerRows(
     /** [ledgerId] as the database keeps it. */
     val ledgerKey: String = ledgerId.toString()
 
+    /** Today's date by the clock, in Asia/Tokyo. */
+    fun today(): LocalDate = now().toLocalDateTime(PRODUCT_TIME_ZONE).date
+
     /** Refuses a write to a ledger that does not exist. */
     fun requireLedger() {
         requireNotNull(database.ledgersQueries.liveLedger(ledgerKey).executeAsOneOrNull()) { "家計簿が見つかりません" }
@@ -40,13 +47,16 @@ internal class LedgerRows(
             .executeAsOneOrNull()
             ?.toDomain()
 
+    /** This ledger's live category [id]; refuses another ledger's or an unknown one. */
+    fun requireCategory(id: Uuid): Category = requireNotNull(category(id)) { "この家計簿のカテゴリではありません" }
+
     /**
      * Refuses a category that is not one of this ledger's, or that is
      * archived: another ledger's is refused exactly like one that does not
      * exist.
      */
     fun requireActiveCategory(id: Uuid) {
-        val category = requireNotNull(category(id)) { "この家計簿のカテゴリではありません" }
+        val category = requireCategory(id)
         require(!category.isArchived) { "アーカイブ済みのカテゴリには記録できません" }
     }
 
@@ -64,6 +74,12 @@ internal class LedgerRows(
             .executeAsOneOrNull()
             ?.let { row -> row.toDomain(items = itemsOf(database, row.id)) }
 }
+
+/** The time zone the product reads dates in (PRODUCT.md §3: Asia/Tokyo). */
+internal val PRODUCT_TIME_ZONE: TimeZone = TimeZone.of("Asia/Tokyo")
+
+/** Today's date by this clock, in Asia/Tokyo. */
+internal fun Clock.todayInTokyo(): LocalDate = now().toLocalDateTime(PRODUCT_TIME_ZONE).date
 
 /** The line items of the transaction [transactionId], in order. */
 internal fun itemsOf(

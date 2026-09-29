@@ -25,7 +25,7 @@ internal class TestDevice {
 
     /** Launches the app and waits until it has read the device's data. */
     suspend fun launch(): AppState {
-        val state = AppState(store = store, preferences = preferences)
+        val state = AppState(store = store, preferences = preferences, clock = FixedClock)
         launched += state
         state.uiState.first { it.isLoaded }
         return state

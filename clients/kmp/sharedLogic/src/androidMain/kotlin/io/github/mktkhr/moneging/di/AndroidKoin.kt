@@ -6,6 +6,7 @@ import io.github.mktkhr.moneging.data.Preferences
 import io.github.mktkhr.moneging.data.SharedPreferencesStore
 import io.github.mktkhr.moneging.data.onDiskStore
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 /**
  * Starts the shared Koin container for the Android app: the store and the
@@ -16,8 +17,9 @@ fun initKoin(context: Context) {
     val application = context.applicationContext
     startSharedKoin(
         module {
+            single<Clock> { Clock.System }
             single<Preferences> { SharedPreferencesStore(application) }
-            single<LocalStore> { onDiskStore(context = application, preferences = get()) }
+            single<LocalStore> { onDiskStore(context = application, preferences = get(), clock = get()) }
         },
     )
 }

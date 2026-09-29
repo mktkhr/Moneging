@@ -29,6 +29,8 @@ data class ResolvedTheme(
     val accent: String,
     /** The colour scheme's own fixed text/icon colour drawn on top of [accent]. */
     val onAccent: String,
+    /** The colour of a positive (income) amount. */
+    val income: String,
     /** A soft tinted background derived from [accent] (e.g. a selected pill). */
     val accentTint: String,
     /** A translucent "glass" surface, over a blur, for floating chrome. */
@@ -82,6 +84,7 @@ fun resolveTheme(
         line = schemeTokens.line,
         accent = accent,
         onAccent = onAccent.getValue(scheme),
+        income = schemeTokens.income,
         accentTint = accentTint,
         glassSurface = withAlpha(hex = schemeTokens.surface, alphaHex = glassSurfaceAlpha.getValue(scheme)),
         glassBorder = glassBorder.getValue(scheme),

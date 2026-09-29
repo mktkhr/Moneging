@@ -1,5 +1,6 @@
 -- One movement of money on one date. A deleted transaction stays as a
--- tombstone, its line items with it.
+-- tombstone, its line items with it. The recurring columns come last: they
+-- were added by migration 1, which appends them (SELECT * reads by position).
 CREATE TABLE transactions (
     id TEXT NOT NULL PRIMARY KEY,
     ledger_id TEXT NOT NULL REFERENCES ledgers(id),
@@ -14,7 +15,9 @@ CREATE TABLE transactions (
     device_id TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    recurring_rule_id TEXT,
+    recurring_month TEXT
 );
 
 CREATE INDEX transactions_ledger_date ON transactions(ledger_id, date);
@@ -32,11 +35,15 @@ CREATE TABLE line_items (
 
 CREATE INDEX line_item_transaction ON line_items(transaction_id);
 
+-- A recurring rule's month is recorded once; a deleted one keeps its month done.
+CREATE UNIQUE INDEX transactions_recurring_month ON transactions(recurring_rule_id, recurring_month)
+WHERE recurring_rule_id IS NOT NULL;
+
 insertTransaction:
 INSERT INTO transactions (
     id, ledger_id, date, direction, amount, category_id, memo, store_name, photo_id,
-    needs_review, device_id, created_at, updated_at, deleted_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+    needs_review, device_id, created_at, updated_at, deleted_at, recurring_rule_id, recurring_month
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?);
 
 insertLineItem:
 INSERT INTO line_items (id, transaction_id, position, amount, category_id, name, created_at, updated_at)
@@ -60,6 +67,36 @@ SELECT * FROM line_items WHERE transaction_id = ? ORDER BY position;
 
 updateMemo:
 UPDATE transactions SET memo = ?, updated_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+updateTransaction:
+UPDATE transactions
+SET date = :date, direction = :direction, amount = :amount, category_id = :categoryId, memo = :memo,
+    store_name = :storeName, photo_id = :photoId, updated_at = :updatedAt
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+deleteLineItemsOf:
+DELETE FROM line_items WHERE transaction_id = ?;
+
+searchTransactions:
+SELECT * FROM transactions AS t
+WHERE t.ledger_id = :ledgerId AND t.deleted_at IS NULL
+    AND (:fromDate IS NULL OR t.date >= :fromDate)
+    AND (:toDate IS NULL OR t.date <= :toDate)
+    AND (:minAmount IS NULL OR t.amount >= :minAmount)
+    AND (:maxAmount IS NULL OR t.amount <= :maxAmount)
+    AND (
+        :categoryId IS NULL OR t.category_id = :categoryId
+        OR EXISTS (SELECT 1 FROM line_items AS i WHERE i.transaction_id = t.id AND i.category_id = :categoryId)
+    )
+    AND (
+        :text IS NULL OR instr(t.memo, :text) > 0 OR instr(t.store_name, :text) > 0
+        OR EXISTS (SELECT 1 FROM line_items AS i WHERE i.transaction_id = t.id AND instr(i.name, :text) > 0)
+    )
+ORDER BY t.date DESC, t.created_at DESC, t.rowid DESC;
+
+recordedMonthCount:
+SELECT COUNT(*) FROM transactions
+WHERE ledger_id = :ledgerId AND recurring_rule_id = :ruleId AND recurring_month = :month;
 
 markTransactionDeleted:
 UPDATE transactions SET deleted_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;

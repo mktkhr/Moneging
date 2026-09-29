@@ -24,6 +24,8 @@ data class Category(
     val name: String,
     /** Whether it is archived: it keeps its history but takes no new transactions. */
     val isArchived: Boolean,
+    /** Its place in the default set, 0 for 食費; `null` for one the ledger added. Kept through a rename. */
+    val defaultIndex: Int?,
     override val createdAt: Instant,
     override val updatedAt: Instant,
 ) : SyncRecord

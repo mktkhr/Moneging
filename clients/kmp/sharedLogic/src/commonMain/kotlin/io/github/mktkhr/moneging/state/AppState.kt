@@ -3,6 +3,7 @@ package io.github.mktkhr.moneging.state
 import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.data.PreferenceKeys
 import io.github.mktkhr.moneging.data.Preferences
+import io.github.mktkhr.moneging.data.todayInTokyo
 import io.github.mktkhr.moneging.domain.Ledger
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -14,10 +15,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.yearMonth
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 private const val FIRST_MONTH = 1
 private const val LAST_MONTH = 12
+private const val FIRST_YEAR = 2000
+private const val LAST_YEAR = 2099
 
 private const val DEFAULT_LEDGER_NAME = "家計"
 
@@ -43,6 +49,7 @@ private const val DEFAULT_LEDGER_NAME = "家計"
 class AppState internal constructor(
     private val store: LocalStore,
     private val preferences: Preferences,
+    private val clock: Clock,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     // Owns the observation of the store; cancelled by close().
@@ -52,7 +59,8 @@ class AppState internal constructor(
     private val mutableUiState =
         MutableStateFlow(
             AppUiState(
-                selectedMonth = PLACEHOLDER_MONTH,
+                selectedMonth = clock.todayInTokyo().yearMonth,
+                today = clock.todayInTokyo(),
                 isLoaded = false,
                 ledgers = emptyList(),
                 selectedLedgerId = null,
@@ -75,8 +83,12 @@ class AppState internal constructor(
     fun onIntent(intent: AppIntent) {
         when (intent) {
             is AppIntent.SelectMonth -> {
-                if (intent.month in FIRST_MONTH..LAST_MONTH) {
-                    mutableUiState.update { it.copy(selectedMonth = intent.month) }
+                if (intent.month in FIRST_MONTH..LAST_MONTH && intent.year in FIRST_YEAR..LAST_YEAR) {
+                    mutableUiState.update { current ->
+                        current.copy(
+                            selectedMonth = YearMonth(year = intent.year, month = intent.month),
+                        )
+                    }
                 }
             }
 
@@ -101,6 +113,10 @@ class AppState internal constructor(
                 if (mutableUiState.value.selectedLedger != null) {
                     mutableUiState.update { it.copy(tour = tourProgress.replay()) }
                 }
+            }
+
+            AppIntent.RefreshToday -> {
+                mutableUiState.update { it.withToday(clock.todayInTokyo()) }
             }
 
             AppIntent.DismissError -> {
@@ -208,9 +224,5 @@ class AppState internal constructor(
     private suspend fun reloadLedgers() {
         val ledgers = store.ledgers()
         mutableUiState.update { it.copy(ledgers = ledgers) }
-    }
-
-    private companion object {
-        const val PLACEHOLDER_MONTH = 9
     }
 }

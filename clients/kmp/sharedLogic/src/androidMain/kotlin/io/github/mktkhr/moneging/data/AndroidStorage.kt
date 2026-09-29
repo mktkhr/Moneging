@@ -14,17 +14,18 @@ private const val DATABASE_NAME = "moneging.db"
 private const val PHOTOS_DIRECTORY_NAME = "photos"
 private const val PREFERENCES_NAME = "moneging"
 
-/** The store in the app's private storage, stamping records with [preferences]' device identifier. */
+/** The store in the app's private storage on [clock], stamping records with [preferences]' device identifier. */
 internal fun onDiskStore(
     context: Context,
     preferences: Preferences,
+    clock: Clock,
 ): LocalStore {
     // The database stays open for the app's lifetime, owned by the store.
     fun openDriver(): SqlDriver =
         AndroidSqliteDriver(schema = MonegingDatabase.Schema, context = context, name = DATABASE_NAME)
     return LocalStore(
         openDriver = ::openDriver,
-        clock = Clock.System,
+        clock = clock,
         deviceId = deviceId(preferences),
         photoFiles = DirectoryPhotoFiles(File(context.filesDir, PHOTOS_DIRECTORY_NAME)),
     )

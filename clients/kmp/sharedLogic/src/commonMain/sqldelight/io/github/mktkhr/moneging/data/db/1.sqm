@@ -1,0 +1,43 @@
+-- Version 1 to 2: recording money (PRODUCT.md §8, stage 2).
+
+-- A transaction names the recurring rule that recorded it and the rule's
+-- month; a (rule, month) is recorded once.
+ALTER TABLE transactions ADD COLUMN recurring_rule_id TEXT;
+ALTER TABLE transactions ADD COLUMN recurring_month TEXT;
+
+CREATE UNIQUE INDEX transactions_recurring_month ON transactions(recurring_rule_id, recurring_month)
+WHERE recurring_rule_id IS NOT NULL;
+
+-- A recurring rule of an income has no category, one on the month's last
+-- day no day, and every rule a business-day adjustment. SQLite cannot drop
+-- NOT NULL from a column, so the table is rebuilt.
+CREATE TABLE recurring_rules_new (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    direction TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    category_id TEXT REFERENCES categories(id),
+    day_of_month INTEGER,
+    start_month TEXT NOT NULL,
+    end_month TEXT,
+    memo TEXT,
+    adjustment TEXT NOT NULL DEFAULT 'KEEP',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+INSERT INTO recurring_rules_new (
+    id, ledger_id, direction, amount, category_id, day_of_month, start_month, end_month, memo, adjustment,
+    created_at, updated_at, deleted_at
+)
+SELECT
+    id, ledger_id, direction, amount, category_id, day_of_month, start_month, end_month, memo, 'KEEP',
+    created_at, updated_at, deleted_at
+FROM recurring_rules;
+
+DROP TABLE recurring_rules;
+
+ALTER TABLE recurring_rules_new RENAME TO recurring_rules;
+
+CREATE INDEX recurring_rule_ledger ON recurring_rules(ledger_id);
