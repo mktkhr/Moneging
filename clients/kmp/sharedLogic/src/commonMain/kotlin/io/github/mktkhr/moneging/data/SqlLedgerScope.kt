@@ -25,6 +25,7 @@ internal class SqlLedgerScope(
     LedgerCategories by SqlCategories(rows),
     LedgerPhotos by SqlPhotos(rows, photoFiles),
     LedgerTransactionReads by SqlTransactionReads(rows),
+    LedgerReports by SqlReports(rows),
     LedgerTransactionWrites by SqlTransactionWrites(rows, deviceId),
     LedgerPlans by SqlPlans(rows),
     LedgerRecurringRules by SqlRecurringRules(rows, deviceId) {

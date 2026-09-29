@@ -62,6 +62,35 @@ SELECT direction, SUM(amount) AS total FROM transactions
 WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND date >= :fromDate AND date <= :toDate
 GROUP BY direction;
 
+-- A range's expenses by category: an unsplit expense in its own category,
+-- a split one's items each in theirs. Income is never counted.
+expenseByCategoryBetween:
+SELECT category_id, SUM(amount) AS total FROM (
+    SELECT t.category_id AS category_id, t.amount AS amount FROM transactions AS t
+    WHERE t.ledger_id = :ledgerId AND t.deleted_at IS NULL AND t.direction = 'EXPENSE'
+        AND t.category_id IS NOT NULL AND t.date >= :fromDate AND t.date <= :toDate
+    UNION ALL
+    SELECT i.category_id AS category_id, i.amount AS amount FROM line_items AS i
+    JOIN transactions AS t ON t.id = i.transaction_id
+    WHERE t.ledger_id = :ledgerId AND t.deleted_at IS NULL AND t.direction = 'EXPENSE'
+        AND t.date >= :fromDate AND t.date <= :toDate
+)
+GROUP BY category_id;
+
+-- A range's expenses by date, for the dates that have any.
+expenseByDateBetween:
+SELECT date, SUM(amount) AS total FROM transactions
+WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND direction = 'EXPENSE'
+    AND date >= :fromDate AND date <= :toDate
+GROUP BY date;
+
+-- A range's expenses by month (yyyy-MM), for the months that have any.
+expenseByMonthBetween:
+SELECT substr(date, 1, 7) AS month, SUM(amount) AS total FROM transactions
+WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND direction = 'EXPENSE'
+    AND date >= :fromDate AND date <= :toDate
+GROUP BY month;
+
 lineItemsOf:
 SELECT * FROM line_items WHERE transaction_id = ? ORDER BY position;
 

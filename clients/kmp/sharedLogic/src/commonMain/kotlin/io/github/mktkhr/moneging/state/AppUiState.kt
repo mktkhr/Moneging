@@ -1,10 +1,12 @@
 package io.github.mktkhr.moneging.state
 
+import io.github.mktkhr.moneging.data.PRODUCT_TIME_ZONE
 import io.github.mktkhr.moneging.domain.Formats
 import io.github.mktkhr.moneging.domain.Ledger
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.number
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.yearMonth
 
 /**
@@ -53,6 +55,10 @@ data class AppUiState(
     /** The ledger in view, or `null` before the first ledger exists. */
     val selectedLedger: Ledger?
         get() = ledgers.firstOrNull { it.id.toString() == selectedLedgerId }
+
+    /** The day the ledger in view was created, in Asia/Tokyo, ISO (`2026-02-02`); `null` before one exists. */
+    val selectedLedgerCreatedOnIso: String?
+        get() = selectedLedger?.run { createdAt.toLocalDateTime(PRODUCT_TIME_ZONE).date.toString() }
 
     /**
      * The name the header shows for the ledger in view: while the tour's

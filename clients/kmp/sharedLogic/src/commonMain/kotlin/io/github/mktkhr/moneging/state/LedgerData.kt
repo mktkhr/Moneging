@@ -2,7 +2,10 @@ package io.github.mktkhr.moneging.state
 
 import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.domain.Category
+import io.github.mktkhr.moneging.domain.DailyTotal
 import io.github.mktkhr.moneging.domain.MonthTotals
+import io.github.mktkhr.moneging.domain.MonthlyReport
+import io.github.mktkhr.moneging.domain.MonthlyTotal
 import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Transaction
 import kotlinx.coroutines.CancellationException
@@ -43,6 +46,12 @@ data class LedgerUiState(
     val transactions: List<Transaction>,
     /** The month's totals. */
     val totals: MonthTotals,
+    /** The month's spending by category, or `null` before it is read. */
+    val report: MonthlyReport?,
+    /** The spending of every day of the month, in date order. */
+    val dailyTotals: List<DailyTotal>,
+    /** The spending of the twelve months ending with the month, oldest first. */
+    val trend: List<MonthlyTotal>,
     /** The ledger's categories, archived ones included, in the ledger's order. */
     val categories: List<Category>,
     /** The ledger's live recurring rules, in creation order. */
@@ -64,6 +73,9 @@ data class LedgerUiState(
                 isLoaded = false,
                 transactions = emptyList(),
                 totals = MonthTotals(expense = 0L, income = 0L),
+                report = null,
+                dailyTotals = emptyList(),
+                trend = emptyList(),
                 categories = emptyList(),
                 recurringRules = emptyList(),
                 loadErrorMessage = null,
@@ -169,6 +181,9 @@ class LedgerData internal constructor(
                     isLoaded = true,
                     transactions = scope.transactions(month),
                     totals = scope.monthTotals(month),
+                    report = scope.monthlyReport(month),
+                    dailyTotals = scope.dailyTotals(month),
+                    trend = scope.monthlyTrend(to = month),
                     categories = scope.categories(),
                     recurringRules = scope.recurringRules(),
                     loadErrorMessage = null,

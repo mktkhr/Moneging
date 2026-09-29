@@ -2,7 +2,10 @@ package io.github.mktkhr.moneging.data
 
 import io.github.mktkhr.moneging.domain.Budget
 import io.github.mktkhr.moneging.domain.Category
+import io.github.mktkhr.moneging.domain.DailyTotal
 import io.github.mktkhr.moneging.domain.MonthTotals
+import io.github.mktkhr.moneging.domain.MonthlyReport
+import io.github.mktkhr.moneging.domain.MonthlyTotal
 import io.github.mktkhr.moneging.domain.NewRecurringRule
 import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.domain.Photo
@@ -23,6 +26,7 @@ interface LedgerScope :
     LedgerCategories,
     LedgerPhotos,
     LedgerTransactionReads,
+    LedgerReports,
     LedgerTransactionWrites,
     LedgerPlans,
     LedgerRecurringRules {
@@ -77,6 +81,22 @@ interface LedgerTransactionReads {
 
     /** The live transactions matching every condition of [query], newest first. */
     suspend fun searchTransactions(query: TransactionQuery): List<Transaction>
+}
+
+/**
+ * A ledger's reports (PRODUCT.md §2): spending only, from live transactions,
+ * a split transaction's items each counted in their own category; income
+ * never counts.
+ */
+interface LedgerReports {
+    /** The spending of [month] by category, largest first, and its total. */
+    suspend fun monthlyReport(month: YearMonth): MonthlyReport
+
+    /** The spending of every day of [month], in date order, 0 for a day without any. */
+    suspend fun dailyTotals(month: YearMonth): List<DailyTotal>
+
+    /** The spending of the twelve months ending with [to], oldest first, 0 for a month without any. */
+    suspend fun monthlyTrend(to: YearMonth): List<MonthlyTotal>
 }
 
 /** Writing a ledger's transactions. */
