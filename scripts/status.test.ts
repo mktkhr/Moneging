@@ -117,7 +117,16 @@ describe("parseStages", () => {
     const doc = readFileSync(path.resolve(import.meta.dirname, "../PRODUCT.md"), "utf8");
     const stages = parseStages(doc);
 
-    assert.deepEqual(stages.get(1), ["AC-B-104", "AC-B-107", "AC-B-108", "AC-F-102", "AC-E-101"]);
+    assert.deepEqual(stages.get(1), [
+      "AC-B-104",
+      "AC-B-107",
+      "AC-B-108",
+      "AC-B-109",
+      "AC-F-102",
+      "AC-F-103",
+      "AC-F-104",
+      "AC-E-101",
+    ]);
     assert.deepEqual(stages.get(4), ["AC-B-401", "AC-B-402", "AC-B-403", "AC-F-401"]);
     assert.deepEqual(stages.get(9), ["AC-F-701"]);
   });

@@ -41,6 +41,11 @@ kotlin {
         commonTest.dependencies {
             implementation(project(":sharedLogic"))
             implementation(libs.kotlin.test)
+            // runTest for the suspend repository API, and the calendar types
+            // (LocalDate, YearMonth) of the shared logic's public API. Both
+            // are entries of the version catalog (gradle/libs.versions.toml).
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.kotlinx.datetime)
         }
     }
 }

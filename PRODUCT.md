@@ -44,8 +44,9 @@ A household of a few people sharing one ledger is planned for v2.
   draft by an on-device LLM where the device has one, or by a rule-based parser
   where it does not. Progress is shown as a Live Activity on iOS and an ongoing
   notification on Android.
-- A first-launch onboarding: the first ledger, why the app asks to post
-  notifications, and whether to enable reading from photos.
+- A first-launch guided tour over the app itself: creating the first ledger,
+  the main controls, why the app asks to post notifications, and whether to
+  enable reading from photos. It can be replayed.
 - Monthly budgets per category, with the leftover carried over or saved.
 - Learned spending pace per category, and a notification — in the app's list
   and as a local OS notification — when a category runs ahead of it.
@@ -98,7 +99,7 @@ product, and no floating-point type may hold an amount.
 | Concept | Meaning and invariants |
 | --- | --- |
 | **User** | The person using the app on a device. v1 has no accounts: nobody signs in and nothing identifies the user outside the device. The user carries their own look: a style, a theme colour, a brightness, an NMD badge and, on Android, whether the device's dynamic colour is used (see §5 Look). The look is kept on the device, identical in every ledger. A user who never chose has やさしい・あたたかい, テラコッタ, the device's brightness and にっこり硬貨. |
-| **Ledger** | A book of money on the device. Every transaction, budget, photo and category belongs to exactly one ledger. A device may hold several ledgers, and the user always acts within one of them. |
+| **Ledger** | A book of money on the device. Every transaction, budget, photo and category belongs to exactly one ledger. A device may hold several ledgers, and the user always acts within one of them. A ledger has a name, which the user may change: surrounding whitespace is removed, and what remains is 1 to 20 characters, counted as the user sees them (an emoji is one character). Names need not be unique. |
 | **Category** | A bucket for spending, scoped to a ledger. The default set is 食費, 日用品, 住居, 水道光熱費, 交通費, 通信費, 医療, 教育, 娯楽, 交際費, 衣服, その他. A ledger may add, rename and archive its own; an archived category keeps its history but takes no new transactions. |
 | **Transaction** | One movement of money on one date: a direction (expense or income), an amount, a category, an optional memo, an optional store name and an optional link to a photo. The amount is at least 1 yen. The date is a calendar date, not an instant. Each transaction records the identifier of the device it was recorded on, so that v2 sharing can attribute it. The store name is filled from a confirmed draft and may be set or changed by hand. A transaction confirmed from a draft whose items did not add up is marked needs-review (`needsReview`); the mark is cleared when a user marks it reviewed, or by any change that leaves it with no item named exactly `差額`, and it is never set by hand. |
 | **Line item** | A transaction may instead be split into several items, each with its own amount, category and optional item name. When a transaction has items, its amount equals the sum of its items, and each item is at least 1 yen. An item name is filled from a confirmed draft and may be set or changed by hand. |
@@ -134,12 +135,12 @@ marked `OPEN: depends on screen composition`.
 
 **General.** Japanese, native — SwiftUI on iOS, Jetpack Compose on Android —
 and usable one-handed on a phone. The app is named `Moneging` on the home
-screen. The user always acts within one ledger, can change which, and the app
-reopens on the ledger last in view. Month-based figures are shown for one month
-in view, the current month until the user changes it; the app keeps the month
-in view when it returns from the background. Every view of data has a loading
-state, an empty state and an error state; a failed operation is always shown to
-the user, never swallowed.
+screen. The user always acts within one ledger, can change which, can add a
+ledger and rename one, and the app reopens on the ledger last in view.
+Month-based figures are shown for one month in view, the current month until
+the user changes it; the app keeps the month in view when it returns from the
+background. Every view of data has a loading state, an empty state and an
+error state; a failed operation is always shown to the user, never swallowed.
 
 **Formats.** Amounts are shown as `1,200円`, dates as `2月3日`, months as
 `2026年2月`, instants as `2月15日 9:12`. A budget reads `残り 11,500円` with
@@ -179,14 +180,20 @@ the look. OPEN: takamai defines the five styles and six colours as web styles
 OPEN: whether Android's dynamic colour is on or off for a user who never chose,
 and how it combines with the chosen theme colour.
 
-**Onboarding.** When the device holds no ledger, as on first launch, the user
-goes through an onboarding instead of the rest of the app: what the product
-does (record spending, read a receipt, watch the budget), the name of the first
-ledger, filled in with `家計`, why the app posts notifications (pace alerts),
-explained before the OS asks for permission to post them, and whether to enable
-reading from photos (see Photo reading, §3). Once the ledger is created the app
-shows it. The onboarding is shown again only if the device ever holds no
-ledger again.
+**Onboarding.** When the device holds no ledger, as on first launch, the app
+opens with a guided tour over the app itself, not a separate set of screens:
+each step dims the app, highlights one control and explains it in a callout.
+The first step creates the first ledger: its name, filled in with `家計`, is
+entered in the callout, the ledger in view shows the name as it is typed, and
+this step cannot be skipped. The later steps explain recording, the ledger's
+other views (calendar, report, budget), why the app posts notifications (pace
+alerts), explained before the OS asks for permission to post them, and whether
+to enable reading from photos (see Photo reading, §3); each of them offers to
+skip the rest of the tour. The tour is finished when its last step is done or
+the rest is skipped. If the app ends before then, the next launch resumes the
+tour at the first step not yet done. The tour starts again from its first step
+only if the device ever holds no ledger again, and it can be replayed from the
+settings, without the ledger step.
 
 **Receipt reading.** Photos are given either by scanning with the OS document
 scanner (one receipt per page) or by picking one or several from the photo
@@ -344,7 +351,10 @@ AC-B-507 (scan quota) are dropped: v1 uploads nothing and a scan costs nothing.
 | AC-B-104 | A ledger is created and listed.                                                        | `TestCreateLedger`          |
 | AC-B-107 | An operation in one ledger cannot read or write another.                               | `TestLedgerIsolation`       |
 | AC-B-108 | Every record carries a UUID and its instants, and a deletion leaves a tombstone.       | `TestRecordsAreSyncReady`   |
+| AC-B-109 | A ledger's name is trimmed and 1 to 20 characters, when created and when renamed.      | `TestLedgerNames`           |
 | AC-F-102 | A first-time user creates a ledger through the onboarding.                             | `AC-F-102`                  |
+| AC-F-103 | A ledger is added, changed to, and renamed.                                            | `AC-F-103`                  |
+| AC-F-104 | The tour resumes where it stopped, ends when skipped, and can be replayed.             | `AC-F-104`                  |
 | AC-E-101 | On first launch, offline, the app opens the onboarding with no sign-in.                | `AC-E-101`                  |
 
 **AC-B-104** — Given a device with no ledger. When the ledger `家計` is
@@ -366,11 +376,35 @@ updated instant is 12:05 and its created instant still 12:00. When it is
 deleted, then it is neither found nor listed nor counted in any total, and the
 database still holds it, with its items, as a tombstone deleted at 12:05.
 
+**AC-B-109** — Given the ledger `家計`, created at 12:00. When a ledger is
+created with the name `  我が家  `, then it is named `我が家`. When a ledger is
+created with an empty name, or one of spaces only, or of 21 characters, then
+it is refused and the ledgers listed are still `家計` and `我が家`. A name of
+20 characters, one of them the emoji `🏠`, is accepted as it is. When the
+clock moves to 12:05 and `家計` is renamed ` 家計2026 `, then it is named
+`家計2026`, its updated instant is 12:05 and its created instant still 12:00;
+renaming it to a name of spaces only is refused and leaves `家計2026`.
+
 **AC-F-102** — Given a device with no ledger. When the app is opened, then the
-onboarding is shown with the first ledger's name holding `家計`. When the name
-is changed to `我が家` and the ledger is created, then the ledger `我が家`
-exists and is the ledger in view. When the app is relaunched, then `我が家` is
-in view and the onboarding is not shown.
+tour's first step is shown, its name holding `家計` and the ledger in view
+reading `家計`. When the name is changed to `我が家`, then the ledger in view
+reads `我が家` before anything is created. When the ledger is created and the
+rest of the tour is done, then the ledger `我が家` exists and is the ledger in
+view. When the app is relaunched, then `我が家` is in view and the tour is not
+shown.
+
+**AC-F-103** — Given the ledger `家計` in view. When a ledger named `旅行` is
+added, then `旅行` is in view, and both `家計` and `旅行` are offered to change
+to. When `家計` is chosen, then `家計` is in view. When `旅行` is renamed
+`沖縄旅行`, then `沖縄旅行` is offered in its place. While a name is empty or
+longer than 20 characters, a ledger cannot be added or renamed with it.
+
+**AC-F-104** — Given a device with no ledger. When `家計` is created through
+the tour and the app is relaunched before the next step is done, then the tour
+resumes at that next step, with `家計` in view. When the rest of the tour is
+skipped, then the tour ends, and a relaunch does not show it. When the tour is
+replayed from the settings, then it starts at the step after the ledger step,
+and `家計` is still the only ledger.
 
 **AC-E-101** — Given the built app, freshly installed, on a device with no
 network. When it is launched, then the onboarding is shown with no sign-in, and
@@ -931,7 +965,7 @@ nor the photos is excluded from backup.
 Build in this order. Each stage leaves `make check` green and its own criteria
 passing, so progress is real even if the product is unfinished.
 
-1. **Foundation** — the on-device database with sync-ready records, ledgers, isolation, the onboarding. AC-B-104, AC-B-107, AC-B-108, AC-F-102, AC-E-101.
+1. **Foundation** — the on-device database with sync-ready records, ledgers (added, changed to, renamed), isolation, the onboarding tour. AC-B-104, AC-B-107, AC-B-108, AC-B-109, AC-F-102, AC-F-103, AC-F-104, AC-E-101.
 2. **Recording money** — categories, transactions, line items, search, income, recurring rules. AC-B-201 to AC-B-208, AC-F-201 to AC-F-204, AC-E-201.
 3. **Reporting and calendar** — monthly report, daily totals, trend, charts, calendar with the NMD badge. AC-B-301 to AC-B-303, AC-F-301, AC-F-302.
 4. **Budget and savings** — budgets, remaining, month close, carry or save. AC-B-401 to AC-B-403, AC-F-401.
