@@ -69,8 +69,17 @@ kotlin {
             // app itself never opens it; androidApp leaves it out of the APK.
             implementation(libs.sqldelight.sqliteDriver)
         }
-        iosMain.dependencies {
-            implementation(libs.sqldelight.nativeDriver)
+        iosMain {
+            dependencies {
+                implementation(libs.sqldelight.nativeDriver)
+            }
+            // UI-test entry points (UiTestSupport.kt) are for the iOS app's
+            // Debug builds only. Xcode sets CONFIGURATION for the framework
+            // build it drives; for Release the file is left out, so the
+            // shipped framework has no way to reset, seed or re-clock the app.
+            if (providers.environmentVariable("CONFIGURATION").orNull == "Release") {
+                kotlin.exclude("**/di/UiTestSupport.kt")
+            }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
