@@ -1,7 +1,8 @@
 import SharedLogic
 import SwiftUI
 
-/// The app's root: a standard `TabView` with five tabs.
+/// The app's root: a standard `TabView` with five tabs, and the onboarding
+/// tour over it while one is shown.
 ///
 /// Each tab owns its own `NavigationStack` bound to `AppRouter`. The
 /// 記録する sheet lives here once, shared by the four main tabs, so
@@ -11,6 +12,12 @@ import SwiftUI
 internal struct RootView: View {
     @Environment(AppRouter.self)
     private var router: AppRouter
+
+    @Environment(SharedStateStore.self)
+    private var store: SharedStateStore
+
+    // Where the tour's targets are; reported by ホーム's root.
+    @State private var tourLayout: TourLayout = TourLayout()
 
     // Held here, not inside `SearchTabContent` itself (unlike every other
     // tab's own content view - see `HomeTabContent`'s doc comment on its
@@ -26,9 +33,46 @@ internal struct RootView: View {
     internal var body: some View {
         @Bindable var router: AppRouter = self.router
 
-        GeometryReader { proxy in
-            let sheetMaxHeight: CGFloat = proxy.size.height - proxy.safeAreaInsets.top
-            self.tabs(router: router, sheetMaxHeight: sheetMaxHeight)
+        // Nothing is shown until the ledgers and the tour's progress are
+        // read, so the first frame already shows the right ledger and tour.
+        if self.store.isLoaded {
+            GeometryReader { proxy in
+                let sheetMaxHeight: CGFloat = proxy.size.height - proxy.safeAreaInsets.top
+                self.tabs(router: router, sheetMaxHeight: sheetMaxHeight)
+            }
+            .environment(self.tourLayout)
+            .overlay {
+                if let tour = self.store.tour {
+                    TourOverlay(tour: tour)
+                        .environment(self.tourLayout)
+                }
+            }
+            .onChange(of: self.store.tour?.step, initial: true) { _, step in
+                if step != nil {
+                    self.router.showHomeRoot()
+                }
+            }
+            .alert(
+                "エラー",
+                isPresented: Binding(
+                    get: { self.store.shownErrorMessage != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            self.store.dismissError()
+                        }
+                    },
+                ),
+            ) {
+                Button("OK") {
+                    self.store.dismissError()
+                }
+            } message: {
+                Text(self.store.shownErrorMessage ?? "")
+            }
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.background)
         }
     }
 
@@ -38,22 +82,22 @@ internal struct RootView: View {
 
         TabView(selection: $router.selectedTab) {
             Tab("ホーム", systemImage: "house", value: AppTab.home) {
-                MainTabScreen(path: $router.homePath) {
+                MainTabScreen(path: $router.homePath, isTourHost: true) {
                     HomeTabContent()
                 }
             }
             Tab("カレンダー", systemImage: "calendar", value: AppTab.calendar) {
-                MainTabScreen(path: $router.calendarPath) {
+                MainTabScreen(path: $router.calendarPath, isTourHost: false) {
                     CalendarTabContent()
                 }
             }
             Tab("レポート", systemImage: "chart.bar", value: AppTab.report) {
-                MainTabScreen(path: $router.reportPath) {
+                MainTabScreen(path: $router.reportPath, isTourHost: false) {
                     ReportTabContent()
                 }
             }
             Tab("予算", systemImage: "creditcard", value: AppTab.budget) {
-                MainTabScreen(path: $router.budgetPath) {
+                MainTabScreen(path: $router.budgetPath, isTourHost: false) {
                     BudgetTabContent()
                 }
             }
@@ -69,6 +113,9 @@ internal struct RootView: View {
                 router.chooseRecordOption(option)
             }
             .fittedSheet(maxHeight: sheetMaxHeight)
+        }
+        .sheet(isPresented: $router.isAddLedgerSheetPresented) {
+            AddLedgerSheet()
         }
     }
 }

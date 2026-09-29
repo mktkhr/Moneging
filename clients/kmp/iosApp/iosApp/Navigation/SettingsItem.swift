@@ -4,7 +4,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
     case appearance
     case backup
     case categories
-    case ledgerManagement
     case notificationsDevice
     case receiptScanning
 
@@ -19,9 +18,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
 
         case .categories:
             "カテゴリ"
-
-        case .ledgerManagement:
-            "家計簿の管理"
 
         case .notificationsDevice:
             "通知"
@@ -42,9 +38,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
 
         case .categories:
             "categories"
-
-        case .ledgerManagement:
-            "ledger-management"
 
         case .notificationsDevice:
             "notifications-device"

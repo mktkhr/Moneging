@@ -23,6 +23,8 @@ internal final class AppRouter {
     internal var searchPath: NavigationPath = NavigationPath()
     /// Whether the 記録する sheet is presented.
     internal var isRecordSheetPresented: Bool = false
+    /// Whether the 家計簿を追加 sheet is presented.
+    internal var isAddLedgerSheetPresented: Bool = false
 
     /// Whether the floating 記録する button should show.
     ///
@@ -68,6 +70,49 @@ internal final class AppRouter {
         case .search:
             self.searchPath.append(route)
         }
+    }
+
+    /// Removes the top screen of the currently selected tab's path.
+    internal func pop() {
+        switch self.selectedTab {
+        case .budget:
+            if !self.budgetPath.isEmpty {
+                self.budgetPath.removeLast()
+            }
+
+        case .calendar:
+            if !self.calendarPath.isEmpty {
+                self.calendarPath.removeLast()
+            }
+
+        case .home:
+            if !self.homePath.isEmpty {
+                self.homePath.removeLast()
+            }
+
+        case .report:
+            if !self.reportPath.isEmpty {
+                self.reportPath.removeLast()
+            }
+
+        case .search:
+            if !self.searchPath.isEmpty {
+                self.searchPath.removeLast()
+            }
+        }
+    }
+
+    /// Shows ホーム's root screen, where the tour runs: selects the tab and
+    /// returns every tab to its root, closing any sheet.
+    internal func showHomeRoot() {
+        self.isRecordSheetPresented = false
+        self.isAddLedgerSheetPresented = false
+        self.selectedTab = .home
+        self.homePath = NavigationPath()
+        self.calendarPath = NavigationPath()
+        self.reportPath = NavigationPath()
+        self.budgetPath = NavigationPath()
+        self.searchPath = NavigationPath()
     }
 
     /// Dismisses the 記録する sheet, then pushes a placeholder screen.

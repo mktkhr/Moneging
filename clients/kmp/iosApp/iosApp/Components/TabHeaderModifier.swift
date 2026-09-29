@@ -15,32 +15,41 @@ internal struct TabHeaderModifier: ViewModifier {
     private static let firstMonth: Int = 1
     private static let lastMonth: Int = 12
 
+    /// Whether this header reports its ledger title to the tour (ホーム's).
+    internal let isTourHost: Bool
+
     @Environment(SharedStateStore.self)
     private var store: SharedStateStore
 
     @Environment(AppRouter.self)
     private var router: AppRouter
 
+    // The switcher: an icon-only + adding a ledger at the top, then the
+    // ledgers, the one in view checked (its label stays its name).
     @ViewBuilder private var ledgerMenuContent: some View {
-        ForEach(self.store.ledgers, id: \.id) { ledger in
+        ControlGroup {
             Button {
-                self.store.selectLedger(id: ledger.id.description)
+                self.router.isAddLedgerSheetPresented = true
             } label: {
-                if ledger.id.description == self.store.selectedLedgerId {
+                Label("家計簿を追加", systemImage: "plus")
+            }
+            .accessibilityIdentifier("ledger-menu-add")
+        }
+        .controlGroupStyle(.compactMenu)
+        ForEach(self.store.ledgers, id: \.id) { ledger in
+            let ledgerId: String = ledger.id.description
+            Button {
+                self.store.selectLedger(id: ledgerId)
+            } label: {
+                if ledgerId == self.store.selectedLedgerId {
                     Label(ledger.name, systemImage: "checkmark")
                 } else {
                     Text(ledger.name)
                 }
             }
-            .accessibilityIdentifier("ledger-menu-\(ledger.id)")
+            .accessibilityLabel(ledger.name)
+            .accessibilityIdentifier("ledger-menu-\(ledgerId)")
         }
-        Divider()
-        Button {
-            self.router.push(.addLedger)
-        } label: {
-            Label("家計簿を追加", systemImage: "plus")
-        }
-        .accessibilityIdentifier("ledger-menu-add")
     }
 
     private var ledgerTitleRow: some View {
@@ -58,6 +67,7 @@ internal struct TabHeaderModifier: ViewModifier {
                 }
             }
             .accessibilityIdentifier("ledger-title-menu")
+            .tourTarget(.ledgerTitle, isReporting: self.isTourHost)
             Spacer()
         }
         .padding(.horizontal, Theme.Spacing.large)
@@ -125,7 +135,7 @@ internal struct TabHeaderModifier: ViewModifier {
 
 extension View {
     /// Applies `TabHeaderModifier` to the current `NavigationStack` root.
-    internal func tabHeader() -> some View {
-        self.modifier(TabHeaderModifier())
+    internal func tabHeader(isTourHost: Bool) -> some View {
+        self.modifier(TabHeaderModifier(isTourHost: isTourHost))
     }
 }

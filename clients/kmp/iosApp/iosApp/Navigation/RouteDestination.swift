@@ -6,11 +6,11 @@ internal struct RouteDestination: View {
 
     internal var body: some View {
         switch self.route {
-        case .addLedger:
-            PlaceholderScreen(title: "家計簿を追加", subtitle: PlaceholderScreen.defaultSubtitle)
-
         case .notifications:
             PlaceholderScreen(title: "お知らせ", subtitle: PlaceholderScreen.defaultSubtitle)
+
+        case .renameLedger(let ledgerId):
+            RenameLedgerScreen(ledgerId: ledgerId)
 
         case .recordOption(let option):
             PlaceholderScreen(title: option.title, subtitle: option.subtitle)

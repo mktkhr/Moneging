@@ -15,11 +15,17 @@ internal struct MonegingApp: App {
     }
 
     internal init() {
+        #if DEBUG
+            // Before the store opens: a UI test may start the app as freshly installed.
+            UITestLaunchData.resetIfAsked()
+        #endif
         // The shared Koin container must be running before `SharedStateStore`
         // resolves the shared `AppState` from it, so this runs first.
         doInitKoin()
         #if DEBUG
             UITestAnimationSwitch.applyLaunchArgument()
+            // Before the app state reads the device: ledgers for UI tests past the onboarding.
+            UITestLaunchData.seedIfAsked()
         #endif
         self._router = State(wrappedValue: AppRouter())
         self._store = State(wrappedValue: SharedStateStore(appState: sharedAppState()))

@@ -23,7 +23,7 @@ final class HeaderUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["家計"].exists)
         titleMenu.tap()
 
-        let secondLedger = app.buttons["ledger-menu-secondary"]
+        let secondLedger = app.ledgerMenuRow(named: "サブ家計簿")
         XCTAssertTrue(secondLedger.appears(within: 5), "2つ目の家計簿が見つからない")
         secondLedger.tap()
 

@@ -9,6 +9,9 @@ import SwiftUI
 /// ever presented once regardless of which tab is active.
 internal struct MainTabScreen<Content: View>: View {
     internal let path: Binding<NavigationPath>
+    /// Whether this tab's root reports the tour's targets (ホーム's: the
+    /// tour always runs over it).
+    internal let isTourHost: Bool
     @ViewBuilder internal let content: () -> Content
 
     @Environment(AppRouter.self)
@@ -20,7 +23,7 @@ internal struct MainTabScreen<Content: View>: View {
                 self.content()
             }
             .background(Theme.background)
-            .tabHeader()
+            .tabHeader(isTourHost: self.isTourHost)
             .appNavigationDestinations()
             // Places the floating 記録する button in the tab root's own
             // bottom safe-area inset, right-aligned. Inside a tab, the tab
@@ -32,12 +35,22 @@ internal struct MainTabScreen<Content: View>: View {
             // gap around the button. The inset also shrinks the scroll
             // view's safe area by exactly the button's footprint, so the last
             // row can always scroll clear of it.
+            //
+            // Below the button, a line of no height marks the top of the tab
+            // bar's area for the tour's spotlight on the tab bar.
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
-                if self.router.isRecordButtonVisible {
-                    FloatingRecordButton {
-                        self.router.isRecordSheetPresented = true
+                VStack(alignment: .trailing, spacing: 0) {
+                    if self.router.isRecordButtonVisible {
+                        FloatingRecordButton {
+                            self.router.isRecordSheetPresented = true
+                        }
+                        .tourTarget(.recordButton, isReporting: self.isTourHost)
+                        .padding([.trailing, .bottom], Theme.Spacing.large)
                     }
-                    .padding([.trailing, .bottom], Theme.Spacing.large)
+                    Spacer(minLength: 0)
+                        .frame(maxWidth: .infinity, maxHeight: 0)
+                        .tourTarget(.tabBarTop, isReporting: self.isTourHost)
+                        .accessibilityHidden(true)
                 }
             }
         }

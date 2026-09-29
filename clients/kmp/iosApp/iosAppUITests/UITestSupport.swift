@@ -12,6 +12,18 @@ extension XCUIApplication {
     /// The five tabs, in tab bar order.
     static let tabNames: [String] = ["ホーム", "カレンダー", "レポート", "予算", "検索"]
 
+    /// Launch arguments that start the app (debug builds only) as freshly
+    /// installed and then with the ledgers 家計 (in view) and サブ家計簿,
+    /// the onboarding tour finished (`UITestLaunchData` in the app).
+    static let seededLedgerArguments: [String] = ["-UITestSeedLedgers", "YES"]
+
+    /// The ledger switcher's row for the ledger named `name`.
+    func ledgerMenuRow(named name: String) -> XCUIElement {
+        buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'ledger-menu-' AND identifier != 'ledger-menu-add' AND label == %@", name)
+        ).firstMatch
+    }
+
     /// Launches the app the way every UI test launches it.
     ///
     /// `make ios-ui-test` sets `TEST_RUNNER_UITestDisableAnimations=YES`,
@@ -21,11 +33,15 @@ extension XCUIApplication {
     /// by the debug-only `UITestAnimationSwitch`), so the app switches its
     /// animations off - the same forwarding as
     /// `acceptance/ios/XCUIApplication+Acceptance.swift`.
+    ///
+    /// Every launch starts past the onboarding, with the ledgers 家計 (in
+    /// view) and サブ家計簿: `seededLedgerArguments`.
     static func launchedForUITest(arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         if let disableAnimations = ProcessInfo.processInfo.environment["UITestDisableAnimations"] {
             app.launchArguments += ["-UITestDisableAnimations", disableAnimations]
         }
+        app.launchArguments += seededLedgerArguments
         app.launchArguments += arguments
         app.launch()
         return app

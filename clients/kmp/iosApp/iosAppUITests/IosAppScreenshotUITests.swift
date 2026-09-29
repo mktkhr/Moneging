@@ -23,6 +23,7 @@ final class IosAppScreenshotUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments += XCUIApplication.seededLedgerArguments
         app.launch()
     }
 
@@ -74,10 +75,10 @@ final class IosAppScreenshotUITests: XCTestCase {
         let titleMenu = app.buttons["ledger-title-menu"]
         XCTAssertTrue(titleMenu.waitForExistence(timeout: 5))
         titleMenu.tap()
-        XCTAssertTrue(app.buttons["ledger-menu-secondary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.ledgerMenuRow(named: "サブ家計簿").waitForExistence(timeout: 5))
         attachScreenshot("02-ledger-menu")
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
-        let secondLedgerButton = app.buttons["ledger-menu-secondary"]
+        let secondLedgerButton = app.ledgerMenuRow(named: "サブ家計簿")
         var menuDismissAttempts = 0
         while secondLedgerButton.exists && menuDismissAttempts < 20 {
             usleep(200_000)
@@ -129,7 +130,7 @@ final class IosAppScreenshotUITests: XCTestCase {
         let axApp = XCUIApplication()
         axApp.launchArguments += [
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
-        ]
+        ] + XCUIApplication.seededLedgerArguments
         axApp.launch()
         defer { axApp.terminate() }
 
