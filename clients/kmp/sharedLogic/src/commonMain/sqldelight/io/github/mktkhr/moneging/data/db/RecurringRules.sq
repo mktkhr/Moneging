@@ -1,6 +1,8 @@
 -- An expense or an income that repeats every month (PRODUCT.md §3):
 -- category_id is null for an income, day_of_month null for the month's last
--- day, adjustment a BusinessDayAdjustment name.
+-- day, adjustment a BusinessDayAdjustment name. resumed_from is the first
+-- month that may be recorded after the rule was last resumed: the months
+-- whose date came while it was ended are before it and never recorded.
 CREATE TABLE recurring_rules (
     id TEXT NOT NULL PRIMARY KEY,
     ledger_id TEXT NOT NULL REFERENCES ledgers(id),
@@ -14,7 +16,8 @@ CREATE TABLE recurring_rules (
     adjustment TEXT NOT NULL DEFAULT 'KEEP',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    resumed_from TEXT
 );
 
 CREATE INDEX recurring_rule_ledger ON recurring_rules(ledger_id);
@@ -22,14 +25,26 @@ CREATE INDEX recurring_rule_ledger ON recurring_rules(ledger_id);
 insertRecurringRule:
 INSERT INTO recurring_rules (
     id, ledger_id, direction, amount, category_id, day_of_month, start_month, end_month, memo, adjustment,
-    created_at, updated_at, deleted_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+    created_at, updated_at, deleted_at, resumed_from
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL);
 
 updateRecurringRule:
 UPDATE recurring_rules
 SET direction = :direction, amount = :amount, category_id = :categoryId, day_of_month = :dayOfMonth,
     start_month = :startMonth, end_month = :endMonth, memo = :memo, adjustment = :adjustment,
     updated_at = :updatedAt
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+endRecurringRule:
+UPDATE recurring_rules SET end_month = :endMonth, updated_at = :updatedAt
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+resumeRecurringRule:
+UPDATE recurring_rules SET resumed_from = :resumedFrom
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+deleteRecurringRule:
+UPDATE recurring_rules SET deleted_at = :deletedAt, updated_at = :deletedAt
 WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
 
 liveRecurringRules:

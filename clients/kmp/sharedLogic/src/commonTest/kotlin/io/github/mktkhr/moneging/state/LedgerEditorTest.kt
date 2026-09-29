@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,6 +14,7 @@ import kotlin.test.assertNull
 
 private const val LUNCH = 1_200L
 private const val RENT = 80_000L
+private const val TODAY = "2026-02-15"
 
 /**
  * [LedgerEditor] writes what the forms hold into the ledger in view, and
@@ -46,7 +48,7 @@ class LedgerEditorTest {
             assertNull(editor.recordTransaction(draft(amount = "1200", categoryId = food.id.toString())))
             val shown = data.uiState.first { it.transactions.isNotEmpty() }
             assertEquals(expected = LUNCH, actual = shown.totals.expense)
-            assertEquals(expected = LocalDate.parse("2026-02-15"), actual = shown.transactions.single().date)
+            assertEquals(expected = LocalDate.parse(TODAY), actual = shown.transactions.single().date)
 
             assertNotNull(editor.recordTransaction(draft(amount = "1.5", categoryId = food.id.toString())))
             assertEquals(expected = 1, actual = data.uiState.value.transactions.size)
@@ -64,19 +66,7 @@ class LedgerEditorTest {
                     .categories
                     .first { it.name == "住居" }
 
-            val refusal =
-                editor.createRecurringRule(
-                    RecurringRuleDraft(
-                        isIncome = false,
-                        amountText = "80000",
-                        categoryId = housing.id.toString(),
-                        dayText = "10",
-                        adjustment = BusinessDayAdjustment.KEEP,
-                        startMonth = "2026-02",
-                        endMonth = null,
-                        memo = "",
-                    ),
-                )
+            val refusal = editor.recurringRules.createRecurringRule(rentDraft(categoryId = housing.id.toString()))
 
             assertNull(refusal)
             val shown = data.uiState.first { it.transactions.isNotEmpty() && it.recurringRules.isNotEmpty() }
@@ -87,6 +77,40 @@ class LedgerEditorTest {
             )
         }
 
+    /** An ended rule is listed until its last recorded month; a deleted one is gone and its record stays. */
+    @Test
+    fun endsAndDeletesRule(): TestResult =
+        runTest {
+            val ledger = device.store.createLedger("家計")
+            val (data, editor) = open()
+            val loaded = data.uiState.first { it.categories.isNotEmpty() }
+            val housing = loaded.categories.first { it.name == "住居" }
+            assertNull(editor.recurringRules.createRecurringRule(rentDraft(categoryId = housing.id.toString())))
+            // Read back from the store: what the screens show is covered above.
+            val scope = device.store.ledger(ledger.id)
+            val ruleId =
+                scope
+                    .recurringRules()
+                    .single()
+                    .id
+                    .toString()
+
+            assertNull(editor.recurringRules.endRecurringRule(ruleId))
+            val ended = loaded.copy(recurringRules = scope.recurringRules())
+            val row = ended.recurringRuleRows(todayIso = TODAY).single()
+            assertEquals(expected = "2026年2月まで", actual = row.endedText)
+            assertEquals(expected = "毎月10日 80,000円 住居、2026年2月まで", actual = row.accessibilityLabel)
+            assertEquals(
+                expected = true,
+                actual = ended.recurringRuleEditing(id = ruleId, todayIso = TODAY)?.isEnded,
+            )
+
+            assertNull(editor.recurringRules.deleteRecurringRule(ruleId))
+            assertEquals(expected = emptyList(), actual = scope.recurringRules())
+            val recorded = scope.transactions(YearMonth.parse("2026-02")).single()
+            assertEquals(expected = true, actual = ended.transactionRow(recorded).isRecurring)
+        }
+
     private suspend fun open(): Pair<LedgerData, LedgerEditor> {
         val appState = device.launch()
         val data = LedgerData(store = device.store, appState = appState)
@@ -94,12 +118,25 @@ class LedgerEditorTest {
         return data to LedgerEditor(store = device.store, appState = appState, ledgerData = data)
     }
 
+    // 80,000 yen on the 10th from 2026-02.
+    private fun rentDraft(categoryId: String): RecurringRuleDraft =
+        RecurringRuleDraft(
+            isIncome = false,
+            amountText = "80000",
+            categoryId = categoryId,
+            dayText = "10",
+            adjustment = BusinessDayAdjustment.KEEP,
+            startMonth = "2026-02",
+            endMonth = null,
+            memo = "",
+        )
+
     private fun draft(
         amount: String,
         categoryId: String,
     ): TransactionDraft =
         TransactionDraft(
-            date = "2026-02-15",
+            date = TODAY,
             isIncome = false,
             amountText = amount,
             categoryId = categoryId,

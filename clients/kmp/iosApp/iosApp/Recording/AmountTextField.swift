@@ -1,10 +1,13 @@
+import SharedLogic
 import SwiftUI
 import UIKit
 
-/// A number-pad field for whole yen or a day of the month: it takes digits
-/// only, and puts the caret after the last digit whenever it starts
-/// editing, so deleting always removes what is there, wherever it was
-/// tapped.
+/// A number-pad field for whole yen or a day of the month.
+///
+/// It takes digits only, shows them grouped by thousands while they are
+/// typed (`1,200`, PRODUCT.md §5), and puts the caret after the last digit
+/// whenever it starts editing, so deleting always removes what is there,
+/// wherever it was tapped. The binding holds the digits alone.
 internal struct AmountTextField: UIViewRepresentable {
     /// The coordinator relaying the field's edits to the binding.
     internal final class Coordinator: NSObject, UITextFieldDelegate {
@@ -14,9 +17,24 @@ internal struct AmountTextField: UIViewRepresentable {
             self.text = text
         }
 
+        // Puts the caret after the `count`th digit of the field's text.
+        private static func placeCaret(in field: UITextField, afterDigits count: Int) {
+            var seen: Int = 0
+            var offset: Int = 0
+            for character in field.text ?? "" where seen < count {
+                offset += character.utf16.count
+                if character.isNumber {
+                    seen += 1
+                }
+            }
+            if let position = field.position(from: field.beginningOfDocument, offset: offset) {
+                field.selectedTextRange = field.textRange(from: position, to: position)
+            }
+        }
+
         @objc
         internal func editingChanged(_ field: UITextField) {
-            self.text.wrappedValue = field.text ?? ""
+            self.text.wrappedValue = (field.text ?? "").filter(\.isNumber)
         }
 
         internal func textFieldDidBeginEditing(_ textField: UITextField) {
@@ -26,12 +44,36 @@ internal struct AmountTextField: UIViewRepresentable {
             }
         }
 
+        // Applies the edit to the digits and shows them grouped again, the
+        // caret staying after the same digit. Deleting only a separator
+        // deletes the digit before it.
         internal func textField(
-            _: UITextField,
-            shouldChangeCharactersIn _: NSRange,
+            _ textField: UITextField,
+            shouldChangeCharactersIn range: NSRange,
             replacementString string: String,
         ) -> Bool {
-            string.allSatisfy { character in character.isASCII && character.isNumber }
+            let current: String = textField.text ?? ""
+            guard
+                string.allSatisfy({ character in character.isASCII && character.isNumber }),
+                let replaced = Range(range, in: current)
+            else {
+                return false
+            }
+            var start: String.Index = replaced.lowerBound
+            let isSeparatorDeleted: Bool =
+                string.isEmpty && !replaced.isEmpty
+                && current[replaced].allSatisfy { character in !character.isNumber }
+            if isSeparatorDeleted, start > current.startIndex {
+                start = current.index(before: start)
+            }
+            let before: String = current[..<start].filter(\.isNumber)
+            let after: String = current[replaced.upperBound...].filter(\.isNumber)
+            let digits: String = before + string + after
+            let grouped: String = AmountText.shared.grouped(text: digits)
+            textField.text = grouped
+            Self.placeCaret(in: textField, afterDigits: before.count + string.count)
+            self.text.wrappedValue = digits
+            return false
         }
 
         deinit {
@@ -74,8 +116,9 @@ internal struct AmountTextField: UIViewRepresentable {
     internal func updateUIView(_ uiView: UITextField, context: Context) {
         context.coordinator.text = self.text
         self.configure(uiView)
-        if uiView.text != self.text.wrappedValue {
-            uiView.text = self.text.wrappedValue
+        let grouped: String = AmountText.shared.grouped(text: self.text.wrappedValue)
+        if uiView.text != grouped {
+            uiView.text = grouped
         }
     }
 

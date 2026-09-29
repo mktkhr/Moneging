@@ -122,11 +122,26 @@ interface LedgerRecurringRules {
     /** This ledger's live recurring rules, in creation order. */
     suspend fun recurringRules(): List<RecurringRule>
 
-    /** Replaces the content of the rule [ruleId]; the transactions it recorded stay as they are. */
+    /**
+     * Replaces the content of the rule [ruleId]; the transactions it recorded
+     * stay as they are. Clearing or moving later the end month of an ended
+     * rule resumes it: the months whose date came while it was ended are
+     * never recorded.
+     */
     suspend fun updateRecurringRule(
         ruleId: Uuid,
         rule: NewRecurringRule,
     ): RecurringRule
+
+    /**
+     * Ends the rule [ruleId]: its end month becomes the last month it
+     * recorded (deleted transactions included), so nothing more is recorded.
+     * A rule that recorded nothing ends the month before its start.
+     */
+    suspend fun endRecurringRule(ruleId: Uuid): RecurringRule
+
+    /** Deletes the rule [ruleId]; the transactions it recorded stay and still name it. */
+    suspend fun deleteRecurringRule(ruleId: Uuid)
 
     /**
      * Records every month of every live rule whose date has come (today in

@@ -1,0 +1,4 @@
+-- Version 2 to 3: resuming an ended recurring rule (PRODUCT.md §3).
+
+-- The first month that may be recorded after the rule was last resumed.
+ALTER TABLE recurring_rules ADD COLUMN resumed_from TEXT;

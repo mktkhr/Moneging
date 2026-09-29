@@ -8,6 +8,7 @@ import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.NewLineItem
 import io.github.mktkhr.moneging.domain.NewRecurringRule
 import io.github.mktkhr.moneging.domain.NewTransaction
+import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.domain.TransactionQuery
 import kotlinx.coroutines.CancellationException
@@ -88,8 +89,12 @@ data class SearchDraft(
 class LedgerEditor internal constructor(
     private val store: LocalStore,
     private val appState: AppState,
-    private val ledgerData: LedgerData,
+    ledgerData: LedgerData,
 ) {
+    /** The writes of the recurring rules of the ledger in view. */
+    val recurringRules: RecurringRuleEditor =
+        RecurringRuleEditor(ledgerData = ledgerData) { write -> attempt(write) }
+
     /** Records [draft] in the ledger in view. */
     @Throws(Exception::class)
     suspend fun recordTransaction(draft: TransactionDraft): String? =
@@ -123,14 +128,6 @@ class LedgerEditor internal constructor(
     @Throws(Exception::class)
     suspend fun archiveCategory(categoryId: String): String? =
         attempt { archiveCategory(categoryId = Uuid.parse(categoryId)) }
-
-    /** Adds the recurring rule [draft], then records its months whose date has come. */
-    @Throws(Exception::class)
-    suspend fun createRecurringRule(draft: RecurringRuleDraft): String? {
-        val refusal = attempt { createRecurringRule(rule = draft.toNewRecurringRule()) }
-        if (refusal == null) ledgerData.materializeRecurringRules()
-        return refusal
-    }
 
     /** The live transactions of the ledger in view matching [draft], every period included unless it names one. */
     @Throws(Exception::class)
@@ -169,6 +166,43 @@ class LedgerEditor internal constructor(
     }
 }
 
+/**
+ * The writes of the recurring rules of the ledger in view ([LedgerEditor.recurringRules]);
+ * each returns `null` when it is done, or the reason it was refused.
+ */
+class RecurringRuleEditor internal constructor(
+    private val ledgerData: LedgerData,
+    private val write: suspend (suspend LedgerScope.() -> Any) -> String?,
+) {
+    /** Adds the recurring rule [draft], then records its months whose date has come. */
+    @Throws(Exception::class)
+    suspend fun createRecurringRule(draft: RecurringRuleDraft): String? {
+        val refusal = write { createRecurringRule(rule = draft.toNewRecurringRule()) }
+        if (refusal == null) ledgerData.materializeRecurringRules()
+        return refusal
+    }
+
+    /** Replaces the recurring rule [ruleId] with [draft], then records its months whose date has come. */
+    @Throws(Exception::class)
+    suspend fun updateRecurringRule(
+        ruleId: String,
+        draft: RecurringRuleDraft,
+    ): String? {
+        val refusal = write { updateRecurringRule(ruleId = Uuid.parse(ruleId), rule = draft.toNewRecurringRule()) }
+        if (refusal == null) ledgerData.materializeRecurringRules()
+        return refusal
+    }
+
+    /** Ends the recurring rule [ruleId] with the last month it recorded. */
+    @Throws(Exception::class)
+    suspend fun endRecurringRule(ruleId: String): String? = write { endRecurringRule(ruleId = Uuid.parse(ruleId)) }
+
+    /** Deletes the recurring rule [ruleId]; what it recorded stays. */
+    @Throws(Exception::class)
+    suspend fun deleteRecurringRule(ruleId: String): String? =
+        write { deleteRecurringRule(ruleId = Uuid.parse(ruleId)) }
+}
+
 internal fun String.orNullIfBlank(): String? = trim().ifEmpty { null }
 
 internal fun TransactionDraft.toNewTransaction(): NewTransaction {
@@ -190,6 +224,19 @@ internal fun TransactionDraft.toNewTransaction(): NewTransaction {
         items = lineItems,
     )
 }
+
+/** [rule] as the rule form holds it. */
+internal fun RecurringRule.toDraft(): RecurringRuleDraft =
+    RecurringRuleDraft(
+        isIncome = direction == Direction.INCOME,
+        amountText = amount.toString(),
+        categoryId = categoryId?.toString(),
+        dayText = dayOfMonth?.toString(),
+        adjustment = adjustment,
+        startMonth = startMonth.toString(),
+        endMonth = endMonth?.toString(),
+        memo = memo.orEmpty(),
+    )
 
 internal fun RecurringRuleDraft.toNewRecurringRule(): NewRecurringRule =
     NewRecurringRule(

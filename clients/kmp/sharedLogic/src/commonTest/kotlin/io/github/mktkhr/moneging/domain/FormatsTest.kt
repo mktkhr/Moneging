@@ -23,6 +23,15 @@ class FormatsTest {
         assertEquals(expected = "−2,200円", actual = Formats.yen(NEGATIVE))
     }
 
+    /** An amount being typed is grouped by thousands, whatever separators it had. */
+    @Test
+    fun groupsTypedAmounts() {
+        assertEquals(expected = "1,200", actual = AmountText.grouped("1200"))
+        assertEquals(expected = "80,000", actual = AmountText.grouped("8,0000"))
+        assertEquals(expected = "123", actual = AmountText.grouped("123"))
+        assertEquals(expected = "", actual = AmountText.grouped(""))
+    }
+
     /** Dates, weekdays and months are written in Japanese. */
     @Test
     fun writesDatesAndMonths() {

@@ -98,6 +98,11 @@ recordedMonthCount:
 SELECT COUNT(*) FROM transactions
 WHERE ledger_id = :ledgerId AND recurring_rule_id = :ruleId AND recurring_month = :month;
 
+-- The last month a rule recorded, deleted transactions included.
+lastRecordedMonth:
+SELECT MAX(recurring_month) AS month FROM transactions
+WHERE ledger_id = :ledgerId AND recurring_rule_id = :ruleId;
+
 markTransactionDeleted:
 UPDATE transactions SET deleted_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
 

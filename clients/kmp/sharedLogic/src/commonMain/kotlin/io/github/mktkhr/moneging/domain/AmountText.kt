@@ -4,6 +4,7 @@ private const val FULL_WIDTH_ZERO = '０'
 private const val FULL_WIDTH_NINE = '９'
 private const val THOUSANDS_SEPARATORS = ",，"
 private const val MAX_DIGITS = 15
+private const val DIGIT_GROUP = 3
 
 /**
  * The amount text of a form, read as whole yen: every client reads what the
@@ -28,4 +29,13 @@ object AmountText {
         }
         return digits.toLong()
     }
+
+    /** The digits of [text] grouped by thousands as a form shows them while they are typed: `1200` as `1,200`. */
+    fun grouped(text: String): String =
+        text
+            .filter { it in '0'..'9' }
+            .reversed()
+            .chunked(DIGIT_GROUP)
+            .joinToString(separator = ",")
+            .reversed()
 }

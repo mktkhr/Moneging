@@ -175,16 +175,23 @@ class LocalStore internal constructor(
         /**
          * An empty store held in memory, for tests: nothing is written to
          * disk and nothing outlives the store.
+         *
+         * Its work runs one at a time on [context]: the JVM's in-memory
+         * driver has one connection whose transaction every thread shares,
+         * so a transaction started alongside another would join it and lose
+         * its change notifications.
          */
         fun inMemory(
             clock: Clock,
             deviceId: String,
+            context: CoroutineContext = Dispatchers.Default.limitedParallelism(parallelism = 1),
         ): LocalStore =
             LocalStore(
                 openDriver = ::inMemoryDriver,
                 clock = clock,
                 deviceId = deviceId,
                 photoFiles = InMemoryPhotoFiles(),
+                context = context,
             )
     }
 }

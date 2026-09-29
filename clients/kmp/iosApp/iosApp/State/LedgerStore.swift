@@ -101,7 +101,27 @@ internal final class LedgerStore {
     /// Adds the recurring rule `draft` and records its months whose date
     /// has come; returns whether it was added.
     internal func createRecurringRule(_ draft: RecurringRuleDraft) async -> Bool {
-        await self.write { try await self.editor.createRecurringRule(draft: draft) }
+        await self.write { try await self.editor.recurringRules.createRecurringRule(draft: draft) }
+    }
+
+    /// Replaces the recurring rule `id` with `draft` and records its months
+    /// whose date has come; returns whether it was changed.
+    internal func updateRecurringRule(id: String, with draft: RecurringRuleDraft) async -> Bool {
+        await self.write {
+            try await self.editor.recurringRules.updateRecurringRule(ruleId: id, draft: draft)
+        }
+    }
+
+    /// Ends the recurring rule `id` with the last month it recorded;
+    /// returns whether it was ended.
+    internal func endRecurringRule(id: String) async -> Bool {
+        await self.write { try await self.editor.recurringRules.endRecurringRule(ruleId: id) }
+    }
+
+    /// Deletes the recurring rule `id`, keeping what it recorded; returns
+    /// whether it was deleted.
+    internal func deleteRecurringRule(id: String) async -> Bool {
+        await self.write { try await self.editor.recurringRules.deleteRecurringRule(ruleId: id) }
     }
 
     /// The transactions of the ledger in view matching `draft`; empty when

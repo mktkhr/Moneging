@@ -59,13 +59,36 @@ data class RecurringRuleRow(
     val schedule: String,
     /** Its next date (`3月25日（水）`), or `null` when it has ended. */
     val nextDate: String?,
+    /** Until when an ended one applied (`2026年2月まで`), or `null` while it has not ended. */
+    val endedText: String?,
     /** Whether it is an income. */
     val isIncome: Boolean,
     /** The default category it shows the icon of, or `null`. */
     val iconIndex: Int?,
-    /** Everything a screen reader says: `毎月25日 80,000円 住居、土日祝なら翌平日、次回 3月25日（水）`. */
+    /**
+     * Everything a screen reader says: `毎月25日 80,000円 住居、土日祝なら翌平日、次回 3月25日（水）`,
+     * or `…、2026年2月まで` for an ended one.
+     */
     val accessibilityLabel: String,
-)
+) {
+    /** Whether it has ended: it records nothing more. */
+    val isEnded: Boolean get() = nextDate == null
+}
+
+/** A recurring rule as its sheet opens it to be changed, ended or deleted. */
+data class RecurringRuleEditing(
+    /** The rule's `RecurringRule.id`, as text. */
+    val id: String,
+    /** What the form starts with. */
+    val draft: RecurringRuleDraft,
+    /** The rule as `毎月25日 80,000円 住居`. */
+    val summary: String,
+    /** Its next date (`2月25日`), or `null` when it has ended. */
+    val nextDate: String?,
+) {
+    /** Whether it has ended: it records nothing more. */
+    val isEnded: Boolean get() = nextDate == null
+}
 
 /** The month's transactions as [TransactionRow]s grouped by day, newest day first. */
 fun LedgerUiState.daySections(): List<DaySection> =
@@ -108,6 +131,21 @@ fun LedgerUiState.transactionRow(transaction: Transaction): TransactionRow {
     )
 }
 
+/** The ledger's recurring rule [id] as its sheet opens it, with its next date after [todayIso]; `null` when gone. */
+fun LedgerUiState.recurringRuleEditing(
+    id: String,
+    todayIso: String,
+): RecurringRuleEditing? {
+    val rule = recurringRules.firstOrNull { it.id.toString() == id } ?: return null
+    val category = rule.categoryId?.let { categoryId -> categories.firstOrNull { it.id == categoryId } }
+    return RecurringRuleEditing(
+        id = id,
+        draft = rule.toDraft(),
+        summary = Formats.recurringRule(rule = rule, categoryName = category?.name),
+        nextDate = RecurringSchedule.nextDate(rule = rule, today = LocalDate.parse(todayIso))?.let { Formats.date(it) },
+    )
+}
+
 /** The ledger's recurring rules as 毎月の定期 lists them, with their next date after [today]. */
 fun LedgerUiState.recurringRuleRows(today: LocalDate): List<RecurringRuleRow> =
     recurringRules.map { rule -> recurringRuleRow(rule = rule, today = today) }
@@ -124,11 +162,13 @@ private fun LedgerUiState.recurringRuleRow(
     val isIncome = rule.direction == Direction.INCOME
     val adjustment = Formats.adjustment(rule.adjustment)
     val nextDate = RecurringSchedule.nextDate(rule = rule, today = today)?.let { Formats.dateWithWeekday(it) }
+    val endedText = rule.endMonth?.takeIf { nextDate == null }?.let { "${Formats.month(it)}まで" }
     return RecurringRuleRow(
         id = rule.id.toString(),
         title = "${Formats.yen(rule.amount)} ${if (isIncome) INCOME_NAME else category?.name.orEmpty()}".trimEnd(),
         schedule = listOfNotNull(Formats.recurringDay(rule.dayOfMonth), adjustment).joinToString(separator = "・"),
         nextDate = nextDate,
+        endedText = endedText,
         isIncome = isIncome,
         iconIndex = category?.defaultIndex,
         accessibilityLabel =
@@ -136,6 +176,7 @@ private fun LedgerUiState.recurringRuleRow(
                 Formats.recurringRule(rule = rule, categoryName = category?.name),
                 adjustment,
                 nextDate?.let { "次回 $it" },
+                endedText,
             ).joinToString(separator = LABEL_SEPARATOR),
     )
 }
