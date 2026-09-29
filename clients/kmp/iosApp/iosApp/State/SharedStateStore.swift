@@ -32,6 +32,9 @@ internal final class SharedStateStore {
     /// `Ledger.id` of the ledger in view, as text; empty before the first
     /// ledger exists.
     internal private(set) var selectedLedgerId: String
+    /// The day the ledger in view was created, ISO (`2026-02-02`); `nil`
+    /// before the first ledger exists.
+    internal private(set) var selectedLedgerCreatedOnIso: String?
     /// The name the header shows for the ledger in view (while the tour's
     /// ledger step is shown, the name being typed).
     internal private(set) var selectedLedgerName: String
@@ -73,6 +76,7 @@ internal final class SharedStateStore {
         self.isLoaded = initial.isLoaded
         self.ledgers = initial.ledgers
         self.selectedLedgerId = initial.selectedLedgerId ?? ""
+        self.selectedLedgerCreatedOnIso = initial.selectedLedgerCreatedOnIso
         self.selectedLedgerName = initial.ledgerTitle
         self.tour = initial.tour
         self.ledgerNameDraft = initial.ledgerNameDraft
@@ -177,6 +181,7 @@ internal final class SharedStateStore {
         self.isLoaded = state.isLoaded
         self.ledgers = state.ledgers
         self.selectedLedgerId = state.selectedLedgerId ?? ""
+        self.selectedLedgerCreatedOnIso = state.selectedLedgerCreatedOnIso
         self.selectedLedgerName = state.ledgerTitle
         self.tour = state.tour
         self.ledgerNameDraft = state.ledgerNameDraft
