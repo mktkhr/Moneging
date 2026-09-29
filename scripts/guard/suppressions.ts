@@ -80,9 +80,19 @@ const SWIFT_RULES: readonly Rule[] = [
   { directive: "XCTSkip", pattern: /\bXCTSkip/u },
   { directive: "XCTExpectFailure", pattern: /\bXCTExpectFailure\b/u },
   { directive: "withKnownIssue", pattern: /\bwithKnownIssue\b/u },
+];
+
+// Swift Testing traits that switch a test off. Outside test sources the same
+// spelling is SwiftUI's `.disabled(_:)` view modifier, which is product code.
+const SWIFT_TEST_RULES: readonly Rule[] = [
   { directive: ".disabled(", pattern: /\.disabled\s*\(/u },
   { directive: ".enabled(if:", pattern: /\.enabled\s*\(\s*if\s*:/u },
 ];
+
+/** A Swift file of a test target: a `…Tests/` directory (iosAppUITests) or the acceptance suite. */
+function isSwiftTestSource(file: string): boolean {
+  return /(?:^|\/)(?:[^/]*Tests|acceptance)\//u.test(file);
+}
 
 const XML_RULES: readonly Rule[] = [
   { directive: "tools:ignore", pattern: /\btools:ignore\s*=/u },
@@ -221,6 +231,7 @@ function rulesFor(file: string): readonly Rule[] {
   if (/\.(?:kt|kts|java|gradle)$/u.test(file)) rules.push(...KOTLIN_RULES);
   if (isBuildFile(file)) rules.push(...BUILD_RULES);
   if (file.endsWith(".swift")) rules.push(...SWIFT_RULES);
+  if (file.endsWith(".swift") && isSwiftTestSource(file)) rules.push(...SWIFT_TEST_RULES);
   if (file.endsWith(".xml")) rules.push(...XML_RULES);
   if (base === ".editorconfig") rules.push(...EDITORCONFIG_RULES);
   if (/\.(?:xcconfig|pbxproj)$/u.test(file)) rules.push(...XCODE_RULES);

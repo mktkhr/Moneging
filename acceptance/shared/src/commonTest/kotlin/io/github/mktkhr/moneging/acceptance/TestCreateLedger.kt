@@ -36,7 +36,7 @@ class TestCreateLedger {
             )
             assertEquals(
                 expected = List(size = DEFAULT_CATEGORY_NAMES.size) { false },
-                actual = categories.map { category -> category.archived },
+                actual = categories.map { category -> category.isArchived },
                 message = "既定の分類がアーカイブされている",
             )
             assertEquals(

@@ -141,7 +141,7 @@ internal struct TourCallout: View {
         if self.tour.step == .ledger {
             Button("はじめる", action: self.start)
                 .buttonStyle(TourPrimaryButtonStyle())
-                .environment(\.isEnabled, self.isNameValid)
+                .disabled(!self.isNameValid)
                 .accessibilityIdentifier("tour-start")
         } else {
             HStack(spacing: Theme.Spacing.extraSmall) {

@@ -27,9 +27,7 @@ internal struct RenameLedgerScreen: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("保存", action: self.save)
-                    .environment(
-                        \.isEnabled, SharedStateStore.isValidLedgerName(self.name) && !self.isSaving
-                    )
+                    .disabled(!SharedStateStore.isValidLedgerName(self.name) || self.isSaving)
                     .accessibilityIdentifier("ledger-rename-save")
             }
         }

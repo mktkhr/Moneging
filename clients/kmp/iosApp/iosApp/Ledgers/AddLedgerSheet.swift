@@ -33,10 +33,7 @@ internal struct AddLedgerSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("追加", action: self.add)
-                        .environment(
-                            \.isEnabled,
-                            SharedStateStore.isValidLedgerName(self.name) && !self.isSaving
-                        )
+                        .disabled(!SharedStateStore.isValidLedgerName(self.name) || self.isSaving)
                         .accessibilityIdentifier("ledger-add-create")
                 }
             }

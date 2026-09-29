@@ -51,6 +51,8 @@ const KT_TEST = "clients/kmp/sharedLogic/src/commonTest/kotlin/ProbeTest.kt";
 const KTS = "clients/kmp/sharedLogic/build.gradle.kts";
 const LOGIC = "clients/kmp/build-logic/src/main/kotlin/Convention.kt";
 const SWIFT = "clients/kmp/iosApp/iosApp/Probe.swift";
+const SWIFT_TEST = "clients/kmp/iosApp/iosAppUITests/Probe.swift";
+const SWIFT_ACCEPTANCE = "acceptance/ios/Probe.swift";
 const XML = "clients/kmp/androidApp/src/main/res/layout/probe.xml";
 const EDITORCONFIG = "clients/kmp/.editorconfig";
 const XCCONFIG = "clients/kmp/iosApp/Configuration/Config.xcconfig";
@@ -134,8 +136,20 @@ const CASES: readonly Case[] = [
   { name: "XCTSkipIf", file: SWIFT, line: "try XCTSkipIf(true)", directive: "XCTSkip" },
   { name: "XCTExpectFailure", file: SWIFT, line: 'XCTExpectFailure("x")', directive: "XCTExpectFailure" },
   { name: "withKnownIssue", file: SWIFT, line: "withKnownIssue { }", directive: "withKnownIssue" },
-  { name: ".disabled(", file: SWIFT, line: '@Test(.disabled("x")) func t() {}', directive: ".disabled(" },
-  { name: ".enabled(if:", file: SWIFT, line: "@Test(.enabled(if: false)) func t() {}", directive: ".enabled(if:" },
+  { name: ".disabled(", file: SWIFT_TEST, line: '@Test(.disabled("x")) func t() {}', directive: ".disabled(" },
+  {
+    name: ".disabled( in acceptance",
+    file: SWIFT_ACCEPTANCE,
+    line: '@Suite(.disabled("x")) struct S {}',
+    directive: ".disabled(",
+  },
+  {
+    name: ".enabled(if:",
+    file: SWIFT_TEST,
+    line: "@Test(.enabled(if: false)) func t() {}",
+    directive: ".enabled(if:",
+  },
+  { name: "SwiftUI .disabled( in the app", file: SWIFT, line: "Button(\"追加\").disabled(!isValid)", directive: null },
 
   // Android XML.
   { name: "tools:ignore", file: XML, line: '<View tools:ignore="ContentDescription" />', directive: "tools:ignore" },
