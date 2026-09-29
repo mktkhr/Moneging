@@ -14,7 +14,10 @@ Moneging の Repository Harness は3層で品質と保護ルールを強制す�
    なく常にグリーンでなければならない。それ以外のゲートは、前のターンで通って
    いたものが新たに落ちた場合だけターンを止める。3回連続で拒否すると諦めて
    ユーザーに伝える（その判定は同一のツリー状態にキャッシュされ、ツリーが変わ
-   るまで再判定しない）。
+   るまで再判定しない）。サブエージェントの実行中（`scripts/guard/subagent-mark.sh`
+   が SubagentStart/SubagentStop で置く目印のうち2時間以内のものがある間）は判定
+   しない。拒否の直後の停止（`stop_hook_active`）で、ツリーが拒否したときのまま
+   なら、再び拒否せずにユーザーに伝える。
 3. **git hooks**: `hooks/pre-commit` はステージ済みの保護パス変更を拒否し
    （`MONEGING_ALLOW_HARNESS_CHANGE=1` が無い限り）、Kotlin/Swift の整形を確認
    する。`hooks/pre-push` は `make check` をフルで実行する。`make guard-protected`

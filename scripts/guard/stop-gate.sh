@@ -16,11 +16,23 @@
 # so a condition Claude cannot fix (see below) does not cycle "refuse x3, give
 # up, refuse x3, give up, ..." forever. It resumes judging once the tree
 # actually changes.
+#
+# Two stops are let through without judging:
+#   - while a subagent runs (a mark from subagent-mark.sh younger than two
+#     hours): the tree is still being written, so it would be judged half done;
+#   - when Claude Code says this stop follows a refusal (stop_hook_active) and
+#     the tree is the one refused: Claude changed nothing, so refusing again
+#     only repeats the same message.
 set -u
+input=$(cat)
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 
 state=.cache/stop-gate
 mkdir -p "$state"
+
+if [ -n "$(find "$state/running" -type f -mmin -120 2>/dev/null | head -1)" ]; then
+  exit 0
+fi
 
 # key: the tree of the whole working tree including staged, unstaged and
 # untracked-but-not-ignored files, computed against a scratch index so the
@@ -46,6 +58,12 @@ if [ "$key_valid" = 1 ] && [ -f "$state/gaveup" ] && [ "$(cat "$state/gaveup")" 
   exit 0
 fi
 
+if printf '%s' "$input" | grep -Eq '"stop_hook_active"[[:space:]]*:[[:space:]]*true' \
+  && [ "$key_valid" = 1 ] && [ -f "$state/refused" ] && [ "$(cat "$state/refused")" = "$key" ]; then
+  printf '{"systemMessage":"stop-gate: the refused tree did not change; not refused again (run make -k verify)."}\n'
+  exit 0
+fi
+
 # refuse <message>: block the stop (called in this shell, never in a
 # pipeline, so that its exit ends the script).
 refuse() {
@@ -61,6 +79,9 @@ refuse() {
     exit 0
   fi
 
+  if [ "$key_valid" = 1 ]; then
+    printf '%s\n' "$key" >"$state/refused"
+  fi
   printf '%s\n' "$1" >&2
   exit 2
 }
@@ -103,7 +124,7 @@ if [ -n "$new" ]; then
 fi
 
 printf '%s\n' "$failing" | awk 'NF' >"$state/failing"
-rm -f "$state/attempts" "$state/gaveup"
+rm -f "$state/attempts" "$state/gaveup" "$state/refused"
 if [ "$key_valid" = 1 ]; then
   printf '%s\n' "$key" >"$state/judged"
 fi
