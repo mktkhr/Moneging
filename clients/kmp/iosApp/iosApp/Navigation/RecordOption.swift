@@ -30,13 +30,13 @@ internal enum RecordOption: CaseIterable, Hashable {
     internal var subtitle: String {
         switch self {
         case .manual:
-            "金額・カテゴリ・日付を入れる"
+            "金額と分類を入れて記録"
 
         case .photoPick:
-            "写真ライブラリのレシートを読み取る"
+            "撮ったレシートの写真から"
 
         case .receiptScan:
-            "書類スキャナで撮影して読み取る"
+            "撮るだけで下書きに"
         }
     }
 
@@ -52,6 +52,12 @@ internal enum RecordOption: CaseIterable, Hashable {
         case .receiptScan:
             "doc.viewfinder"
         }
+    }
+
+    /// Whether it can be used yet; the others are shown disabled, marked
+    /// 準備中 (reading receipts comes with stage 5).
+    internal var isAvailable: Bool {
+        self == .manual
     }
 
     /// A stable, ASCII identifier for UI testing.

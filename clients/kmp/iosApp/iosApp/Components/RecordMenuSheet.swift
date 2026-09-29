@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// 記録する: the sheet the floating record button presents, matching
-/// `scratchpad/design/project/RecordMenu.dc.html`.
+/// `RecordMenu2.dc.html`: 手で入力する opens the entry sheet; reading a
+/// receipt comes later, so its two rows are shown disabled, marked 準備中.
 internal struct RecordMenuSheet: View {
     internal let onChoose: (RecordOption) -> Void
 
@@ -18,6 +19,7 @@ internal struct RecordMenuSheet: View {
                         RecordOptionRow(option: option)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!option.isAvailable)
                     .accessibilityIdentifier("record-option-\(option.identifier)")
                 }
             }

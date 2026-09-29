@@ -14,8 +14,17 @@ import SharedLogic
 @MainActor
 @Observable
 internal final class SharedStateStore {
-    /// The month currently displayed, 1-12.
+    /// The year of the month in view.
+    internal private(set) var selectedYear: Int
+    /// The month in view, 1-12.
     internal private(set) var selectedMonth: Int
+    /// The month in view as the header names it (`2月`, or `2025年2月` in
+    /// another year than today's).
+    internal private(set) var selectedMonthTitle: String
+    /// Today by the app's clock, ISO (`2026-02-15`).
+    internal private(set) var todayIso: String
+    /// The month of today, ISO (`2026-02`).
+    internal private(set) var todayMonthIso: String
     /// Whether the ledgers and the tour's progress have been read from the device.
     internal private(set) var isLoaded: Bool
     /// Every ledger the user can change to, in creation order.
@@ -56,7 +65,11 @@ internal final class SharedStateStore {
     internal init(appState: AppState) {
         self.appState = appState
         let initial: AppUiState = appState.uiState.value
-        self.selectedMonth = Int(initial.selectedMonth)
+        self.selectedYear = Int(initial.selectedYear)
+        self.selectedMonth = Int(initial.selectedMonthNumber)
+        self.selectedMonthTitle = initial.selectedMonthTitle
+        self.todayIso = initial.todayIso
+        self.todayMonthIso = initial.todayMonthIso
         self.isLoaded = initial.isLoaded
         self.ledgers = initial.ledgers
         self.selectedLedgerId = initial.selectedLedgerId ?? ""
@@ -83,9 +96,9 @@ internal final class SharedStateStore {
         LedgerName.shared.isValid(input: name)
     }
 
-    /// Sends a month-change intent to the shared `AppState`.
-    internal func selectMonth(_ month: Int) {
-        self.send(AppIntentSelectMonth(month: Int32(month)))
+    /// Shows the month `month` (1-12) of `year`.
+    internal func selectMonth(year: Int, month: Int) {
+        self.send(AppIntentSelectMonth(year: Int32(year), month: Int32(month)))
     }
 
     /// Shows the ledger `id` (`Ledger.id` as text).
@@ -156,7 +169,11 @@ internal final class SharedStateStore {
     }
 
     private func apply(_ state: AppUiState) {
-        self.selectedMonth = Int(state.selectedMonth)
+        self.selectedYear = Int(state.selectedYear)
+        self.selectedMonth = Int(state.selectedMonthNumber)
+        self.selectedMonthTitle = state.selectedMonthTitle
+        self.todayIso = state.todayIso
+        self.todayMonthIso = state.todayMonthIso
         self.isLoaded = state.isLoaded
         self.ledgers = state.ledgers
         self.selectedLedgerId = state.selectedLedgerId ?? ""

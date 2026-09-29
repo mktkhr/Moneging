@@ -16,6 +16,12 @@ internal struct RootView: View {
     @Environment(SharedStateStore.self)
     private var store: SharedStateStore
 
+    @Environment(LedgerStore.self)
+    private var ledgerStore: LedgerStore
+
+    @Environment(\.scenePhase)
+    private var scenePhase: ScenePhase
+
     // Where the tour's targets are; reported by ホーム's root.
     @State private var tourLayout: TourLayout = TourLayout()
 
@@ -69,10 +75,33 @@ internal struct RootView: View {
             } message: {
                 Text(self.store.shownErrorMessage ?? "")
             }
+            .ledgerFailureAlert()
+            // Back in the foreground: today again, and the recurring rules whose date has come.
+            .onChange(of: self.scenePhase) { _, phase in
+                if phase == .active {
+                    self.ledgerStore.onForeground()
+                }
+            }
+            // As time passes: the day may change while the app is open.
+            .onReceive(
+                Timer.publish(every: Theme.clockCheckInterval, on: .main, in: .common).autoconnect()
+            ) { _ in
+                self.ledgerStore.onTimePassed()
+            }
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.background)
+        }
+    }
+
+    private static func entrySheet(_ request: EntrySheetRequest) -> EntrySheet {
+        switch request {
+        case .edit(let transaction):
+            EntrySheet(editing: transaction)
+
+        case .new:
+            EntrySheet(editing: nil)
         }
     }
 
@@ -82,7 +111,11 @@ internal struct RootView: View {
 
         TabView(selection: $router.selectedTab) {
             Tab("ホーム", systemImage: "house", value: AppTab.home) {
-                MainTabScreen(path: $router.homePath, isTourHost: true) {
+                MainTabScreen(
+                    path: $router.homePath,
+                    isTourHost: true,
+                    wrapsContentInScrollView: false,
+                ) {
                     HomeTabContent()
                 }
             }
@@ -108,12 +141,16 @@ internal struct RootView: View {
             }
         }
         .tint(Theme.accent)
-        .sheet(isPresented: $router.isRecordSheetPresented) {
+        .sheet(
+            isPresented: $router.isRecordSheetPresented,
+            onDismiss: router.recordSheetDidDismiss,
+        ) {
             RecordMenuSheet { option in
                 router.chooseRecordOption(option)
             }
             .fittedSheet(maxHeight: sheetMaxHeight)
         }
+        .sheet(item: $router.entrySheet, content: Self.entrySheet)
         .sheet(isPresented: $router.isAddLedgerSheetPresented) {
             AddLedgerSheet()
         }
@@ -124,4 +161,5 @@ internal struct RootView: View {
     RootView()
         .environment(AppRouter())
         .environment(SharedStateStore(appState: sharedAppState()))
+        .environment(LedgerStore(ledgerData: sharedLedgerData(), editor: sharedLedgerEditor()))
 }

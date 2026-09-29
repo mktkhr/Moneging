@@ -1,7 +1,8 @@
 import XCTest
 
-/// The 記録する sheet opened by the floating button: each row navigates,
-/// the rows are in the required order, and the sheet hugs its content.
+/// The 記録する sheet opened by the floating button: 手で入力する opens the
+/// entry sheet, the rows are in the required order, and the sheet hugs its
+/// content.
 final class RecordSheetUITests: XCTestCase {
     private var app: XCUIApplication!
 
@@ -14,32 +15,26 @@ final class RecordSheetUITests: XCTestCase {
         app = nil
     }
 
-    /// The floating 記録する button opens a sheet with three rows, each of
-    /// which pushes its own placeholder screen.
-    func testRecordSheetOpensAndEachRowNavigates() throws {
+    /// The floating 記録する button opens a sheet with three rows:
+    /// 手で入力する opens the entry sheet, and the two receipt rows, which
+    /// come with a later stage, are shown disabled.
+    func testRecordSheetOpensEntrySheetAndDisablesReceiptRows() throws {
         app.switchToTab("ホーム")
 
-        let options: [(identifier: String, title: String)] = [
-            ("manual", "手で入力する"),
-            ("photo-pick", "写真を選ぶ"),
-            ("receipt-scan", "レシートを撮る"),
-        ]
+        let recordButton = app.buttons["record-button"]
+        XCTAssertTrue(recordButton.appears(within: 5))
+        recordButton.tap()
 
-        for option in options {
-            let recordButton = app.buttons["record-button"]
-            XCTAssertTrue(recordButton.appears(within: 5))
-            recordButton.tap()
+        XCTAssertFalse(app.buttons["record-option-receipt-scan"].isEnabled, "レシートを撮る が押せる")
+        XCTAssertFalse(app.buttons["record-option-photo-pick"].isEnabled, "写真を選ぶ が押せる")
+        let manual = app.buttons["record-option-manual"]
+        XCTAssertTrue(manual.appears(within: 5), "手で入力する の行が見つからない")
+        manual.tap()
 
-            let rowButton = app.buttons["record-option-\(option.identifier)"]
-            XCTAssertTrue(rowButton.appears(within: 5), "\(option.title) の行が見つからない")
-            rowButton.tap()
-
-            XCTAssertTrue(
-                app.navigationBars[option.title].appears(within: 5),
-                "\(option.title) のプレースホルダー画面が開かない",
-            )
-            app.navigationBars.buttons.element(boundBy: 0).tap()
-        }
+        let amount = app.textFields["entry-amount"]
+        XCTAssertTrue(amount.appears(within: 5), "手で入力する で入力のシートが開かない")
+        app.buttons["entry-cancel"].tap()
+        XCTAssertTrue(recordButton.appears(within: 5), "入力のシートを閉じてもホームに戻らない")
     }
 
     /// The sheet's three rows render top-to-bottom in the required order

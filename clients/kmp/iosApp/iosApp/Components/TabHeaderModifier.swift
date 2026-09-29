@@ -76,20 +76,31 @@ internal struct TabHeaderModifier: ViewModifier {
         .background(Theme.background)
     }
 
+    // The months of the year in view, and the years before and after it.
     private var monthChip: some View {
-        Menu {
-            ForEach(Self.firstMonth...Self.lastMonth, id: \.self) { month in
-                Button("\(month)月") {
-                    self.store.selectMonth(month)
+        let year: Int = self.store.selectedYear
+        let month: Int = self.store.selectedMonth
+        return Menu {
+            Button("\(year - 1)年へ", systemImage: "chevron.left") {
+                self.store.selectMonth(year: year - 1, month: month)
+            }
+            Button("\(year + 1)年へ", systemImage: "chevron.right") {
+                self.store.selectMonth(year: year + 1, month: month)
+            }
+            Section("\(year)年") {
+                ForEach(Self.firstMonth...Self.lastMonth, id: \.self) { choice in
+                    Button("\(choice)月") {
+                        self.store.selectMonth(year: year, month: choice)
+                    }
                 }
             }
         } label: {
             HStack(spacing: Theme.Spacing.extraSmall) {
-                Text("\(self.store.selectedMonth)月")
+                Text(self.store.selectedMonthTitle)
                 Image(systemName: "chevron.down")
             }
         }
-        .accessibilityLabel("表示する月（\(self.store.selectedMonth)月）")
+        .accessibilityLabel("表示する月（\(self.store.selectedMonthTitle)）")
         .accessibilityIdentifier("month-chip")
     }
 

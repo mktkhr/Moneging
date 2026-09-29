@@ -69,13 +69,22 @@ internal enum Theme {
         dark: Self.dark.onAccent,
     )
 
-    // `accentTint` (a selected pill's background) and `glassSurface` (a
-    // translucent floating-chrome surface) are not mapped here: nothing in
-    // this shell paints with them yet, and an unused `Color` fails
-    // `swiftlint-analyze`'s `unused_declaration`. Both stay available as
-    // data - `ResolvedTheme.accentTint`/`.glassSurface`
-    // (`sharedLogic`'s `theme` package) - for whenever a consumer needs
-    // them; mapping either here is then a one-line addition.
+    /// A positive (income) amount.
+    internal static let income: Color = Color(
+        light: Self.light.income,
+        dark: Self.dark.income,
+    )
+    /// A soft tint of `accent`: a selected chip's or tile's background.
+    internal static let accentTint: Color = Color(
+        light: Self.light.accentTint,
+        dark: Self.dark.accentTint,
+    )
+
+    // `glassSurface` (a translucent floating-chrome surface) is not mapped
+    // here: floating chrome uses the system's Liquid Glass (`glassEffect`),
+    // and an unused `Color` fails `swiftlint-analyze`'s `unused_declaration`.
+    // It stays available as data - `ResolvedTheme.glassSurface`
+    // (`sharedLogic`'s `theme` package) - for whenever a consumer needs it.
 
     /// A floating element's own drop shadow colour: the current style's
     /// `shadow` token (`StyleSchemeTokens.shadow` in `ThemeTokens.kt`,
@@ -126,6 +135,9 @@ internal enum Theme {
     internal static let iconTileRadius: CGFloat = 12
 
     // MARK: - Sizes
+
+    /// Seconds between checks of whether the day has changed while the app is open.
+    internal static let clockCheckInterval: TimeInterval = 60
 
     /// Minimum tappable dimension for any control (HIG minimum).
     internal static let minimumTapTarget: CGFloat = 44

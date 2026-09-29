@@ -20,7 +20,7 @@ final class TabNavigationUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication.launchedForUITest()
+        app = XCUIApplication.launchedForUITest(arguments: XCUIApplication.seededTransactionArguments)
     }
 
     override func tearDownWithError() throws {
@@ -64,10 +64,10 @@ final class TabNavigationUITests: XCTestCase {
         XCTAssertTrue(homeCount.appears(within: 5))
         XCTAssertEqual(homeCount.value as? String, "1")
 
-        let targetRow = app.staticTexts["home-recent-record-20"]
+        let targetRow = app.transactionRow(memo: "記録05")
         XCTAssertTrue(
             app.swipeUp(until: targetRow, maxSwipes: 20),
-            "スクロールしても home-recent-record-20 が見えない",
+            "スクロールしても 記録05 の行が見えない",
         )
         let frameBeforeSwitch = targetRow.frame
 

@@ -12,6 +12,9 @@ internal struct MainTabScreen<Content: View>: View {
     /// Whether this tab's root reports the tour's targets (ホーム's: the
     /// tour always runs over it).
     internal let isTourHost: Bool
+    /// Whether the content is wrapped in a `ScrollView`; `false` for content
+    /// that scrolls itself (ホーム's `List`).
+    internal var wrapsContentInScrollView: Bool = true
     @ViewBuilder internal let content: () -> Content
 
     @Environment(AppRouter.self)
@@ -19,8 +22,14 @@ internal struct MainTabScreen<Content: View>: View {
 
     internal var body: some View {
         NavigationStack(path: self.path) {
-            ScrollView {
-                self.content()
+            Group {
+                if self.wrapsContentInScrollView {
+                    ScrollView {
+                        self.content()
+                    }
+                } else {
+                    self.content()
+                }
             }
             .background(Theme.background)
             .tabHeader(isTourHost: self.isTourHost)

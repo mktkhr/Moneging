@@ -25,6 +25,10 @@ internal final class AppRouter {
     internal var isRecordSheetPresented: Bool = false
     /// Whether the 家計簿を追加 sheet is presented.
     internal var isAddLedgerSheetPresented: Bool = false
+    /// The entry or edit sheet presented, or `nil`.
+    internal var entrySheet: EntrySheetRequest?
+    /// Whether the entry sheet opens once the 記録する sheet has closed.
+    internal var isEntryPendingOnRecordSheet: Bool = false
 
     /// Whether the floating 記録する button should show.
     ///
@@ -107,6 +111,7 @@ internal final class AppRouter {
     internal func showHomeRoot() {
         self.isRecordSheetPresented = false
         self.isAddLedgerSheetPresented = false
+        self.entrySheet = nil
         self.selectedTab = .home
         self.homePath = NavigationPath()
         self.calendarPath = NavigationPath()
@@ -115,13 +120,23 @@ internal final class AppRouter {
         self.searchPath = NavigationPath()
     }
 
-    /// Dismisses the 記録する sheet, then pushes a placeholder screen.
-    ///
-    /// The screen pushed is `option`'s, appended to the currently selected
-    /// tab's path.
+    /// Dismisses the 記録する sheet; 手で入力する then opens the entry sheet
+    /// (`recordSheetDidDismiss()`).
     internal func chooseRecordOption(_ option: RecordOption) {
+        guard option.isAvailable else {
+            return
+        }
+        self.isEntryPendingOnRecordSheet = option == .manual
         self.isRecordSheetPresented = false
-        self.push(.recordOption(option))
+    }
+
+    /// Opens the entry sheet once the 記録する sheet has closed, when
+    /// 手で入力する closed it.
+    internal func recordSheetDidDismiss() {
+        if self.isEntryPendingOnRecordSheet {
+            self.isEntryPendingOnRecordSheet = false
+            self.entrySheet = .new
+        }
     }
 
     deinit {

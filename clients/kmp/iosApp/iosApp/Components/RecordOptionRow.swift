@@ -50,7 +50,16 @@ internal struct RecordOptionRow: View {
                     .foregroundStyle(Theme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if !self.option.isAvailable {
+                Text("準備中")
+                    .font(.caption)
+                    .foregroundStyle(Theme.mutedText)
+                    .padding(.horizontal, Theme.Spacing.small)
+                    .padding(.vertical, Theme.Spacing.extraExtraSmall)
+                    .background(Theme.Recording.badgeBackground, in: Capsule())
+            }
         }
+        .opacity(self.option.isAvailable ? 1 : Theme.disabledOpacity)
         .padding(.horizontal, Theme.Spacing.large)
         .padding(.vertical, Theme.Spacing.medium)
         .frame(minHeight: Theme.minimumTapTarget)

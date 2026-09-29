@@ -17,6 +17,17 @@ extension XCUIApplication {
     /// the onboarding tour finished (`UITestLaunchData` in the app).
     static let seededLedgerArguments: [String] = ["-UITestSeedLedgers", "YES"]
 
+    /// Launch arguments that also give 家計 24 expenses of today, memos
+    /// `記録01` to `記録24` (listed newest first, so `記録01` is last).
+    static let seededTransactionArguments: [String] = ["-UITestSeedTransactions", "YES"]
+
+    /// The transaction row of ホーム whose memo is `memo` (`記録05`).
+    func transactionRow(memo: String) -> XCUIElement {
+        descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH 'transaction-row-' AND label CONTAINS %@", memo)
+        ).firstMatch
+    }
+
     /// The ledger switcher's row for the ledger named `name`.
     func ledgerMenuRow(named name: String) -> XCUIElement {
         buttons.matching(

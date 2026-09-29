@@ -23,7 +23,7 @@ final class IosAppScreenshotUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments += XCUIApplication.seededLedgerArguments
+        app.launchArguments += XCUIApplication.seededLedgerArguments + XCUIApplication.seededTransactionArguments
         app.launch()
     }
 
@@ -62,7 +62,7 @@ final class IosAppScreenshotUITests: XCTestCase {
         switchToTab("ホーム")
         attachScreenshot("01-home")
 
-        let lastRow = app.staticTexts["home-recent-record-24"]
+        let lastRow = app.transactionRow(memo: "記録01")
         var scrollAttempts = 0
         while !(lastRow.exists && lastRow.isHittable) && scrollAttempts < 30 {
             app.swipeUp()

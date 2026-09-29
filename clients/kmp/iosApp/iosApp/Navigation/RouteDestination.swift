@@ -6,14 +6,17 @@ internal struct RouteDestination: View {
 
     internal var body: some View {
         switch self.route {
+        case .categories:
+            CategoriesScreen()
+
         case .notifications:
             PlaceholderScreen(title: "お知らせ", subtitle: PlaceholderScreen.defaultSubtitle)
 
         case .renameLedger(let ledgerId):
             RenameLedgerScreen(ledgerId: ledgerId)
 
-        case .recordOption(let option):
-            PlaceholderScreen(title: option.title, subtitle: option.subtitle)
+        case .recurringRules:
+            RecurringRulesScreen()
 
         case .settings:
             SettingsScreen()

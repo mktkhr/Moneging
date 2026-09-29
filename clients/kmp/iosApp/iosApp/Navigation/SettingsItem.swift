@@ -3,7 +3,6 @@
 internal enum SettingsItem: CaseIterable, Hashable {
     case appearance
     case backup
-    case categories
     case notificationsDevice
     case receiptScanning
 
@@ -15,9 +14,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
 
         case .backup:
             "バックアップ"
-
-        case .categories:
-            "カテゴリ"
 
         case .notificationsDevice:
             "通知"
@@ -35,9 +31,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
 
         case .backup:
             "backup"
-
-        case .categories:
-            "categories"
 
         case .notificationsDevice:
             "notifications-device"

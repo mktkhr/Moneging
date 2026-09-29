@@ -7,7 +7,7 @@ final class RecordButtonUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication.launchedForUITest()
+        app = XCUIApplication.launchedForUITest(arguments: XCUIApplication.seededTransactionArguments)
     }
 
     override func tearDownWithError() throws {
@@ -21,11 +21,15 @@ final class RecordButtonUITests: XCTestCase {
     func testHomeLastRowDoesNotIntersectRecordButtonWhenScrolledToEnd() throws {
         app.switchToTab("ホーム")
 
-        let lastRow = app.staticTexts["home-recent-record-24"]
+        let lastRow = app.transactionRow(memo: "記録01")
         XCTAssertTrue(
             app.swipeUp(until: lastRow, maxSwipes: 30),
-            "最後までスクロールしても home-recent-record-24 が見えない",
+            "最後までスクロールしても 記録01 の行が見えない",
         )
+        // The row can be hittable before the list's end; the list is
+        // scrolled on to its very end.
+        app.swipeUp()
+        app.swipeUp()
 
         let recordButton = app.buttons["record-button"]
         XCTAssertTrue(recordButton.appears(within: 5))
