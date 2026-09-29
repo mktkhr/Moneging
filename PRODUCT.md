@@ -172,7 +172,12 @@ badge, an illustrated icon, and is named `2月4日 NMD`; today, future days and
 days before the ledger was created never show it. Every chart shows its
 figures as text beside it: the share as a list of category, amount and
 percentage (`食費 3,000円 50%`), the trend as a list of month and amount
-(`2025年4月 1,000円`). Income is never charted as spending.
+(`2025年4月 1,000円`). Income is never charted as spending. The calendar shows
+the month in view in weeks starting on Sunday; each day shows its spending in
+full (`4,000`), and income is not shown on it. Choosing a day lists its
+transactions below the calendar. The month's share is drawn as a ring with its
+list beside it, largest first; the trend as twelve bars ending with the month
+in view, with its list below them.
 
 **Look (見た目).** As in takamai: `スタイル` is one of やさしい・あたたかい,
 すっきり・ミニマル, 落ち着いた・大人っぽい, 元気・カラフル and かわいい;
