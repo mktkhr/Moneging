@@ -4,7 +4,7 @@
 `make check` が green になったら完了。
 
 1. Foundation（完了: stage.txt = 1）
-2. Recording money（実装済み・受け入れ全通過。stage.txt はまだ 1。閉じる前に残り: 定期の修正・終了・削除の画面、金額入力中のカンマ区切り → その後 stage.txt を 2 に上げる変更一式）
+2. Recording money（実装済み。stage.txt はまだ 1。残り: stage.txt を 2 に上げる変更一式（ハーネス）。その前に acceptance/shared/…/TestRecurringRuleLifecycle.kt の detekt 違反（LongMethod 61 行、FunctionNameMaxLength）をハーネスの変更一式で直す必要がある。テスト自体は pass）
 3. Reporting and calendar
 4. Budget and savings
 5. Photos and scanning
