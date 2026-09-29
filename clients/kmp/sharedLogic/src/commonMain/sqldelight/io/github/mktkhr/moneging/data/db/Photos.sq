@@ -1,0 +1,24 @@
+-- A receipt photograph's record; its bytes live in the app's private
+-- storage under the photo's id.
+CREATE TABLE photos (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    content_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    captured_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX photo_ledger ON photos(ledger_id);
+
+insertPhoto:
+INSERT INTO photos (id, ledger_id, content_type, size_bytes, captured_at, created_at, updated_at, deleted_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, NULL);
+
+livePhoto:
+SELECT * FROM photos WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+allPhotos:
+SELECT * FROM photos ORDER BY rowid;

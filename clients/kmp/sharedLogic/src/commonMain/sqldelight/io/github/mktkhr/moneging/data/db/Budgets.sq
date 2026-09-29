@@ -1,0 +1,20 @@
+-- A planned amount for a ledger, optionally for one category, from a month on.
+CREATE TABLE budgets (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    category_id TEXT REFERENCES categories(id),
+    amount INTEGER NOT NULL,
+    from_month TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX budget_ledger ON budgets(ledger_id);
+
+insertBudget:
+INSERT INTO budgets (id, ledger_id, category_id, amount, from_month, created_at, updated_at, deleted_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, NULL);
+
+allBudgets:
+SELECT * FROM budgets ORDER BY rowid;

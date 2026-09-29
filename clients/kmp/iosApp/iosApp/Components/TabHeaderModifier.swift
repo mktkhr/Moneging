@@ -24,9 +24,9 @@ internal struct TabHeaderModifier: ViewModifier {
     @ViewBuilder private var ledgerMenuContent: some View {
         ForEach(self.store.ledgers, id: \.id) { ledger in
             Button {
-                self.store.selectLedger(id: ledger.id)
+                self.store.selectLedger(id: ledger.id.description)
             } label: {
-                if ledger.id == self.store.selectedLedgerId {
+                if ledger.id.description == self.store.selectedLedgerId {
                     Label(ledger.name, systemImage: "checkmark")
                 } else {
                     Text(ledger.name)

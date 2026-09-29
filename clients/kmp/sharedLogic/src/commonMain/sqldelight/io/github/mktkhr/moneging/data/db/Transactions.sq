@@ -1,0 +1,68 @@
+-- One movement of money on one date. A deleted transaction stays as a
+-- tombstone, its line items with it.
+CREATE TABLE transactions (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    date TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    category_id TEXT REFERENCES categories(id),
+    memo TEXT,
+    store_name TEXT,
+    photo_id TEXT REFERENCES photos(id),
+    needs_review INTEGER NOT NULL DEFAULT 0,
+    device_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX transactions_ledger_date ON transactions(ledger_id, date);
+
+CREATE TABLE line_items (
+    id TEXT NOT NULL PRIMARY KEY,
+    transaction_id TEXT NOT NULL REFERENCES transactions(id),
+    position INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    category_id TEXT NOT NULL REFERENCES categories(id),
+    name TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX line_item_transaction ON line_items(transaction_id);
+
+insertTransaction:
+INSERT INTO transactions (
+    id, ledger_id, date, direction, amount, category_id, memo, store_name, photo_id,
+    needs_review, device_id, created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+
+insertLineItem:
+INSERT INTO line_items (id, transaction_id, position, amount, category_id, name, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+liveTransaction:
+SELECT * FROM transactions WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+liveTransactionsBetween:
+SELECT * FROM transactions
+WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND date >= :fromDate AND date <= :toDate
+ORDER BY date DESC, created_at DESC, rowid DESC;
+
+totalsBetween:
+SELECT direction, SUM(amount) AS total FROM transactions
+WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND date >= :fromDate AND date <= :toDate
+GROUP BY direction;
+
+lineItemsOf:
+SELECT * FROM line_items WHERE transaction_id = ? ORDER BY position;
+
+updateMemo:
+UPDATE transactions SET memo = ?, updated_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+markTransactionDeleted:
+UPDATE transactions SET deleted_at = ? WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+allTransactions:
+SELECT * FROM transactions ORDER BY rowid;

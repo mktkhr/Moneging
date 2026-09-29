@@ -16,8 +16,11 @@ internal final class SharedStateStore {
     internal private(set) var selectedMonth: Int
     /// Every ledger the user can switch to.
     internal private(set) var ledgers: [Ledger]
-    /// `Ledger.id` of the ledger currently selected.
+    /// `Ledger.id` of the ledger currently selected, as text; empty before
+    /// the first ledger exists.
     internal private(set) var selectedLedgerId: String
+    /// The name the header shows for the ledger in view.
+    internal private(set) var selectedLedgerName: String
 
     private let appState: AppState
     /// Holds the observation loop reading `appState.uiState`, so `deinit`
@@ -32,17 +35,13 @@ internal final class SharedStateStore {
     /// not apply to its mutation either.
     private let observationTask: ObservationTaskBox = ObservationTaskBox()
 
-    /// The name of the ledger currently selected.
-    internal var selectedLedgerName: String {
-        self.ledgers.first { $0.id == self.selectedLedgerId }?.name ?? ""
-    }
-
     internal init(appState: AppState) {
         self.appState = appState
         let initial: AppUiState = appState.uiState.value
         self.selectedMonth = Int(initial.selectedMonth)
         self.ledgers = initial.ledgers
-        self.selectedLedgerId = initial.selectedLedgerId
+        self.selectedLedgerId = initial.selectedLedgerId ?? ""
+        self.selectedLedgerName = initial.ledgerTitle
 
         let stateFlow: SkieSwiftStateFlow<AppUiState> = appState.uiState
         let taskBox: ObservationTaskBox = self.observationTask
@@ -69,7 +68,8 @@ internal final class SharedStateStore {
     private func apply(_ state: AppUiState) {
         self.selectedMonth = Int(state.selectedMonth)
         self.ledgers = state.ledgers
-        self.selectedLedgerId = state.selectedLedgerId
+        self.selectedLedgerId = state.selectedLedgerId ?? ""
+        self.selectedLedgerName = state.ledgerTitle
     }
 
     deinit {

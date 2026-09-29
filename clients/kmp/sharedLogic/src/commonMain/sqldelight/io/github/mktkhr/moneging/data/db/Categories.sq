@@ -1,0 +1,30 @@
+-- A bucket for spending, scoped to one ledger; position keeps the default
+-- order of PRODUCT.md §3, then the added ones.
+CREATE TABLE categories (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    name TEXT NOT NULL,
+    archived INTEGER NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX category_ledger ON categories(ledger_id);
+
+insertCategory:
+INSERT INTO categories (id, ledger_id, name, archived, position, created_at, updated_at, deleted_at)
+VALUES (?, ?, ?, 0, ?, ?, ?, NULL);
+
+liveCategories:
+SELECT * FROM categories WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY position, rowid;
+
+liveCategory:
+SELECT * FROM categories WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+nextCategoryPosition:
+SELECT COALESCE(MAX(position), -1) + 1 FROM categories WHERE ledger_id = ?;
+
+allCategories:
+SELECT * FROM categories ORDER BY rowid;

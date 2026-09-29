@@ -10,6 +10,6 @@ import io.github.mktkhr.moneging.di.initKoin
 class MonegingApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        initKoin()
+        initKoin(this)
     }
 }

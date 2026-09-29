@@ -1,0 +1,26 @@
+-- A transaction that repeats monthly on a day of the month.
+CREATE TABLE recurring_rules (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    direction TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    category_id TEXT NOT NULL REFERENCES categories(id),
+    day_of_month INTEGER NOT NULL,
+    start_month TEXT NOT NULL,
+    end_month TEXT,
+    memo TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX recurring_rule_ledger ON recurring_rules(ledger_id);
+
+insertRecurringRule:
+INSERT INTO recurring_rules (
+    id, ledger_id, direction, amount, category_id, day_of_month, start_month, end_month, memo,
+    created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+
+allRecurringRules:
+SELECT * FROM recurring_rules ORDER BY rowid;

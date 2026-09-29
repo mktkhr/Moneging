@@ -14,6 +14,14 @@ kotlin {
     }
 }
 
+// sharedLogic's in-memory store runs on the JVM's SQLite for the host tests
+// only (LocalStore.inMemory); the app opens the platform's SQLite, so the
+// JVM driver and its native libraries stay out of the APK.
+configurations.configureEach {
+    exclude(group = "app.cash.sqldelight", module = "sqlite-driver")
+    exclude(group = "org.xerial", module = "sqlite-jdbc")
+}
+
 dependencies {
     implementation(project(":sharedUI"))
 

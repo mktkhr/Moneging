@@ -1,0 +1,6 @@
+# Carries `-lsqlite3` in sharedLogic's iOS klib, so every binary that links
+# sharedLogic (the app's framework, its tests, the acceptance tests) links
+# the system SQLite that SQLDelight's native driver calls. No headers: it
+# declares nothing.
+package = io.github.mktkhr.moneging.sqlite3
+linkerOpts = -lsqlite3

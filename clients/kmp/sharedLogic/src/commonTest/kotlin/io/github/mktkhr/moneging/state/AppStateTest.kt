@@ -1,80 +1,124 @@
 package io.github.mktkhr.moneging.state
 
+import kotlinx.coroutines.test.TestResult
+import kotlinx.coroutines.test.runTest
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 private const val SELECTED_MONTH = 4
 private const val MONTH_BELOW_RANGE = 0
 private const val MONTH_ABOVE_RANGE = 13
 private const val UNKNOWN_LEDGER_ID = "does-not-exist"
+private const val TWENTY_ONE_CHARACTERS = "あいうえおかきくけこさしすせそたちつてとな"
 
 /**
- * Verifies [AppState] follows the unidirectional flow the shared UI
- * state relies on: an [AppIntent] produces the next [AppUiState], with no
- * other way to mutate it.
+ * Verifies [AppState]'s unidirectional flow for the month and the ledgers:
+ * an intent or a write produces the next [AppUiState], and the app reopens
+ * on the ledger last in view. The tour is [TourTest]'s.
  */
 class AppStateTest {
-    /**
-     * [AppIntent.SelectMonth] updates [AppUiState.selectedMonth] and leaves
-     * the selected ledger untouched.
-     */
-    @Test
-    fun selectMonthUpdatesOnlyTheMonth() {
-        val state = AppState()
-        val ledgerBefore = state.uiState.value.selectedLedgerId
+    private val device = TestDevice()
 
-        state.onIntent(AppIntent.SelectMonth(month = SELECTED_MONTH))
-
-        assertEquals(expected = SELECTED_MONTH, actual = state.uiState.value.selectedMonth)
-        assertEquals(expected = ledgerBefore, actual = state.uiState.value.selectedLedgerId)
+    /** Stops the app states the test launched. */
+    @AfterTest
+    fun tearDown() {
+        device.close()
     }
 
-    /** A month below 1 is ignored: the state stays exactly what it was. */
+    /** [AppIntent.SelectMonth] updates the month and leaves the ledger in view untouched. */
     @Test
-    fun selectMonthIgnoresBelowRange() {
-        val state = AppState()
-        val monthBefore = state.uiState.value.selectedMonth
+    fun selectMonthUpdatesOnlyTheMonth(): TestResult =
+        runTest {
+            device.store.createLedger("家計")
+            val state = device.launch()
+            val ledgerBefore = state.ui.selectedLedgerId
 
-        state.onIntent(AppIntent.SelectMonth(month = MONTH_BELOW_RANGE))
+            state.onIntent(AppIntent.SelectMonth(month = SELECTED_MONTH))
 
-        assertEquals(expected = monthBefore, actual = state.uiState.value.selectedMonth)
-    }
+            assertEquals(expected = SELECTED_MONTH, actual = state.ui.selectedMonth)
+            assertEquals(expected = ledgerBefore, actual = state.ui.selectedLedgerId)
+        }
 
-    /** A month above 12 is ignored: the state stays exactly what it was. */
+    /** A month outside 1-12 is ignored. */
     @Test
-    fun selectMonthIgnoresAboveRange() {
-        val state = AppState()
-        val monthBefore = state.uiState.value.selectedMonth
+    fun selectMonthIgnoresOutOfRange(): TestResult =
+        runTest {
+            val state = device.launch()
+            val monthBefore = state.ui.selectedMonth
 
-        state.onIntent(AppIntent.SelectMonth(month = MONTH_ABOVE_RANGE))
+            state.onIntent(AppIntent.SelectMonth(month = MONTH_BELOW_RANGE))
+            state.onIntent(AppIntent.SelectMonth(month = MONTH_ABOVE_RANGE))
 
-        assertEquals(expected = monthBefore, actual = state.uiState.value.selectedMonth)
-    }
+            assertEquals(expected = monthBefore, actual = state.ui.selectedMonth)
+        }
 
-    /**
-     * [AppIntent.SelectLedger] updates [AppUiState.selectedLedger] to the
-     * chosen ledger.
-     */
+    /** An added ledger is shown, and the app reopens on the ledger last in view. */
     @Test
-    fun selectLedgerUpdatesLedger() {
-        val state = AppState()
-        val otherLedger =
-            state.uiState.value.ledgers
-                .last()
+    fun addedLedgerIsShownAndKept(): TestResult =
+        runTest {
+            device.store.createLedger("家計")
+            val state = device.launch()
 
-        state.onIntent(AppIntent.SelectLedger(ledgerId = otherLedger.id))
+            assertTrue(state.addLedger(name = "旅行"))
 
-        assertEquals(expected = otherLedger, actual = state.uiState.value.selectedLedger)
-    }
+            assertEquals(expected = "旅行", actual = state.ui.ledgerTitle)
+            assertEquals(expected = listOf("家計", "旅行"), actual = state.ledgerNames)
+            assertEquals(expected = "旅行", actual = device.launch().ui.ledgerTitle)
+        }
 
-    /** An unknown ledger id is ignored: the selected ledger stays what it was. */
+    /** A ledger with a refused name is not added, and the refusal is shown until dismissed. */
     @Test
-    fun selectLedgerIgnoresUnknownId() {
-        val state = AppState()
-        val ledgerBefore = state.uiState.value.selectedLedgerId
+    fun refusedLedgerIsReported(): TestResult =
+        runTest {
+            device.store.createLedger("家計")
+            val state = device.launch()
 
-        state.onIntent(AppIntent.SelectLedger(ledgerId = UNKNOWN_LEDGER_ID))
+            assertFalse(state.addLedger(name = TWENTY_ONE_CHARACTERS))
 
-        assertEquals(expected = ledgerBefore, actual = state.uiState.value.selectedLedgerId)
-    }
+            assertEquals(expected = listOf("家計"), actual = state.ledgerNames)
+            assertTrue(
+                state.ui.errorMessage
+                    .orEmpty()
+                    .isNotEmpty(),
+                "拒否の理由が示されない",
+            )
+            state.onIntent(AppIntent.DismissError)
+            assertEquals(expected = null, actual = state.ui.errorMessage)
+        }
+
+    /** Choosing a ledger shows it; an unknown one is ignored. */
+    @Test
+    fun selectLedgerShowsKnownOnly(): TestResult =
+        runTest {
+            val kakei = device.store.createLedger("家計")
+            val trip = device.store.createLedger("旅行")
+            val state = device.launch()
+
+            state.onIntent(AppIntent.SelectLedger(ledgerId = UNKNOWN_LEDGER_ID))
+            assertEquals(expected = "家計", actual = state.ui.ledgerTitle)
+
+            state.onIntent(AppIntent.SelectLedger(ledgerId = trip.id.toString()))
+            assertEquals(expected = "旅行", actual = state.ui.ledgerTitle)
+
+            state.onIntent(AppIntent.SelectLedger(ledgerId = kakei.id.toString()))
+            assertEquals(expected = "家計", actual = state.ui.ledgerTitle)
+        }
+
+    /** Renaming a ledger not in view keeps the ledger in view; a refused name changes nothing. */
+    @Test
+    fun renameKeepsTheLedgerInView(): TestResult =
+        runTest {
+            device.store.createLedger("家計")
+            val trip = device.store.createLedger("旅行")
+            val state = device.launch()
+
+            assertTrue(state.renameLedger(ledgerId = trip.id.toString(), name = "沖縄旅行"))
+            assertFalse(state.renameLedger(ledgerId = trip.id.toString(), name = TWENTY_ONE_CHARACTERS))
+
+            assertEquals(expected = "家計", actual = state.ui.ledgerTitle)
+            assertEquals(expected = listOf("家計", "沖縄旅行"), actual = state.ledgerNames)
+        }
 }
