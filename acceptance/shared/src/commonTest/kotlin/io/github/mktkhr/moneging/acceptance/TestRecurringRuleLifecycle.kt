@@ -1,5 +1,6 @@
 package io.github.mktkhr.moneging.acceptance
 
+import io.github.mktkhr.moneging.data.LedgerScope
 import io.github.mktkhr.moneging.domain.BusinessDayAdjustment
 import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.NewRecurringRule
@@ -10,6 +11,7 @@ import kotlinx.datetime.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 private const val RENT_AMOUNT = 80_000L
 private const val RENT_DAY = 25
@@ -52,7 +54,7 @@ private val WITH_APRIL: List<Pair<YearMonth?, LocalDate>> =
 class TestRecurringRuleLifecycle {
     /** Ending stops later months, clearing the end month resumes without back-filling, deleting keeps the records. */
     @Test
-    fun endsResumesAndDeletesWhileRecordsStay(): TestResult =
+    fun endsResumesAndDeletesRule(): TestResult =
         runTest {
             val clock = ManualClock(current = FEBRUARY_26)
             val scope = kakeiScope(clock = clock)
@@ -103,19 +105,27 @@ class TestRecurringRuleLifecycle {
                 message = "終了中の 3月 分が記録された",
             )
 
-            scope.deleteRecurringRule(ruleId = rule.id)
-            assertEquals(expected = emptyList(), actual = scope.recurringRules(), message = "削除した定期がまだ並ぶ")
-            assertEquals(
-                expected = WITH_APRIL,
-                actual = scope.recordedMonths(ruleId = rule.id),
-                message = "定期を削除すると記録済みの 1月・2月・4月 の取引が残らない",
-            )
-            assertRecordedAs(
-                scope = scope,
-                ruleId = rule.id,
-                direction = Direction.EXPENSE,
-                amount = RENT_AMOUNT,
-                categoryId = housing,
-            )
+            assertDeletingKeepsRecords(scope = scope, ruleId = rule.id, categoryId = housing)
         }
+
+    private suspend fun assertDeletingKeepsRecords(
+        scope: LedgerScope,
+        ruleId: Uuid,
+        categoryId: Uuid,
+    ) {
+        scope.deleteRecurringRule(ruleId = ruleId)
+        assertEquals(expected = emptyList(), actual = scope.recurringRules(), message = "削除した定期がまだ並ぶ")
+        assertEquals(
+            expected = WITH_APRIL,
+            actual = scope.recordedMonths(ruleId = ruleId),
+            message = "定期を削除すると記録済みの 1月・2月・4月 の取引が残らない",
+        )
+        assertRecordedAs(
+            scope = scope,
+            ruleId = ruleId,
+            direction = Direction.EXPENSE,
+            amount = RENT_AMOUNT,
+            categoryId = categoryId,
+        )
+    }
 }
