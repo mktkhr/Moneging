@@ -19,6 +19,8 @@ internal struct TourCallout: View {
 
     // The content's own height, measured, so the callout hugs it.
     @State private var contentHeight: CGFloat = 0
+    // Where the content is scrolled to; back at the top on every step.
+    @State private var scrollPosition: ScrollPosition = ScrollPosition(edge: .top)
 
     @Environment(SharedStateStore.self)
     private var store: SharedStateStore
@@ -36,6 +38,10 @@ internal struct TourCallout: View {
                 }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .scrollPosition(self.$scrollPosition)
+        .onChange(of: self.tour.step) {
+            self.scrollPosition.scrollTo(edge: .top)
+        }
         .frame(height: min(self.contentHeight, self.maxHeight))
         .background(alignment: self.arrowEdge == .bottom ? .bottomLeading : .topLeading) {
             ZStack(alignment: self.arrowEdge == .bottom ? .bottomLeading : .topLeading) {
@@ -65,10 +71,23 @@ internal struct TourCallout: View {
             if self.tour.step == .ledger {
                 self.nameField
             }
+            self.controls
+        }
+    }
+
+    // The page dots and the buttons in one row when they fit on one line
+    // each; otherwise stacked, the buttons full width with the primary one
+    // on top, so no button's title ever breaks mid-word.
+    private var controls: some View {
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: Theme.Spacing.small) {
                 self.pageDots
                 Spacer(minLength: Theme.Spacing.small)
-                self.buttons
+                self.buttons(isStacked: false)
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+                self.pageDots
+                self.buttons(isStacked: true)
             }
         }
     }
@@ -137,29 +156,46 @@ internal struct TourCallout: View {
         .accessibilityLabel("\(Int(self.tour.position) + 1) / \(Int(self.tour.count))")
     }
 
-    @ViewBuilder private var buttons: some View {
+    @ViewBuilder
+    private func buttons(isStacked: Bool) -> some View {
         if self.tour.step == .ledger {
             Button("はじめる", action: self.start)
-                .buttonStyle(TourPrimaryButtonStyle())
+                .buttonStyle(TourPrimaryButtonStyle(isFullWidth: isStacked))
                 .disabled(!self.isNameValid)
                 .accessibilityIdentifier("tour-start")
+        } else if isStacked {
+            VStack(spacing: Theme.Spacing.extraSmall) {
+                self.nextButton(isFullWidth: true)
+                self.skipButton(isFullWidth: true)
+            }
         } else {
             HStack(spacing: Theme.Spacing.extraSmall) {
-                Button("スキップ") {
-                    self.store.skipTour()
-                }
-                .font(.subheadline)
-                .foregroundStyle(Theme.mutedText)
-                .frame(minHeight: Theme.minimumTapTarget)
-                .padding(.horizontal, Theme.Spacing.small)
-                .accessibilityIdentifier("tour-skip")
-                Button("次へ") {
-                    self.store.advanceTour()
-                }
-                .buttonStyle(TourPrimaryButtonStyle())
-                .accessibilityIdentifier("tour-next")
+                self.skipButton(isFullWidth: false)
+                self.nextButton(isFullWidth: false)
             }
         }
+    }
+
+    private func skipButton(isFullWidth: Bool) -> some View {
+        Button {
+            self.store.skipTour()
+        } label: {
+            Text("スキップ")
+                .font(.subheadline)
+                .foregroundStyle(Theme.mutedText)
+                .padding(.horizontal, Theme.Spacing.small)
+                .frame(maxWidth: isFullWidth ? .infinity : nil, minHeight: Theme.minimumTapTarget)
+                .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier("tour-skip")
+    }
+
+    private func nextButton(isFullWidth: Bool) -> some View {
+        Button("次へ") {
+            self.store.advanceTour()
+        }
+        .buttonStyle(TourPrimaryButtonStyle(isFullWidth: isFullWidth))
+        .accessibilityIdentifier("tour-next")
     }
 
     private func start() {
