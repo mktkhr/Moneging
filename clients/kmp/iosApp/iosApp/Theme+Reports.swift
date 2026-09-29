@@ -80,6 +80,9 @@ extension Theme {
         internal static let swatchRadius: CGFloat = 3
         /// The least height of a row of the share's list.
         internal static let shareRowMinHeight: CGFloat = 30
+        /// The lines a category's name may take in the share's list before it
+        /// ends in `…`.
+        internal static let shareNameLineLimit: Int = 2
         /// The width of a percentage in the share's list, so the amounts align.
         internal static let percentWidth: CGFloat = 40
         /// The width of a trend's bar.

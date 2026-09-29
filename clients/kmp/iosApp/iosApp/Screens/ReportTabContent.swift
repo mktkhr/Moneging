@@ -119,14 +119,20 @@ internal struct ReportTabContent: View {
     }
 
     private func shareRow(_ share: ShareRow) -> some View {
-        HStack(spacing: Theme.Spacing.small) {
+        // Aligned on the first line: a long name wraps to two lines (then
+        // ends in …), and the swatch, amount and percentage stay beside its
+        // first line.
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.small) {
             RoundedRectangle(cornerRadius: Theme.Reports.swatchRadius)
                 .fill(ShareRing.color(defaultIndex: share.iconIndex))
                 .frame(width: Theme.Reports.swatchSize, height: Theme.Reports.swatchSize)
+                .alignmentGuide(.firstTextBaseline) { dimensions in dimensions[.bottom] }
             Text(share.name)
                 .font(.subheadline)
                 .foregroundStyle(Theme.text)
-                .lineLimit(1)
+                .lineLimit(Theme.Reports.shareNameLineLimit)
+                .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             // The amount keeps its width, so `5,300円` never breaks before 円;
             // a long category name gives way instead.
