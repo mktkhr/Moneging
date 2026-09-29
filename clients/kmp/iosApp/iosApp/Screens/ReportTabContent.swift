@@ -22,9 +22,6 @@ internal struct ReportTabContent: View {
     @Environment(\.dynamicTypeSize)
     private var dynamicTypeSize: DynamicTypeSize
 
-    @ScaledMetric(relativeTo: .footnote)
-    private var percentWidth: CGFloat = Theme.Reports.percentWidth
-
     // Whether the records shown are the ledger in view's.
     private var isShowingLedgerInView: Bool {
         let state: LedgerUiState = self.ledgerStore.state
@@ -108,7 +105,7 @@ internal struct ReportTabContent: View {
         } else {
             self.shareLayout {
                 ShareRing(shares: report.shares, expenseText: report.expenseText)
-                VStack(spacing: Theme.Spacing.extraSmall) {
+                VStack(spacing: Theme.Spacing.small) {
                     ForEach(report.shares, id: \.categoryId) { share in
                         self.shareRow(share)
                     }
@@ -118,34 +115,35 @@ internal struct ReportTabContent: View {
         }
     }
 
+    // Two lines: the swatch and the name across the column's whole width
+    // (one line, ending in … when it does not fit), then the amount and,
+    // to the right, the percentage.
     private func shareRow(_ share: ShareRow) -> some View {
-        // Aligned on the first line: a long name wraps to two lines (then
-        // ends in …), and the swatch, amount and percentage stay beside its
-        // first line.
-        HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.small) {
-            RoundedRectangle(cornerRadius: Theme.Reports.swatchRadius)
-                .fill(ShareRing.color(defaultIndex: share.iconIndex))
-                .frame(width: Theme.Reports.swatchSize, height: Theme.Reports.swatchSize)
-                .alignmentGuide(.firstTextBaseline) { dimensions in dimensions[.bottom] }
-            Text(share.name)
-                .font(.subheadline)
-                .foregroundStyle(Theme.text)
-                .lineLimit(Theme.Reports.shareNameLineLimit)
-                .truncationMode(.tail)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            // The amount keeps its width, so `5,300円` never breaks before 円;
-            // a long category name gives way instead.
-            Text(share.amountText)
-                .font(.subheadline.weight(.bold).monospacedDigit())
-                .foregroundStyle(Theme.text)
-                .fixedSize(horizontal: true, vertical: false)
-            Text(share.percentText)
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(Theme.mutedText)
-                .frame(minWidth: self.percentWidth, alignment: .trailing)
+        VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
+            HStack(spacing: Theme.Spacing.small) {
+                RoundedRectangle(cornerRadius: Theme.Reports.swatchRadius)
+                    .fill(ShareRing.color(defaultIndex: share.iconIndex))
+                    .frame(width: Theme.Reports.swatchSize, height: Theme.Reports.swatchSize)
+                Text(share.name)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.small) {
+                Text(share.amountText)
+                    .font(.subheadline.weight(.bold).monospacedDigit())
+                    .foregroundStyle(Theme.text)
+                    .fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 0)
+                Text(share.percentText)
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(Theme.mutedText)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .padding(.leading, Theme.Reports.swatchSize + Theme.Spacing.small)
         }
-        .frame(minHeight: Theme.Reports.shareRowMinHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(share.accessibilityLabel)
         .accessibilityIdentifier("report-share-\(share.categoryId)")
