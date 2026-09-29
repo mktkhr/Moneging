@@ -53,9 +53,6 @@ extension Theme {
         internal static let fieldRadius: CGFloat = 12
         /// The width of the name field's border.
         internal static let fieldBorderWidth: CGFloat = 1.5
-        /// The tab bar's height below the top of its area, for its spotlight:
-        /// the Liquid Glass bar's capsule, measured on the simulator.
-        internal static let tabBarHeight: CGFloat = 62
         /// The fraction of the screen's height above which a spotlight gets
         /// its callout below it (and below which, above it).
         internal static let calloutBelowThreshold: CGFloat = 0.5

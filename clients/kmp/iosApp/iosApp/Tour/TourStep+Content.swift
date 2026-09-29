@@ -45,7 +45,7 @@ extension TourStep {
             .recordButton
 
         case .tabs:
-            .tabBarTop
+            .tabBar
         }
     }
 }

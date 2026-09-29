@@ -45,18 +45,7 @@ internal struct TourOverlay: View {
             return nil
         }
         let local: CGRect = frame.offsetBy(dx: -origin.x, dy: -origin.y)
-        let control: CGRect
-        switch self.step.target {
-        case .ledgerTitle, .recordButton:
-            control = local
-
-        case .tabBarTop:
-            control = CGRect(
-                x: local.minX, y: local.minY, width: local.width, height: Theme.Tour.tabBarHeight
-            )
-            .insetBy(dx: Theme.Spacing.large, dy: 0)
-        }
-        return control.insetBy(dx: -Theme.Tour.spotlightPadding, dy: -Theme.Tour.spotlightPadding)
+        return local.insetBy(dx: -Theme.Tour.spotlightPadding, dy: -Theme.Tour.spotlightPadding)
     }
 
     private func spotlightPath(in rect: CGRect) -> Path {
@@ -64,7 +53,7 @@ internal struct TourOverlay: View {
         case .ledgerTitle:
             RoundedRectangle(cornerRadius: Theme.Tour.spotlightRadius).path(in: rect)
 
-        case .recordButton, .tabBarTop:
+        case .recordButton, .tabBar:
             Capsule().path(in: rect)
         }
     }

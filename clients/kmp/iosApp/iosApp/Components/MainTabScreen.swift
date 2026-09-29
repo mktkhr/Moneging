@@ -37,7 +37,8 @@ internal struct MainTabScreen<Content: View>: View {
             // row can always scroll clear of it.
             //
             // Below the button, a line of no height marks the top of the tab
-            // bar's area for the tour's spotlight on the tab bar.
+            // bar's area; the tour's reader of the tab bar's frame extends
+            // down from it over that area.
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
                 VStack(alignment: .trailing, spacing: 0) {
                     if self.router.isRecordButtonVisible {
@@ -49,7 +50,7 @@ internal struct MainTabScreen<Content: View>: View {
                     }
                     Spacer(minLength: 0)
                         .frame(maxWidth: .infinity, maxHeight: 0)
-                        .tourTarget(.tabBarTop, isReporting: self.isTourHost)
+                        .tabBarTourTarget(isReporting: self.isTourHost)
                         .accessibilityHidden(true)
                 }
             }

@@ -4,6 +4,6 @@ internal enum TourTarget: Hashable {
     case ledgerTitle
     /// The floating record button.
     case recordButton
-    /// The top edge of the tab bar's area.
-    case tabBarTop
+    /// The tab bar: the capsule of the tabs and the separate 検索 button.
+    case tabBar
 }
