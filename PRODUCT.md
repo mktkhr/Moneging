@@ -103,7 +103,7 @@ product, and no floating-point type may hold an amount.
 | **Category** | A bucket for spending, scoped to a ledger. The default set is 食費, 日用品, 住居, 水道光熱費, 交通費, 通信費, 医療, 教育, 娯楽, 交際費, 衣服, その他. A ledger may add, rename and archive its own; an archived category keeps its history but takes no new transactions. |
 | **Transaction** | One movement of money on one date: a direction (expense or income), an amount, a category (an expense only: income has none), an optional memo, an optional store name and an optional link to a photo. The amount is at least 1 yen. The date is a calendar date, not an instant. Each transaction records the identifier of the device it was recorded on, so that v2 sharing can attribute it. The store name is filled from a confirmed draft and may be set or changed by hand. A transaction confirmed from a draft whose items did not add up is marked needs-review (`needsReview`); the mark is cleared when a user marks it reviewed, or by any change that leaves it with no item named exactly `差額`, and it is never set by hand. A transaction recorded by a recurring rule names that rule, and is otherwise an ordinary transaction: it may be changed or deleted like any other. |
 | **Line item** | A transaction may instead be split into several items, each with its own amount, category and optional item name. When a transaction has items, its amount equals the sum of its items, and each item is at least 1 yen. An item name is filled from a confirmed draft and may be set or changed by hand. |
-| **Recurring rule** | An expense or an income that repeats every month, from a start month to an optional end month, on a day of the month (1 to 31) or on the month's last day; a day the month does not have means its last day. When that date is not a business day, the rule keeps it, moves it to the next business day or moves it to the previous business day, as chosen (kept unless chosen). A business day is a weekday that is neither a Japanese public holiday nor 31 December to 3 January. Public holidays are computed on the device from the Public Holiday Act — the named days, the vernal and autumnal equinoxes, substitute holidays and citizens' holidays — since nothing is fetched. A month's transaction of a rule is recorded automatically once its date has come (Asia/Tokyo), whenever the app runs; months that passed while it did not run are recorded on the next run. Materialising a rule's month creates its transaction exactly once, whatever the number of attempts, and it remains that month's transaction even when moving the date puts it in another month. Changing or ending a rule affects only the months not yet recorded; recorded transactions stay. A recorded transaction the user deletes is not recorded again: the month counts as done. |
+| **Recurring rule** | An expense or an income that repeats every month, from a start month to an optional end month, on a day of the month (1 to 31) or on the month's last day; a day the month does not have means its last day. When that date is not a business day, the rule keeps it, moves it to the next business day or moves it to the previous business day, as chosen (kept unless chosen). A business day is a weekday that is neither a Japanese public holiday nor 31 December to 3 January. Public holidays are computed on the device from the Public Holiday Act — the named days, the vernal and autumnal equinoxes, substitute holidays and citizens' holidays — since nothing is fetched. A month's transaction of a rule is recorded automatically once its date has come (Asia/Tokyo), whenever the app runs; months that passed while it did not run are recorded on the next run. Materialising a rule's month creates its transaction exactly once, whatever the number of attempts, and it remains that month's transaction even when moving the date puts it in another month. Changing or ending a rule affects only the months not yet recorded; recorded transactions stay. Ending a rule sets its end month to the last month it recorded, so nothing more is recorded. An ended rule is resumed by clearing its end month; the months whose date came while it was ended are not recorded. Deleting a rule removes it; the transactions it recorded stay, still marked as recorded by a rule. A recorded transaction the user deletes is not recorded again: the month counts as done. |
 | **Photo** | An image belonging to a ledger. Its bytes live in the app's private storage on the device; its record carries the content type, the size and the capture instant. Deleting a photo removes the stored bytes as well as the record. A photo referenced by a transaction cannot be deleted until the reference is removed. |
 | **Scanner** | A reader of receipts, entirely on the device, in three steps. Capture: the OS document scanner (VisionKit on iOS, the ML Kit document scanner on Android), where a session of several pages yields one receipt per page, or one or several photos picked from the photo library. Text recognition: Vision on iOS, ML Kit text recognition on Android. Structuring the recognised text into a draft: an on-device LLM — Foundation Models on iOS devices with Apple Intelligence, Gemini Nano through ML Kit GenAI (AICore) on Android devices that support it — or, on a device without one, a deterministic rule-based parser. Every path answers the same question — store name, date, total, line items, each with the scanner's confidence — so the product never branches on which one is in use. A scan costs nothing per use, so there is no scan quota. Reading from photos works only while the user has it enabled (see **Photo reading**). |
 | **Photo reading** | Whether the device reads receipts from photos, chosen by the user during onboarding and changeable at any time afterwards. When it is enabled, on Android the modules it needs — the ML Kit document scanner and text recognition, through Google Play services, and Gemini Nano only on a device that supports it — are downloaded then. iOS needs no download: its scanner, text recognition and Foundation Models are part of the OS, Foundation Models only on devices with Apple Intelligence. |
@@ -148,13 +148,18 @@ error state; a failed operation is always shown to the user, never swallowed.
 without a budget shows what was spent. A recurring rule reads
 `毎月25日 80,000円 住居`, a month-end one `毎月末日`, an income one
 `毎月25日 250,000円 収入`, and a moved one adds `土日祝なら翌平日` or
-`土日祝なら前の平日`; its next date reads `次回 2月25日（水）`. A transaction
+`土日祝なら前の平日`; its next date reads `次回 2月25日（水）`, and an ended
+one has no next date and reads `2026年2月まで`. A transaction
 recorded by a rule is marked `定期`. Shares are whole percentages that add up
 to 100%.
 
 **Recording.** A transaction is recorded with a date (today unless changed), a
 direction (`支出` or `収入`), an amount, a category, an optional store name
-and an optional memo, and may later be changed or deleted. The month's
+and an optional memo, and may later be changed or deleted. An amount reads
+with separators while it is typed (`1,200`). Recurring rules are listed with
+the ended ones below the others, under `終了した定期`; choosing a rule opens it
+to be changed, ended (`この定期を終了`) or deleted (`削除`), and deleting asks
+first. The month's
 transactions are listed newest first with the month's `支出` and `収入`
 totals; a transaction with a store shows it. An archived category is marked
 `アーカイブ済み` and is not offered when recording; archiving one asks for
@@ -428,10 +433,12 @@ creating `家計` through it leaves `家計` in view.
 | AC-B-208 | An operation in one ledger cannot read or write another's transactions. | `TestLedgerIsolationForTransactions`       |
 | AC-B-209 | Business days follow Japanese public holidays and the year-end break. | `TestBusinessDays`                           |
 | AC-B-210 | Income carries no category.                                           | `TestIncomeHasNoCategory`                    |
+| AC-B-211 | A recurring rule is ended, resumed and deleted; recorded ones stay.   | `TestRecurringRuleLifecycle`                 |
 | AC-F-201 | The month's transactions and total are listed.                        | `AC-F-201`                                   |
 | AC-F-202 | A transaction is created and edited from the interface.               | `AC-F-202`                                   |
 | AC-F-203 | Categories are added, renamed and archived from the interface.        | `AC-F-203`                                   |
 | AC-F-204 | A recurring rule is set up and records itself when its date comes.    | `AC-F-204`                                   |
+| AC-F-205 | A recurring rule is changed, ended, resumed and deleted from the interface. | `AC-F-205`                             |
 | AC-E-201 | A user records an expense and sees it in the month's list and total.  | `AC-E-201`                                   |
 
 **AC-B-201** — Given the category 食費. When an expense of 1,200 yen on
@@ -490,6 +497,16 @@ then it reads back with no category. When an income is recorded with the
 category 食費, then it is refused as invalid. When an expense is recorded with
 no category and no items, then it is refused as invalid.
 
+**AC-B-211** — Given today 2026-02-26 and a 住居 rule of 80,000 yen on day 25,
+kept on non-business days, from 2026-01, whose 2026-01 and 2026-02
+transactions have been recorded. When it is ended, then its end month reads
+2026-02, and when today becomes 2026-03-26 and materialisation runs, then
+nothing is recorded for 2026-03. When, on 2026-04-10, its end month is cleared,
+and today becomes 2026-04-26 and materialisation runs, then exactly one
+transaction is recorded for 2026-04, dated 2026-04-25, and 2026-03 still has
+none. When the rule is deleted, then it is no longer listed, and the
+transactions of 2026-01, 2026-02 and 2026-04 remain, each still naming it.
+
 **AC-B-207** — Given the category 娯楽 with one transaction of 2,500 yen.
 When 娯楽 is archived, then the transaction still reads back with category 娯楽
 and is counted in 2026-02's expense total, and creating a new transaction with
@@ -510,7 +527,8 @@ newest first — `3,000円` 交通費, `1,200円` 食費 `ランチ`, `5,000円`
 
 **AC-F-202** — Given today 2026-02-15 and a February with no transactions. When
 the user records an expense with amount `1200`, category 食費 and memo `ランチ`,
-leaving the date unchanged, then an expense of 1,200 食費 on 2026-02-15 with
+leaving the date unchanged, then while it is typed the amount reads `1,200`,
+and an expense of 1,200 食費 on 2026-02-15 with
 memo `ランチ` is created, and the month's transactions list `1,200円` with
 `支出` `1,200円`. When the user changes that transaction's amount to `1500`,
 then it is updated and the list and `支出` show `1,500円`.
@@ -530,6 +548,17 @@ with nothing more done, the month's transactions list `80,000円` 住居 marked
 `定期` on 2026-02-25. When the user adds an income rule of `250000` on the
 month's last day, then it is listed as `毎月末日 250,000円 収入` and no
 category is asked for.
+
+**AC-F-205** — Given today 2026-02-26 and a ledger with the rule
+`毎月25日 80,000円 住居`, `土日祝なら翌平日`, from 2026-02, that has recorded
+its 2026-02-25 transaction. When the user opens the rule and changes its amount
+to `85000`, then it is listed as `毎月25日 85,000円 住居`, and the month's
+transactions still list `80,000円` 住居 marked `定期`. When the user opens it
+and chooses `この定期を終了`, then it is listed under `終了した定期` with
+`2026年2月まで` and no `次回`. When the user opens it and sets `終了` back to
+`なし`, then it is listed above `終了した定期` again with `次回 3月25日（水）`.
+When the user opens it, chooses `削除` and confirms, then no rule is listed,
+and the month's transactions still list `80,000円` 住居 marked `定期`.
 
 **AC-E-201** — Given the built app, freshly installed. When the user creates
 `家計` through the onboarding and records an expense of 1,200 食費, then the
@@ -996,7 +1025,7 @@ Build in this order. Each stage leaves `make check` green and its own criteria
 passing, so progress is real even if the product is unfinished.
 
 1. **Foundation** — the on-device database with sync-ready records, ledgers (added, changed to, renamed), isolation, the onboarding tour. AC-B-104, AC-B-107, AC-B-108, AC-B-109, AC-F-102, AC-F-103, AC-F-104, AC-E-101.
-2. **Recording money** — categories, transactions, line items, search, income, recurring rules recorded on their business-day-adjusted date. AC-B-201 to AC-B-210, AC-F-201 to AC-F-204, AC-E-201.
+2. **Recording money** — categories, transactions, line items, search, income, recurring rules recorded on their business-day-adjusted date. AC-B-201 to AC-B-211, AC-F-201 to AC-F-205, AC-E-201.
 3. **Reporting and calendar** — monthly report, daily totals, trend, charts, calendar with the NMD badge. AC-B-301 to AC-B-303, AC-F-301, AC-F-302.
 4. **Budget and savings** — budgets, remaining, month close, carry or save. AC-B-401 to AC-B-403, AC-F-401.
 5. **Photos and scanning** — photo storage, the document scanner and photo library, on-device text recognition, structuring by the on-device LLM or the rule-based parser, background scanning with its progress, enabling reading from photos, drafts. AC-B-501, AC-B-503 to AC-B-506, AC-B-510, AC-B-511, AC-F-501, AC-F-504, AC-E-501.

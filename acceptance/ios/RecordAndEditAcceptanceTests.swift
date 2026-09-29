@@ -4,7 +4,8 @@ import XCTest
 ///
 /// Given today 2026-02-15 and a February with no transactions. When the user
 /// records an expense with amount `1200`, category 食費 and memo `ランチ`,
-/// leaving the date unchanged, then an expense of 1,200 食費 on 2026-02-15
+/// leaving the date unchanged, then while it is typed the amount reads
+/// `1,200`, and an expense of 1,200 食費 on 2026-02-15
 /// with memo `ランチ` is created, and the month's transactions list `1,200円`
 /// with `支出` `1,200円`. When the user changes that transaction's amount to
 /// `1500`, then it is updated and the list and `支出` show `1,500円`.
@@ -19,6 +20,7 @@ internal final class RecordAndEditAcceptanceTests: XCTestCase {
         app.entryMemoField.tap()
         app.entryMemoField.typeText("ランチ\n")
         app.replaceAmount(with: "1200")
+        expect(app.reads(app.entryAmountField, "1,200"), "入力中の金額が 1,200 と読めない")
         app.entrySaveButton.tap()
         expect(app.disappears(app.entryAmountField), "保存しても入力のシートが閉じない")
     }

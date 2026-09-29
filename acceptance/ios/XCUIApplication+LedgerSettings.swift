@@ -84,6 +84,39 @@ extension XCUIApplication {
         self.buttons["recurring-save"]
     }
 
+    /// The end month of the rule sheet of an existing rule
+    /// (`recurring-end-month`, 終了).
+    ///
+    /// Its label or value holds the month as `2026年2月`, or `なし`; tapping
+    /// it offers `なし` among its choices.
+    internal var recurringEndMonth: XCUIElement {
+        self.descendants(matching: .any)["recurring-end-month"]
+    }
+
+    /// The この定期を終了 button of the rule sheet of an existing rule
+    /// (`recurring-end`), which ends the rule and closes the sheet.
+    internal var recurringEndButton: XCUIElement {
+        self.buttons["recurring-end"]
+    }
+
+    /// The 削除 button of the rule sheet of an existing rule
+    /// (`recurring-delete`), which asks first.
+    internal var recurringDeleteButton: XCUIElement {
+        self.buttons["recurring-delete"]
+    }
+
+    /// The confirmation of that small sheet (`recurring-delete-confirm`),
+    /// which deletes the rule and closes the rule sheet.
+    internal var recurringDeleteConfirmButton: XCUIElement {
+        self.buttons["recurring-delete-confirm"]
+    }
+
+    /// The heading 終了した定期 above the ended rules of 毎月の定期
+    /// (`recurring-ended-header`); absent while no rule has ended.
+    internal var recurringEndedHeader: XCUIElement {
+        self.descendants(matching: .any)["recurring-ended-header"]
+    }
+
     /// The ledger's categories, one row each (`category-row-<category id>`).
     ///
     /// In the ledger's order; the label holds the name, and `アーカイブ済み`
@@ -188,6 +221,33 @@ extension XCUIApplication {
         return self.descendants(matching: .any)
             .matching(NSPredicate(format: format, argumentArray: texts))
             .firstMatch
+    }
+
+    /// The rule rows and the 終了した定期 heading of 毎月の定期
+    /// (`recurring-rule-<rule id>`, `recurring-ended-header`), in list order,
+    /// scrolling through the whole list.
+    internal func recurringListInOrder() -> [ScrolledRow] {
+        self.collectRows(
+            self.descendants(matching: .any).matching(
+                NSPredicate(
+                    format:
+                        "identifier BEGINSWITH 'recurring-rule-' "
+                        + "OR identifier == 'recurring-ended-header'"
+                )
+            )
+        )
+    }
+
+    /// Opens the rule row holding every one of `texts` to be changed, ended
+    /// or deleted, and waits for its sheet (the amount field).
+    internal func openRecurringRule(containing texts: [String]) {
+        let row: XCUIElement = self.recurringRuleRow(containing: texts)
+        expect(self.reveal(row), "\(texts) の定期が一覧にない")
+        row.tap()
+        expect(
+            self.recurringAmountField.waitForExistence(timeout: Self.screenTimeout),
+            "定期をタップしても修正のシートが開かない"
+        )
     }
 
     /// Goes back from 毎月の定期 or 分類 to 設定, then to home.

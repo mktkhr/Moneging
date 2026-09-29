@@ -42,8 +42,8 @@ extension XCUIApplication {
     /// The amount field of the entry and edit sheets (`entry-amount`), a
     /// number pad.
     ///
-    /// Typed digits appear in its value, with or without thousands
-    /// separators.
+    /// Typed digits appear in its value with thousands separators, as
+    /// `1,200` while it is typed.
     internal var entryAmountField: XCUIElement {
         self.textFields["entry-amount"]
     }
