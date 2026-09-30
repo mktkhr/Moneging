@@ -82,14 +82,6 @@ internal struct EntrySheet: View {
             .toolbar {
                 self.toolbar
             }
-            .confirmationDialog(
-                "この記録を削除しますか？",
-                isPresented: self.$isDeleteConfirmationShown,
-                titleVisibility: .visible,
-            ) {
-                Button("削除する", role: .destructive, action: self.delete)
-                    .accessibilityIdentifier("entry-delete-confirm")
-            }
         }
         .tint(Theme.accent)
         .presentationDetents([.large])
@@ -170,6 +162,15 @@ internal struct EntrySheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("entry-delete")
+        // Asks first, from the button itself.
+        .confirmationDialog(
+            "この記録を削除しますか？",
+            isPresented: self.$isDeleteConfirmationShown,
+            titleVisibility: .visible,
+        ) {
+            Button("削除する", role: .destructive, action: self.delete)
+                .accessibilityIdentifier("entry-delete-confirm")
+        }
     }
 
     @ViewBuilder private var categorySection: some View {
