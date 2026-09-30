@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 
 // The AC-B acceptance tests (PRODUCT.md §7): Kotlin tests of the shared logic,
 // in src/commonTest/kotlin, run on the Android host and the iOS simulator
@@ -48,4 +49,19 @@ kotlin {
             implementation(libs.kotlinx.datetime)
         }
     }
+}
+
+// The receipts the scan tests read (acceptance/fixtures). The Android host
+// test and the iOS simulator both see the host's file system, so they are
+// given the directory's absolute path: FixtureFiles in src/commonTest. The
+// simulator process only receives variables prefixed SIMCTL_CHILD_.
+val fixturesDirectory: String = rootDir.resolve("../../acceptance/fixtures").canonicalPath
+
+tasks.withType<Test>().configureEach {
+    environment("MONEGING_FIXTURES", fixturesDirectory)
+}
+
+tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+    environment("SIMCTL_CHILD_MONEGING_FIXTURES", fixturesDirectory)
+    environment("MONEGING_FIXTURES", fixturesDirectory)
 }

@@ -1,0 +1,28 @@
+{
+  "store": {
+    "value": "コーナーデリ",
+    "confidence": 0.7
+  },
+  "date": {
+    "value": "2026-02-13",
+    "confidence": 0.7
+  },
+  "total": {
+    "value": 980,
+    "confidence": 0.7
+  },
+  "items": [
+    {
+      "name": "唐揚げ弁当",
+      "amount": 680,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "緑茶",
+      "amount": 150,
+      "category": null,
+      "confidence": 0.7
+    }
+  ]
+}

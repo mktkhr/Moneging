@@ -227,11 +227,14 @@ scanner (one receipt per page) or by picking one or several from the photo
 library. Every photo given is kept as it is and its scan started, and the user
 is told how many were accepted (`2枚の読み取りを受け付けました`). While scans
 are in flight or drafts wait, the product shows how many
-(`読み取り中 1件・確認待ち 2件`), and progress is also shown outside the app
-(§3 Scan job). A waiting draft shows its store and total
+(`読み取り中 1件・確認待ち 2件`) below the ledger's name on the home view,
+only while there is any; choosing it lists the ledger's scans under
+`確認待ち`, `読み取り中` and `読み取れなかったもの`. Progress is also shown
+outside the app (§3 Scan job), and that ends as soon as no scan is in flight. A waiting draft shows its store and total
 (`セブン-イレブン 1,180円`); a scan in flight says so; a failed scan shows its
 reason and lets the user record the expense by hand, linked to the photo, or
-read the photo again. A draft shows its photo and every field editable: `店名`,
+read the photo again. A draft shows its photo small, full screen when
+chosen, and every field editable: `店名`,
 `日付`, `合計`, and the items as `品名`, `金額` and `カテゴリ`, each item
 removable, and items may be added. A draft with no items has one `カテゴリ`
 for the whole expense, left empty for その他. A field whose confidence is below

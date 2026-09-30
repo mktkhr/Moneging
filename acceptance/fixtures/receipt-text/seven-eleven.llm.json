@@ -1,0 +1,28 @@
+{
+  "store": {
+    "value": "セブン-イレブン",
+    "confidence": 0.95
+  },
+  "date": {
+    "value": "2026-02-14",
+    "confidence": 0.9
+  },
+  "total": {
+    "value": 1180,
+    "confidence": 0.4
+  },
+  "items": [
+    {
+      "name": "おにぎり",
+      "amount": 380,
+      "category": "食費",
+      "confidence": 0.9
+    },
+    {
+      "name": "弁当",
+      "amount": 800,
+      "category": null,
+      "confidence": 0.5
+    }
+  ]
+}
