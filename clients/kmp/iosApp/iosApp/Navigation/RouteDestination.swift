@@ -15,6 +15,9 @@ internal struct RouteDestination: View {
         case .renameLedger(let ledgerId):
             RenameLedgerScreen(ledgerId: ledgerId)
 
+        case .readingMethod:
+            ReadingMethodScreen()
+
         case .recurringRules:
             RecurringRulesScreen()
 

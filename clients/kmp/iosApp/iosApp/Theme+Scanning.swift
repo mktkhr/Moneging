@@ -66,5 +66,18 @@ extension Theme {
         internal static let certain: Double = 1
         /// How far the full-screen photo may be zoomed in.
         internal static let photoMaxZoom: CGFloat = 4
+        /// What dims the screen behind the notice that the AI cannot be used.
+        internal static let noticeScrim: Color = Color(
+            light: "#1813105C",
+            dark: "#0000008A",
+        )
+        /// The corner radius of the notice that the AI cannot be used.
+        internal static let unusableNoticeRadius: CGFloat = 26
+        /// The space between the screen's edges and that notice.
+        internal static let unusableNoticeInset: CGFloat = 40
+        /// The least height of that notice's buttons.
+        internal static let unusableNoticeButtonHeight: CGFloat = 46
+        /// How faint an option that cannot be chosen is.
+        internal static let unusableOpacity: CGFloat = 0.45
     }
 }

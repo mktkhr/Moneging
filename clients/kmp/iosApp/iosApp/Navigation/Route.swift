@@ -4,6 +4,8 @@ internal enum Route: Hashable {
     case categories
     /// The お知らせ placeholder screen, opened from the header's bell icon.
     case notifications
+    /// 読み取りの方法: the device's reading method, opened from 設定.
+    case readingMethod
     /// 毎月の定期 of the ledger in view, opened from 設定.
     case recurringRules
     /// The editor renaming the ledger with this `Ledger.id` (as text),

@@ -4,7 +4,8 @@ import SwiftUI
 /// The form of 下書きを確認 (`Draft5.dc.html`, `DraftItemsA5.dc.html`)
 /// inside `DraftSheet`.
 ///
-/// The receipt's photo, small; 店名, 日付 and 合計 (`DraftFieldsCard`); the
+/// The receipt's photo, small, with how the draft was read below
+/// レシートの写真を見る (`AI を使わずに読み取りました`); 店名, 日付 and 合計 (`DraftFieldsCard`); the
 /// items to look at (`DraftItemRow`), each opening 明細を直す
 /// (`DraftItemSheet`) and removable by swiping it left, with
 /// ＋ 明細を足す, or, without items, one カテゴリ for the whole expense; and
@@ -12,6 +13,8 @@ import SwiftUI
 internal struct DraftContent: View {
     internal let form: Binding<DraftFormState>
     internal let photoId: String?
+    /// How the draft was read, or `nil` for a draft from before the reading method.
+    internal let readingMethodText: String?
     internal let categories: [SharedLogic.Category]
     internal let onDiscard: () -> Void
 
@@ -73,6 +76,7 @@ internal struct DraftContent: View {
                     width: Theme.Scanning.draftThumbnailWidth,
                     height: Theme.Scanning.draftThumbnailHeight,
                     note: String(localized: "要確認 の欄は、読み取りに自信がない所です。"),
+                    readingMethod: self.readingMethodText,
                 )
             }
             DraftFieldsCard(form: self.form)

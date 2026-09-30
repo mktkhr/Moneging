@@ -1,4 +1,5 @@
 import PhotosUI
+import SharedLogic
 import SwiftUI
 import UniformTypeIdentifiers
 import VisionKit
@@ -8,8 +9,11 @@ import VisionKit
 /// When `AppRouter.receiptCapture` is set, レシートを撮る opens the OS document
 /// scanner (one receipt per page), 写真を選ぶ the photo library (several
 /// at once). Every photo handed over is kept as it is and its scan started
-/// (`ScanStore.accept`). In a UI test the fixture pictures stand in for
-/// both (`UITestScanning`).
+/// (`ScanStore.accept`). When the chosen reading method cannot be used
+/// (Apple Intelligence chosen and off), `ReadingUnavailableNotice` asks first,
+/// before anything opens: reading without AI (for that capture only), opening
+/// 設定, or stopping, which keeps nothing. In a UI test the fixture pictures
+/// stand in for both (`UITestScanning`).
 internal struct ReceiptCaptureModifier: ViewModifier {
     @Environment(AppRouter.self)
     private var router: AppRouter
@@ -17,9 +21,38 @@ internal struct ReceiptCaptureModifier: ViewModifier {
     @Environment(ScanStore.self)
     private var scanStore: ScanStore
 
+    @Environment(ReadingMethodStore.self)
+    private var readingMethods: ReadingMethodStore
+
+    /// The capture waiting on the notice that the chosen method cannot be used.
+    @State private var optionAwaitingMethod: RecordOption?
+    /// The method this capture reads by, or `nil` for the chosen one.
+    @State private var methodOfCapture: ReadingMethod?
     @State private var isScannerPresented: Bool = false
     @State private var isPickerPresented: Bool = false
     @State private var pickedItems: [PhotosPickerItem] = []
+
+    // The notice that the chosen method cannot be used, while a capture waits on it.
+    @ViewBuilder private var unusableNotice: some View {
+        if let option = self.optionAwaitingMethod {
+            ReadingUnavailableNotice(
+                title: self.readingMethods.unusableTitle,
+                reason: self.readingMethods.deviceAiUnavailableReason,
+                onReadWithoutAi: {
+                    self.optionAwaitingMethod = nil
+                    self.methodOfCapture = .noAi
+                    self.start(option)
+                },
+                onOpenSettings: {
+                    self.optionAwaitingMethod = nil
+                    self.router.push(.settings)
+                },
+                onCancel: {
+                    self.optionAwaitingMethod = nil
+                },
+            )
+        }
+    }
 
     // The picked items' photos, each in its own encoding.
     private static func photos(of items: [PhotosPickerItem]) async -> [ReceiptPhoto] {
@@ -47,7 +80,10 @@ internal struct ReceiptCaptureModifier: ViewModifier {
                     return
                 }
                 self.router.receiptCapture = nil
-                self.start(option)
+                self.capture(option)
+            }
+            .overlay {
+                self.unusableNotice
             }
             .fullScreenCover(isPresented: self.$isScannerPresented) {
                 DocumentScannerView { pages in
@@ -67,10 +103,22 @@ internal struct ReceiptCaptureModifier: ViewModifier {
                     return
                 }
                 self.pickedItems = []
+                let method: ReadingMethod? = self.methodOfCapture
                 Task {
-                    await self.scanStore.accept(await Self.photos(of: items))
+                    await self.scanStore.accept(await Self.photos(of: items), method: method)
                 }
             }
+    }
+
+    // Opens `option` by the chosen method, or asks first when it cannot be used.
+    private func capture(_ option: RecordOption) {
+        self.readingMethods.refresh()
+        if self.readingMethods.isChosenUnusable {
+            self.optionAwaitingMethod = option
+        } else {
+            self.methodOfCapture = nil
+            self.start(option)
+        }
     }
 
     private func start(_ option: RecordOption) {
@@ -100,8 +148,9 @@ internal struct ReceiptCaptureModifier: ViewModifier {
     }
 
     private func accept(_ photos: [ReceiptPhoto]) {
+        let method: ReadingMethod? = self.methodOfCapture
         Task {
-            await self.scanStore.accept(photos)
+            await self.scanStore.accept(photos, method: method)
         }
     }
 }

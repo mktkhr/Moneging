@@ -5,7 +5,9 @@ import SwiftUI
 ///
 /// They are listed under 確認待ち (drafts, `draft-row-<id>`, opening the
 /// draft), 読み取り中 and 読み取れなかったもの (the reason, with 手で入力する,
-/// recording the expense by hand linked to the photo, and もう一度読む).
+/// recording the expense by hand linked to the photo, and もう一度読む; a
+/// scan the device's AI failed also offers AI を使わずに読む,
+/// `DraftsAiFailed5.dc.html`).
 /// Once nothing is left to show it goes back.
 internal struct ScansScreen: View {
     @Environment(ScanStore.self)
@@ -130,6 +132,14 @@ internal struct ScansScreen: View {
             }
             .accessibilityElement(children: .combine)
             HStack(spacing: Theme.Spacing.small) {
+                if row.isReadByDeviceAi {
+                    let identifier: String = "scan-without-ai-\(row.id)"
+                    self.failedAction(title: "AI を使わずに読む", identifier: identifier) {
+                        Task {
+                            _ = await self.scanStore.readWithoutAi(jobId: row.id)
+                        }
+                    }
+                }
                 self.failedAction(title: "手で入力する", identifier: "scan-manual-\(row.id)") {
                     self.router.entrySheet = .new(photoId: row.photoId)
                 }

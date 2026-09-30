@@ -9,9 +9,24 @@ import SharedLogic
 /// structures the text instead, and this is never asked to. Nothing leaves
 /// the device.
 internal final class SystemReceiptReader: NSObject, IosReceiptReader {
-    /// Whether this device has Foundation Models available.
+    /// Whether this device has Foundation Models available now.
     internal var hasOnDeviceLlm: Bool {
-        ReceiptStructurer.isAvailable
+        #if DEBUG
+            if UITestScanning.deviceAi != nil {
+                return UITestScanning.isDeviceAiOn
+            }
+        #endif
+        return ReceiptStructurer.isAvailable
+    }
+
+    /// Why Foundation Models cannot be used now, or `nil` when they can.
+    internal var onDeviceLlmUnavailableReason: String? {
+        #if DEBUG
+            if UITestScanning.deviceAi != nil {
+                return UITestScanning.isDeviceAiOn ? nil : ReceiptStructurer.turnedOffReason
+            }
+        #endif
+        return ReceiptStructurer.unavailableReason
     }
 
     /// Recognises the text of `image` off the main thread.
@@ -37,7 +52,7 @@ internal final class SystemReceiptReader: NSObject, IosReceiptReader {
             do {
                 completion(try await ReceiptStructurer.json(for: text), nil)
             } catch {
-                completion(nil, String(localized: "内容を読み取れませんでした"))
+                completion(nil, String(localized: "Apple Intelligence が組み立てられませんでした"))
             }
         }
     }

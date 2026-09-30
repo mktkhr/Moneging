@@ -47,9 +47,34 @@ internal enum ReceiptStructurer {
             """
     }
 
+    /// Why Apple Intelligence cannot be used when it is turned off.
+    internal static let turnedOffReason: String = String(
+        localized: "設定で Apple Intelligence がオフになっています。"
+    )
+
     /// Whether this device has Foundation Models available now.
     internal static var isAvailable: Bool {
         SystemLanguageModel.default.isAvailable
+    }
+
+    /// Why Foundation Models cannot be used now, or `nil` when they can.
+    internal static var unavailableReason: String? {
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return nil
+
+        case .unavailable(.appleIntelligenceNotEnabled):
+            return Self.turnedOffReason
+
+        case .unavailable(.modelNotReady):
+            return String(localized: "Apple Intelligence の準備ができていません。しばらくしてからお試しください。")
+
+        case .unavailable(.deviceNotEligible):
+            return String(localized: "この端末では使えません（Apple Intelligence に対応した端末で、オンにすると選べます）。")
+
+        case .unavailable:
+            return String(localized: "この端末では Apple Intelligence を使えません。")
+        }
     }
 
     /// The draft JSON of the receipt whose text is `text`.

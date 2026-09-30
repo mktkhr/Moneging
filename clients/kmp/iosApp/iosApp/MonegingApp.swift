@@ -7,6 +7,7 @@ internal struct MonegingApp: App {
     @State private var store: SharedStateStore
     @State private var ledgerStore: LedgerStore
     @State private var scanStore: ScanStore
+    @State private var readingMethodStore: ReadingMethodStore
 
     internal var body: some Scene {
         WindowGroup {
@@ -15,6 +16,7 @@ internal struct MonegingApp: App {
                 .environment(self.store)
                 .environment(self.ledgerStore)
                 .environment(self.scanStore)
+                .environment(self.readingMethodStore)
                 // Japanese only (PRODUCT.md §5): dates read `2026年2月14日`
                 // whatever the device's language, on the product's calendar.
                 .environment(\.locale, IsoDate.locale)
@@ -46,6 +48,9 @@ internal struct MonegingApp: App {
         self._store = State(wrappedValue: SharedStateStore(appState: sharedAppState()))
         self._ledgerStore = State(
             wrappedValue: LedgerStore(ledgerData: sharedLedgerData(), editor: sharedLedgerEditor()),
+        )
+        self._readingMethodStore = State(
+            wrappedValue: ReadingMethodStore(methods: sharedReadingMethods()),
         )
         self._scanStore = State(
             wrappedValue: ScanStore(

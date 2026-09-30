@@ -19,6 +19,7 @@ internal struct DraftSheet: View {
     private var dismiss: DismissAction
 
     @State private var photoId: String?
+    @State private var readingMethodText: String?
     @State private var draft: DraftFormState?
     @State private var isWorking: Bool = false
 
@@ -45,6 +46,7 @@ internal struct DraftSheet: View {
             DraftContent(
                 form: editing,
                 photoId: self.photoId,
+                readingMethodText: self.readingMethodText,
                 categories: self.ledgerStore.state.activeCategories,
                 onDiscard: self.discard,
             )
@@ -76,6 +78,7 @@ internal struct DraftSheet: View {
             return
         }
         self.photoId = editing.photoId
+        self.readingMethodText = editing.methodText
         self.draft = DraftFormState.from(editing)
     }
 

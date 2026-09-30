@@ -66,15 +66,16 @@ internal final class ScanStore {
         }
     }
 
-    /// Keeps each of `photos` as it is and starts its scan, then tells how
-    /// many were accepted.
-    internal func accept(_ photos: [ReceiptPhoto]) async {
+    /// Keeps each of `photos` as it is and starts its scan by `method`, or
+    /// by the chosen method when `nil`, then tells how many were accepted.
+    internal func accept(_ photos: [ReceiptPhoto], method: ReadingMethod?) async {
         var accepted: Int = 0
         for (contentType, group) in Dictionary(grouping: photos, by: \.contentType) {
             do {
                 let acceptance: ScanAcceptance = try await self.editor.acceptPhotos(
                     images: group.map { photo in byteArray(data: photo.data) },
                     contentType: contentType,
+                    method: method,
                 )
                 accepted += Int(acceptance.acceptedCount)
                 if let refusal = acceptance.failureMessage {
@@ -112,6 +113,11 @@ internal final class ScanStore {
     /// Reads the photo of the failed scan `jobId` again; returns whether it started.
     internal func readAgain(jobId: String) async -> Bool {
         await self.write { try await self.editor.readAgain(jobId: jobId) }
+    }
+
+    /// Reads the photo of the failed scan `jobId` again without AI; returns whether it started.
+    internal func readWithoutAi(jobId: String) async -> Bool {
+        await self.write { try await self.editor.readWithoutAi(jobId: jobId) }
     }
 
     /// The photo `photoId` of the ledger in view, or `nil`.

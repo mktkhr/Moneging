@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import SharedLogic
 
     /// What a UI test replaces of reading receipts.
     ///
@@ -20,6 +21,10 @@
     /// - `-UITestModuleInstaller fake`: the module installer is replaced by
     ///   `UITestModuleInstaller`.
     /// - `-AcceptancePhotoReading YES`: reading from photos is on from the start.
+    /// - `-UITestDeviceAi <on|off>`: Apple Intelligence is usable (`on`) or
+    ///   turned off in the settings (`off`), whatever the device.
+    /// - `-AcceptanceReadingMethod <ai|none>`: the reading method is chosen
+    ///   from the start: Apple Intelligence or `AI を使わない`.
     ///
     /// Compiled in debug builds only: release builds never read the flags.
     @MainActor
@@ -32,6 +37,36 @@
         private static let installerKey: String = "UITestModuleInstaller"
         private static let photoReadingKey: String = "AcceptancePhotoReading"
         private static let fakeInstallerName: String = "fake"
+        nonisolated private static let deviceAiKey: String = "UITestDeviceAi"
+        private static let readingMethodKey: String = "AcceptanceReadingMethod"
+        nonisolated private static let onValue: String = "on"
+        private static let aiValue: String = "ai"
+        private static let noneValue: String = "none"
+
+        /// Whether Apple Intelligence is usable, as the launch argument sets
+        /// it (`on`, `off`), or `nil` when the device decides.
+        nonisolated internal static var deviceAi: String? {
+            UserDefaults.standard.string(forKey: Self.deviceAiKey)
+        }
+
+        /// Whether the launch argument turns Apple Intelligence on.
+        nonisolated internal static var isDeviceAiOn: Bool {
+            Self.deviceAi == Self.onValue
+        }
+
+        /// The reading method chosen from the start, or `nil` when not chosen.
+        internal static var chosenReadingMethod: ReadingMethod? {
+            switch UserDefaults.standard.string(forKey: Self.readingMethodKey) {
+            case Self.aiValue:
+                return .deviceAi
+
+            case Self.noneValue:
+                return .noAi
+
+            default:
+                return nil
+            }
+        }
 
         /// The fixtures directory, or `nil` when the OS scanner is used.
         internal static let fixturesDirectory: String? = UserDefaults.standard.string(

@@ -45,6 +45,9 @@
         /// Starts the shared container, on the injected today when a launch
         /// argument gives one, reading receipts as `UITestScanning` chooses.
         internal static func initKoin(reader: SystemReceiptReader) {
+            if let method = UITestScanning.chosenReadingMethod {
+                chooseReadingMethodForUiTests(deviceAi: method == .deviceAi)
+            }
             doInitKoinForUiTests(
                 isoDate: UserDefaults.standard.string(forKey: Self.todayKey),
                 reader: reader,

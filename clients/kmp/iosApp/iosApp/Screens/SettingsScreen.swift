@@ -20,6 +20,9 @@ internal struct SettingsScreen: View {
     @Environment(LedgerStore.self)
     private var ledgerStore: LedgerStore
 
+    @Environment(ReadingMethodStore.self)
+    private var readingMethods: ReadingMethodStore
+
     internal var body: some View {
         List {
             self.ledgerInViewSection
@@ -45,9 +48,13 @@ internal struct SettingsScreen: View {
         }
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            self.readingMethods.refresh()
+        }
     }
 
-    // Whether the device reads receipts from photos (PRODUCT.md §3, Photo reading).
+    // How this device reads receipts: whether from photos (the spec's Photo
+    // reading), and by which method (Reading method, `SettingsReading5.dc.html`).
     private var readingSection: some View {
         Section {
             let isOn: Binding<Bool> = Binding(
@@ -74,11 +81,30 @@ internal struct SettingsScreen: View {
                 Toggle("写真からの読み取り", isOn: isOn)
             }
             .accessibilityIdentifier("settings-photo-reading")
+            self.readingMethodRow
         } header: {
-            Text("記録")
+            Text("この端末")
         } footer: {
             Text("レシートの写真から下書きを作ります。読み取りはこの端末の中だけで行います。")
         }
+    }
+
+    // 読み取りの方法, reading the chosen method's name, opening its screen.
+    private var readingMethodRow: some View {
+        let name: String = self.readingMethods.name(of: self.readingMethods.chosen)
+        return NavigationLink(value: Route.readingMethod) {
+            HStack {
+                Text("読み取りの方法")
+                Spacer()
+                Text(name)
+                    .foregroundStyle(Theme.mutedText)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("読み取りの方法")
+        .accessibilityValue(name)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("settings-reading-method")
     }
 
     // One row per ledger, opening the editor of its name.
