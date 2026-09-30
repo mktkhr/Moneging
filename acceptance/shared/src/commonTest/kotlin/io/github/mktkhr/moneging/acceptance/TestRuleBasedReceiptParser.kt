@@ -9,28 +9,38 @@ import kotlin.test.assertEquals
 private const val SEVEN_ELEVEN_TOTAL = 1_180L
 private const val RICE_BALL = 380L
 private const val BENTO = 800L
-private const val CORNER_DELI_TOTAL = 980L
-private const val FRIED_CHICKEN_BENTO = 680L
-private const val GREEN_TEA = 150L
+
+private const val MARUETSU_PETIT = "maruetsu-petit"
+private const val SEVEN_ELEVEN_SHIBA = "seven-eleven-shiba"
+private const val LIFE = "life"
+private const val UBEREATS_GONGCHA = "ubereats-gongcha"
+
+private const val MARUETSU_PETIT_TOTAL = 5_653L
+private const val SEVEN_ELEVEN_SHIBA_TOTAL = 2_309L
+private const val LIFE_TOTAL = 5_315L
+private const val UBEREATS_GONGCHA_TOTAL = 2_330L
 
 /**
  * AC-B-510 — The rule-based parser reads recorded receipt text into drafts,
  * deterministically.
  *
- * Given the recorded texts `seven-eleven.txt` and `corner-deli.txt`. When each
- * is parsed by the rule-based parser, then the draft equals the one recorded
- * beside it, every field, item and confidence included; for
+ * Given the recorded texts `seven-eleven.txt` and `corner-deli.txt`, and four
+ * recorded from real receipts with what identifies a person or a payment
+ * masked (`maruetsu-petit.txt`, `seven-eleven-shiba.txt`, `life.txt`,
+ * `ubereats-gongcha.txt`). When each is parsed by the rule-based parser, then
+ * the draft equals the one recorded beside it, every field, item and
+ * confidence included, and each real receipt's items add up to its total; for
  * `seven-eleven.txt` that draft has store `セブン-イレブン`, date 2026-02-14,
  * total 1,180 and the items おにぎり 380 and 弁当 800. When each is parsed
  * again, then the draft is identical to the first.
  */
 class TestRuleBasedReceiptParser {
-    /** Each recorded text parses into the draft recorded beside it, and parses again into the same. */
+    private val parser = RuleBasedReceiptParser()
+
+    /** `seven-eleven.txt` reads as セブン-イレブン, 2026-02-14, 1,180: おにぎり 380 and 弁当 800. */
     @Test
-    fun recordedTextsParseIntoDrafts() {
-        val parser = RuleBasedReceiptParser()
+    fun sevenElevenReadsItsItems() {
         val sevenEleven = parser.parse(text = recordedText(name = SEVEN_ELEVEN))
-        val cornerDeli = parser.parse(text = recordedText(name = CORNER_DELI))
 
         assertEquals(expected = "セブン-イレブン", actual = sevenEleven.store.value, message = "店名が セブン-イレブン でない")
         assertEquals(
@@ -44,32 +54,42 @@ class TestRuleBasedReceiptParser {
             actual = sevenEleven.items.map { item -> item.name to item.amount },
             message = "明細が おにぎり 380円 と 弁当 800円 でない",
         )
-        assertEquals(
-            expected = ruleBasedDraft(name = SEVEN_ELEVEN),
-            actual = sevenEleven,
-            message = "seven-eleven.txt の解析結果が seven-eleven.rule.json と違う",
-        )
+    }
 
-        assertEquals(expected = "コーナーデリ", actual = cornerDeli.store.value, message = "店名が コーナーデリ でない")
-        assertEquals(
-            expected = LocalDate.parse("2026-02-13"),
-            actual = cornerDeli.date.value,
-            message = "日付が 2026-02-13 でない",
-        )
-        assertEquals(expected = CORNER_DELI_TOTAL, actual = cornerDeli.total.value, message = "合計が 980円 でない")
-        assertEquals(
-            expected = listOf("唐揚げ弁当" to FRIED_CHICKEN_BENTO, "緑茶" to GREEN_TEA),
-            actual = cornerDeli.items.map { item -> item.name to item.amount },
-            message = "明細が 唐揚げ弁当 680円 と 緑茶 150円 でない（+ LARGE RICE は品目でない）",
-        )
-        assertEquals(
-            expected = ruleBasedDraft(name = CORNER_DELI),
-            actual = cornerDeli,
-            message = "corner-deli.txt の解析結果が corner-deli.rule.json と違う",
-        )
+    /** Each of the six recorded texts parses into the draft recorded beside it, and parses again into the same. */
+    @Test
+    fun eachTextParsesIntoItsDraft() {
+        val names = listOf(SEVEN_ELEVEN, CORNER_DELI, MARUETSU_PETIT, SEVEN_ELEVEN_SHIBA, LIFE, UBEREATS_GONGCHA)
+        for (name in names) {
+            val first = parser.parse(text = recordedText(name = name))
+            assertEquals(
+                expected = ruleBasedDraft(name = name),
+                actual = first,
+                message = "$name.txt の解析結果が $name.rule.json と違う",
+            )
+            assertParsesTheSameAgain(parser = parser, name = name, first = first)
+        }
+    }
 
-        assertParsesTheSameAgain(parser = parser, name = SEVEN_ELEVEN, first = sevenEleven)
-        assertParsesTheSameAgain(parser = parser, name = CORNER_DELI, first = cornerDeli)
+    /** Each real receipt reads its total, and its items add up to it. */
+    @Test
+    fun realReceiptsAddUp() {
+        val totals =
+            listOf(
+                MARUETSU_PETIT to MARUETSU_PETIT_TOTAL,
+                SEVEN_ELEVEN_SHIBA to SEVEN_ELEVEN_SHIBA_TOTAL,
+                LIFE to LIFE_TOTAL,
+                UBEREATS_GONGCHA to UBEREATS_GONGCHA_TOTAL,
+            )
+        for ((name, total) in totals) {
+            val draft = parser.parse(text = recordedText(name = name))
+            assertEquals(expected = total, actual = draft.total.value, message = "$name の合計が ${total}円 でない")
+            assertEquals(
+                expected = total,
+                actual = draft.items.sumOf { item -> item.amount },
+                message = "$name の明細の和が合計 ${total}円 と合わない",
+            )
+        }
     }
 }
 

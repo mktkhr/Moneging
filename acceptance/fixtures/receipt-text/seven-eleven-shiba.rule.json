@@ -1,0 +1,58 @@
+{
+  "store": {
+    "value": "セブン-イレブン",
+    "confidence": 0.7
+  },
+  "date": {
+    "value": "2026-09-28",
+    "confidence": 0.7
+  },
+  "total": {
+    "value": 2309,
+    "confidence": 0.7
+  },
+  "items": [
+    {
+      "name": "大盛ペペロンチーノ",
+      "amount": 598,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "レノアハピネスミストUM本体370ml",
+      "amount": 578,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "ダースプレミアムプラリネアーモンド",
+      "amount": 340,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "キリンファイアワンデイブラック600ml",
+      "amount": 477,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "メイトーノホッカイドウカボチャプリン",
+      "amount": 130,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "バイオ50レジ袋特大1枚",
+      "amount": 5,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "消費税",
+      "amount": 181,
+      "category": null,
+      "confidence": 0.7
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "store": {
+    "value": "ライフ",
+    "confidence": 0.7
+  },
+  "date": {
+    "value": "2026-09-26",
+    "confidence": 0.7
+  },
+  "total": {
+    "value": 5315,
+    "confidence": 0.7
+  },
+  "items": [
+    {
+      "name": "MINTON 和紅茶 京",
+      "amount": 398,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "緑豆はるさめ100",
+      "amount": 356,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "ヤマキめんつゆ50（",
+      "amount": 258,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "国産大豆木綿豆腐350g",
+      "amount": 139,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "白菜",
+      "amount": 198,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "米国豚ロース極うす切",
+      "amount": 420,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "米国豚ロース極うす切",
+      "amount": 477,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "だしを味わうねぎしゃぶ鍋",
+      "amount": 298,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "ダイショー 麻辣湯用スー",
+      "amount": 248,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "軟白ねぎ",
+      "amount": 298,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "エノキ茸（J）",
+      "amount": 178,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "大葉（お得用）",
+      "amount": 158,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "プレミアムにんにく",
+      "amount": 298,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "小松菜",
+      "amount": 238,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "緑豆もやし",
+      "amount": 39,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "唐がらし5g",
+      "amount": 118,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "李錦記豆板醤チュー",
+      "amount": 258,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "豆苗",
+      "amount": 148,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "ブナシメジ大J",
+      "amount": 99,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "国産アスパラガス",
+      "amount": 298,
+      "category": null,
+      "confidence": 0.7
+    },
+    {
+      "name": "消費税",
+      "amount": 393,
+      "category": null,
+      "confidence": 0.7
+    }
+  ]
+}
