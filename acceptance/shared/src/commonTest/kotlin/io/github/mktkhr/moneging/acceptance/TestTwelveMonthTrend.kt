@@ -11,7 +11,7 @@ private const val FEBRUARY_2026 = 2_000L
 private const val FEBRUARY_2025 = 400L
 private const val INCOME = 5_000L
 
-/** The twelve months from 2025-03 to 2026-02, in order. */
+// The twelve months from 2025-03 to 2026-02, in order.
 private val TREND_MONTHS: List<String> =
     listOf(
         "2025-03",
@@ -39,7 +39,7 @@ private val TREND_MONTHS: List<String> =
 class TestTwelveMonthTrend {
     /** The trend to 2026-02 has twelve months from 2025-03: 1,000円 in April, 2,000円 in February, 0円 elsewhere. */
     @Test
-    fun twelveMonthsEndingWithTheMonthInView(): TestResult =
+    fun trendEndsWithMonthInView(): TestResult =
         runTest {
             val scope = kakeiScope()
             val food = scope.categoryIdNamed(name = "食費")
