@@ -51,7 +51,7 @@ internal struct RecordOptionRow: View {
                 Text(
                     self.isAvailable
                         ? self.option.subtitle
-                        : String(localized: "設定の「写真からの読み取り」をオンにすると使えます")
+                        : String(localized: "設定でオンにすると使えます")
                 )
                 .font(.footnote)
                 .foregroundStyle(Theme.mutedText)
