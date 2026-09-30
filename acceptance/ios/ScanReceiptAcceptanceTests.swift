@@ -66,7 +66,7 @@ internal final class ScanReceiptAcceptanceTests: XCTestCase {
     }
 
     /// Checks the waiting draft's row and the draft it opens: fields
-    /// editable, `合計` marked `要確認` and `店名` not, the two items.
+    /// editable, the items as rows, `合計` marked `要確認` and `店名` not, the two items.
     private static func checkDraftOpens(_ app: XCUIApplication) {
         app.openDraftList()
         let row: XCUIElement = app.firstDraftRow
@@ -90,34 +90,44 @@ internal final class ScanReceiptAcceptanceTests: XCTestCase {
         checkItems(app)
     }
 
-    /// Checks the draft's two items, おにぎり 380 in 食費 and 弁当 800 with
-    /// no category, each field editable.
+    /// Checks the draft's two items as rows, おにぎり 380 in 食費 and 弁当
+    /// 800 with no category, and 弁当's sheet with its fields editable.
     private static func checkItems(_ app: XCUIApplication) {
         let names: [String] = ["おにぎり", "弁当"]
-        let amounts: [String] = ["380", "800"]
+        let amounts: [String] = ["380円", "800円"]
         for index in 0..<names.count {
-            let name: XCUIElement = app.draftField("draft-item-name-\(index)")
-            let amount: XCUIElement = app.draftField("draft-item-amount-\(index)")
-            expect(name.label == "品名" && name.isEnabled, "\(names[index]) の 品名 が編集できる欄でない")
-            expect(app.reads(name, names[index]), "\(index + 1) 番目の品名が \(names[index]) でない")
-            expect(amount.label == "金額" && amount.isEnabled, "\(names[index]) の 金額 が編集できる欄でない")
-            expect(
-                app.digits(of: amount) == amounts[index],
-                "\(names[index]) の金額が \(amounts[index])円 でない"
-            )
+            let row: XCUIElement = app.draftItemRow(index)
+            let ordinal: String = "\(index + 1) 番目"
+            let found: Bool = row.waitForExistence(timeout: XCUIApplication.screenTimeout)
+            expect(found, "\(ordinal)の明細の行がない")
+            expect(row.label.contains(names[index]), "\(ordinal)の品名が違う: \(row.label)")
+            expect(row.label.contains(amounts[index]), "\(ordinal)の金額が違う: \(row.label)")
         }
-        let food: String = (app.buttons["draft-item-category-0"].value as? String) ?? ""
-        let none: String = (app.buttons["draft-item-category-1"].value as? String) ?? ""
+        let food: String = app.categoryName(of: app.draftItemRow(0))
+        let none: String = app.categoryName(of: app.draftItemRow(1))
         expect(food == "食費", "おにぎり のカテゴリが 食費 でない: \(food)")
         expect(none.isEmpty, "弁当 にカテゴリが付いている: \(none)")
+        app.openDraftItem(1)
+        let name: XCUIElement = app.draftItemControl("draft-item-name")
+        let amount: XCUIElement = app.draftItemControl("draft-item-amount")
+        expect(name.label == "品名" && name.isEnabled, "弁当 の 品名 が編集できる欄でない")
+        expect(app.reads(name, "弁当"), "弁当 のシートの品名が 弁当 でない")
+        expect(amount.label == "金額" && amount.isEnabled, "弁当 の 金額 が編集できる欄でない")
+        expect(app.digits(of: amount) == "800", "弁当 のシートの金額が 800円 でない")
+        app.draftItemControl("draft-item-cancel").tap()
+        expect(
+            app.disappears(app.draftItemControl("draft-item-cancel")),
+            "× を押しても 明細を直す シートが閉じない"
+        )
     }
 
     /// Corrects 弁当 to 820 and the total to 1,200, confirms, and checks the
     /// month lists `1,200円` with `セブン-イレブン` and `支出` `1,200円`.
     private static func checkConfirmed(_ app: XCUIApplication) {
-        app.replaceText(in: app.draftField("draft-item-amount-1"), with: "820")
+        app.correctDraftItemAmount(1, to: "820")
         app.replaceText(in: app.draftField("draft-total"), with: "1200")
-        expect(app.digits(of: app.draftField("draft-item-amount-1")) == "820", "弁当 の金額が 820円 にならない")
+        let bento: String = app.draftItemRow(1).label
+        expect(bento.contains("820円"), "弁当 の金額が 820円 にならない: \(bento)")
         expect(app.digits(of: app.draftField("draft-total")) == "1200", "合計 が 1,200円 にならない")
         app.draftConfirmButton.tap()
         expect(app.disappears(app.draftConfirmButton), "確認しても下書きが閉じない")

@@ -38,12 +38,20 @@ import XCTest
 /// lists the waiting drafts as `draft-row-<draft id>` rows, labelled with the
 /// store and the total (`セブン-イレブン 1,180円`).
 ///
-/// **Draft.** Opening a draft shows its fields, each a text field labelled
-/// `店名` (`draft-store`), `日付` (`draft-date`) and `合計` (`draft-total`)
-/// and, for item `n` from 0, `品名` (`draft-item-name-<n>`), `金額`
-/// (`draft-item-amount-<n>`) and the `カテゴリ` control
-/// (`draft-item-category-<n>`, whose value is the category's name, empty for
-/// none). A field below the confidence 0.6 has beside it the element
+/// **Draft.** Opening a draft shows the fields `店名` (`draft-store`), `日付`
+/// (`draft-date`) and `合計` (`draft-total`), each a text field, and the items
+/// as a list to look at, not to type into: item `n` from 0 is the row
+/// `draft-item-<n>`, whose label reads the whole item name (it wraps, never
+/// cut off) and the amount (`おにぎり 380円`, thousands separated) and whose
+/// value is the category's name, empty for none. Pressing a row opens the
+/// sheet `明細を直す` with the text fields `品名` (`draft-item-name`, several
+/// lines) and `金額` (`draft-item-amount`), the category tiles of the record
+/// sheet (`category-tile-<category id>`, labelled with the category's name),
+/// `draft-item-save` (✓, keeps the changes and closes the sheet),
+/// `draft-item-cancel` (×, closes it keeping nothing) and `draft-item-delete`
+/// (`この明細を消す`, removes the item and closes the sheet). A row can also
+/// be removed by swiping it left and pressing its `削除`. A field below the
+/// confidence 0.6 has beside it the element
 /// `draft-review-<store|date|total|item-<n>>` labelled `要確認`; the others
 /// have none. `draft-confirm` saves the corrections and confirms the draft.
 ///
@@ -255,11 +263,52 @@ extension XCUIApplication {
         self.descendants(matching: .any)["draft-review-\(field)"]
     }
 
+    /// The row of item `index` of the draft shown (`draft-item-<index>`).
+    internal func draftItemRow(_ index: Int) -> XCUIElement {
+        self.descendants(matching: .any)["draft-item-\(index)"]
+    }
+
+    /// The category of the item row `row`: its value, empty for none.
+    internal func categoryName(of row: XCUIElement) -> String {
+        (row.value as? String) ?? ""
+    }
+
+    /// An element of the item sheet (`draft-item-name`, `draft-item-amount`,
+    /// `draft-item-save`, `draft-item-cancel`, `draft-item-delete`).
+    internal func draftItemControl(_ identifier: String) -> XCUIElement {
+        self.descendants(matching: .any)[identifier]
+    }
+
+    /// Presses the row of item `index` and waits for the sheet `明細を直す`.
+    internal func openDraftItem(_ index: Int) {
+        let row: XCUIElement = self.draftItemRow(index)
+        expect(row.waitForExistence(timeout: Self.screenTimeout), "明細 \(index) の行がない")
+        row.tap()
+        let amount: XCUIElement = self.draftItemControl("draft-item-amount")
+        expect(
+            amount.waitForExistence(timeout: Self.screenTimeout),
+            "明細の行を押しても 明細を直す シートが開かない"
+        )
+    }
+
+    /// Opens item `index`, replaces its amount with `amount` (digits), saves
+    /// with ✓ and waits for the sheet to close.
+    internal func correctDraftItemAmount(_ index: Int, to amount: String) {
+        self.openDraftItem(index)
+        self.replaceText(in: self.draftItemControl("draft-item-amount"), with: amount)
+        self.draftItemControl("draft-item-save").tap()
+        expect(
+            self.disappears(self.draftItemControl("draft-item-save")),
+            "✓ を押しても 明細を直す シートが閉じない"
+        )
+    }
+
     /// Corrects the draft shown: the store to `store`, the second item's
-    /// amount to `bentoAmount` and the total to `total` (digits).
+    /// amount to `bentoAmount` (through its sheet, saved with ✓) and the
+    /// total to `total` (digits).
     internal func correctDraft(store: String, bentoAmount: String, total: String) {
         self.replaceText(in: self.draftField("draft-store"), with: store)
-        self.replaceText(in: self.draftField("draft-item-amount-1"), with: bentoAmount)
+        self.correctDraftItemAmount(1, to: bentoAmount)
         self.replaceText(in: self.draftField("draft-total"), with: total)
     }
 
