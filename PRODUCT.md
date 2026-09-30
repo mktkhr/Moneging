@@ -166,6 +166,19 @@ totals; a transaction with a store shows it. An archived category is marked
 confirmation first. When a month that has ended is still open, the product
 offers to close it and says what the carry-over policy will do.
 
+**Budgets.** The budget view shows the month in view: the whole-month budget,
+then, in category order, every category with a budget or with spending in the
+month (one without a budget shows what was spent), and below them the ledger's
+savings (`貯金 11,500円`, shown at 0 too). The whole-month budget is shown
+even when none is set. Choosing it or a category, or adding a budget for
+another category, opens that budget: an amount from a month on, or removing it
+from a month on. The offer to close a month is shown at the top of
+the budget view only, for the earliest ended month that has a budget and is
+still open (`2月を締めましょう`). Closing asks first, listing each budget's
+leftover, and lets the carry-over policy be changed there (`繰り越す` or
+`貯金にする`), the choice kept for the ledger; the policy can also be changed
+in the ledger's settings.
+
 **Reports and calendar.** A day's total is named by its date and total
 (`2月3日 4,000円`). A past day with no spending shows the **NMD** (No Money Day)
 badge, an illustrated icon, and is named `2月4日 NMD`; today, future days and
@@ -621,6 +634,7 @@ the 10th's is not.
 | AC-B-402 | Closing a month carries the leftover over, or moves it to savings. | `TestMonthCloseCarryOrSave`  |
 | AC-B-403 | Closing the same month twice does not double the leftover.         | `TestMonthCloseIsIdempotent` |
 | AC-F-401 | Remaining budget per category is shown.                            | `AC-F-401`                   |
+| AC-F-402 | A month is closed from the interface, its leftover saved.          | `AC-F-402`                   |
 
 **AC-B-401** — Given a 食費 budget of 30,000 from 2026-02 and spending in
 2026-02 of 10,000 食費, 9,000 split into 8,500 食費 and 500 日用品, and 3,000
@@ -652,6 +666,12 @@ When the month's budgets are viewed, then the whole month shows `28,500円`
 remaining with `予算 50,000円`, 食費 shows `残り 11,500円` `予算 30,000円`, and
 交通費 shows `3,000円` without a budget. When the user adds a 交通費 budget of
 5,000 from 2026-02, then 交通費 shows `残り 2,000円` `予算 5,000円`.
+
+**AC-F-402** — Given today 2026-03-05, the policy `carry`, a 食費 budget of
+30,000 from 2026-02 and 18,500 食費 spent in 2026-02. When the budgets are
+viewed, then `2月を締めましょう` is offered. When the user closes 2026-02,
+chooses `貯金にする` and confirms, then the offer is gone, the savings read
+`貯金 11,500円`, and 2026-03's 食費 shows `残り 30,000円` `予算 30,000円`.
 
 ### Photos and scanning
 
@@ -1032,7 +1052,7 @@ passing, so progress is real even if the product is unfinished.
 1. **Foundation** — the on-device database with sync-ready records, ledgers (added, changed to, renamed), isolation, the onboarding tour. AC-B-104, AC-B-107, AC-B-108, AC-B-109, AC-F-102, AC-F-103, AC-F-104, AC-E-101.
 2. **Recording money** — categories, transactions, line items, search, income, recurring rules recorded on their business-day-adjusted date. AC-B-201 to AC-B-211, AC-F-201 to AC-F-205, AC-E-201.
 3. **Reporting and calendar** — monthly report, daily totals, trend, charts, calendar with the NMD badge. AC-B-301 to AC-B-303, AC-F-301, AC-F-302.
-4. **Budget and savings** — budgets, remaining, month close, carry or save. AC-B-401 to AC-B-403, AC-F-401.
+4. **Budget and savings** — budgets, remaining, month close, carry or save. AC-B-401 to AC-B-403, AC-F-401, AC-F-402.
 5. **Photos and scanning** — photo storage, the document scanner and photo library, on-device text recognition, structuring by the on-device LLM or the rule-based parser, background scanning with its progress, enabling reading from photos, drafts. AC-B-501, AC-B-503 to AC-B-506, AC-B-510, AC-B-511, AC-F-501, AC-F-504, AC-E-501.
 6. **Receipts that do not add up** — AC-B-508, AC-F-502.
 7. **Needs-review records** — AC-B-509, AC-F-503.

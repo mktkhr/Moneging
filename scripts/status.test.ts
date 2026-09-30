@@ -127,7 +127,7 @@ describe("parseStages", () => {
       "AC-F-104",
       "AC-E-101",
     ]);
-    assert.deepEqual(stages.get(4), ["AC-B-401", "AC-B-402", "AC-B-403", "AC-F-401"]);
+    assert.deepEqual(stages.get(4), ["AC-B-401", "AC-B-402", "AC-B-403", "AC-F-401", "AC-F-402"]);
     assert.deepEqual(stages.get(9), ["AC-F-701"]);
   });
 
