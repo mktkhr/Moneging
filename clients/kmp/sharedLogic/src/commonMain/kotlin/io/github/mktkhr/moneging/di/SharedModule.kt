@@ -1,5 +1,7 @@
 package io.github.mktkhr.moneging.di
 
+import io.github.mktkhr.moneging.data.LocalStore
+import io.github.mktkhr.moneging.scan.ReadingMethods
 import io.github.mktkhr.moneging.scan.ReadingModule
 import io.github.mktkhr.moneging.scan.ReadingModuleInstaller
 import io.github.mktkhr.moneging.state.AppState
@@ -64,6 +66,9 @@ fun sharedLedgerEditor(): LedgerEditor = KoinPlatform.getKoin().get()
 
 /** Resolves the shared [ScanData] singleton. The platform's `initKoin` must have run first. */
 fun sharedScanData(): ScanData = KoinPlatform.getKoin().get()
+
+/** The device's reading method (the store's). The platform's `initKoin` must have run first. */
+fun sharedReadingMethods(): ReadingMethods = KoinPlatform.getKoin().get<LocalStore>().readingMethods
 
 /** Resolves the shared [ScanEditor] singleton. The platform's `initKoin` must have run first. */
 fun sharedScanEditor(): ScanEditor = KoinPlatform.getKoin().get()

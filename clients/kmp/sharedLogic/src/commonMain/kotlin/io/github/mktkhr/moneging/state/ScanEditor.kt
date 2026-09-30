@@ -7,6 +7,8 @@ import io.github.mktkhr.moneging.scan.Draft
 import io.github.mktkhr.moneging.scan.DraftCategory
 import io.github.mktkhr.moneging.scan.DraftCorrection
 import io.github.mktkhr.moneging.scan.DraftItem
+import io.github.mktkhr.moneging.scan.ReadingMethod
+import io.github.mktkhr.moneging.scan.ReadingMethods
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
@@ -14,6 +16,7 @@ import kotlin.uuid.Uuid
 
 private const val SAVE_FAILED = "保存できませんでした"
 private const val NO_LEDGER = "家計簿がありません"
+private const val JOB_NOT_FOUND = "読み取りが見つかりません"
 
 // The confidence below which a draft's field is marked 要確認 (PRODUCT.md §5, Receipt reading).
 private const val REVIEW_THRESHOLD = 0.6
@@ -61,6 +64,8 @@ data class DraftEditing(
     val photoId: String,
     /** What its form starts with. */
     val form: DraftForm,
+    /** How it was read (`AI を使わずに読み取りました`), or `null` for a draft from before the reading method. */
+    val methodText: String?,
 )
 
 /** What accepting photos for reading did. */
@@ -86,12 +91,14 @@ class ScanEditor internal constructor(
 ) {
     /**
      * Keeps every photo of [images] as it is ([contentType]) and starts its
-     * scan, without waiting for any reading.
+     * scan by [method], or by the method the user chose when `null`, without
+     * waiting for any reading.
      */
     @Throws(Exception::class)
     suspend fun acceptPhotos(
         images: List<ByteArray>,
         contentType: String,
+        method: ReadingMethod? = null,
     ): ScanAcceptance {
         val scope =
             scopeInView() ?: return ScanAcceptance(acceptedCount = 0, noticeText = null, failureMessage = NO_LEDGER)
@@ -100,7 +107,7 @@ class ScanEditor internal constructor(
             attempt(scope) {
                 images.forEach { image ->
                     val photo = addPhoto(bytes = image, contentType = contentType, capturedAt = clock.now())
-                    startScan(photoId = photo.id)
+                    startScan(photoId = photo.id, method = method)
                     accepted += 1
                 }
             }
@@ -113,7 +120,8 @@ class ScanEditor internal constructor(
 
     /** The waiting draft [draftId] of the ledger in view as its form opens it, or `null` when it is gone. */
     @Throws(Exception::class)
-    suspend fun openDraft(draftId: String): DraftEditing? = scopeInView()?.findDraft(Uuid.parse(draftId))?.toEditing()
+    suspend fun openDraft(draftId: String): DraftEditing? =
+        scopeInView()?.findDraft(Uuid.parse(draftId))?.toEditing(readingMethods = store.readingMethods)
 
     /** Saves [form] into the draft [draftId] and confirms it into an expense. */
     @Throws(Exception::class)
@@ -131,12 +139,20 @@ class ScanEditor internal constructor(
     @Throws(Exception::class)
     suspend fun discardDraft(draftId: String): String? = attemptInView { discardDraft(draftId = Uuid.parse(draftId)) }
 
-    /** Reads again the photo of the failed scan [jobId]. */
+    /** Reads again the photo of the failed scan [jobId], by the method it was read by. */
     @Throws(Exception::class)
     suspend fun readAgain(jobId: String): String? =
         attemptInView {
-            val job = requireNotNull(findScanJob(Uuid.parse(jobId))) { "読み取りが見つかりません" }
-            startScan(photoId = job.photoId)
+            val job = requireNotNull(findScanJob(Uuid.parse(jobId))) { JOB_NOT_FOUND }
+            startScan(photoId = job.photoId, method = job.method)
+        }
+
+    /** Reads again the photo of the failed scan [jobId] without AI (`AI を使わずに読む`). */
+    @Throws(Exception::class)
+    suspend fun readWithoutAi(jobId: String): String? =
+        attemptInView {
+            val job = requireNotNull(findScanJob(Uuid.parse(jobId))) { JOB_NOT_FOUND }
+            startScan(photoId = job.photoId, method = ReadingMethod.NO_AI)
         }
 
     /** The bytes of the photo [photoId] of the ledger in view, or `null`. */
@@ -168,10 +184,11 @@ class ScanEditor internal constructor(
         }
 }
 
-internal fun Draft.toEditing(): DraftEditing =
+internal fun Draft.toEditing(readingMethods: ReadingMethods): DraftEditing =
     DraftEditing(
         draftId = id.toString(),
         photoId = photoId.toString(),
+        methodText = method?.let(readingMethods::readText),
         form =
             DraftForm(
                 store = store.value,

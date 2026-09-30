@@ -9,6 +9,7 @@ import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.scan.Draft
 import io.github.mktkhr.moneging.scan.DraftCorrection
 import io.github.mktkhr.moneging.scan.DraftItem
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ScanJob
 import io.github.mktkhr.moneging.scan.ScanState
 import io.github.mktkhr.moneging.scan.ScannedValue
@@ -36,7 +37,11 @@ internal class SqlScans(
 ) : LedgerScans {
     private val queries = rows.database.scansQueries
 
-    override suspend fun startScan(photoId: Uuid): ScanJob {
+    override suspend fun startScan(
+        photoId: Uuid,
+        method: ReadingMethod?,
+    ): ScanJob {
+        val readBy = method ?: runner.chosenMethod
         val job =
             withContext(rows.context) {
                 rows.database.transactionWithResult {
@@ -50,11 +55,12 @@ internal class SqlScans(
                         photo_id = photoId.toString(),
                         created_at = now,
                         updated_at = now,
+                        method = readBy.name,
                     )
                     checkNotNull(rows.scanJob(id))
                 }
             }
-        runner.run(ledgerId = rows.ledgerId, jobId = job.id, photoId = photoId)
+        runner.run(ledgerId = rows.ledgerId, jobId = job.id, photoId = photoId, method = readBy)
         return job
     }
 

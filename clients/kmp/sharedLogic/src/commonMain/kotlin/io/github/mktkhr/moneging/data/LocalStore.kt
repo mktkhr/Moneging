@@ -9,6 +9,7 @@ import io.github.mktkhr.moneging.domain.LedgerName
 import io.github.mktkhr.moneging.domain.RecordSnapshot
 import io.github.mktkhr.moneging.domain.StoredRecord
 import io.github.mktkhr.moneging.scan.NoReceiptScanner
+import io.github.mktkhr.moneging.scan.ReadingMethods
 import io.github.mktkhr.moneging.scan.ReceiptScanner
 import io.github.mktkhr.moneging.scan.ScanPacer
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,9 @@ class LocalStore internal constructor(
     scanning: Scanning = Scanning(),
 ) {
     private val database = MonegingDatabase(openDriver())
+
+    /** The device's reading method, which scans are read by unless told otherwise. */
+    val readingMethods: ReadingMethods = scanning.readingMethods
     private val scanRunner =
         ScanRunner(
             database = database,
@@ -212,12 +216,14 @@ class LocalStore internal constructor(
          * driver has one connection whose transaction every thread shares,
          * so a transaction started alongside another would join it and lose
          * its change notifications. Receipts are read with [scanner]
-         * (none by default: every scan fails).
+         * (none by default: every scan fails), by the method chosen in
+         * [readingMethods] (a device without an AI by default).
          */
         fun inMemory(
             clock: Clock,
             deviceId: String,
             scanner: ReceiptScanner = NoReceiptScanner,
+            readingMethods: ReadingMethods = ReadingMethods(llm = null),
             context: CoroutineContext = Dispatchers.Default.limitedParallelism(parallelism = 1),
         ): LocalStore =
             LocalStore(
@@ -226,7 +232,7 @@ class LocalStore internal constructor(
                 deviceId = deviceId,
                 photoFiles = InMemoryPhotoFiles(),
                 context = context,
-                scanning = Scanning(scanner = scanner),
+                scanning = Scanning(scanner = scanner, readingMethods = readingMethods),
             )
     }
 }
@@ -236,12 +242,17 @@ internal fun requireLedgerName(name: String): String =
         "家計簿の名前は前後の空白を除いて1〜${LedgerName.MAX_LENGTH}文字にしてください"
     }
 
-/** How a store reads receipts: with [scanner], moving its jobs as [pacer] lets them. */
+/**
+ * How a store reads receipts: with [scanner], by the method chosen in
+ * [readingMethods], moving its jobs as [pacer] lets them.
+ */
 internal data class Scanning(
     /** The scanner. */
     val scanner: ReceiptScanner = NoReceiptScanner,
     /** When a job moves on. */
     val pacer: ScanPacer = ScanPacer.Immediate,
+    /** The device's reading method. */
+    val readingMethods: ReadingMethods = ReadingMethods(llm = null),
 )
 
 /** A fresh, private in-memory database with the current schema. */

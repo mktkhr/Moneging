@@ -4,6 +4,7 @@ import io.github.mktkhr.moneging.data.LedgerScope
 import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.domain.Formats
 import io.github.mktkhr.moneging.scan.Draft
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ScanJob
 import io.github.mktkhr.moneging.scan.ScanState
 import kotlinx.coroutines.CancellationException
@@ -51,6 +52,8 @@ data class ScanJobRow(
     val photoId: String,
     /** Why it failed, or `null` while it is in flight. */
     val failureReason: String?,
+    /** Whether it was read by the device's AI, so it may be read again without AI (`AI を使わずに読む`). */
+    val isReadByDeviceAi: Boolean,
 )
 
 /** The scans of the ledger in view (PRODUCT.md §5, Receipt reading). */
@@ -204,7 +207,12 @@ internal suspend fun LedgerScope.scanUiState(): ScanUiState {
 }
 
 private fun ScanJob.toRow(): ScanJobRow =
-    ScanJobRow(id = id.toString(), photoId = photoId.toString(), failureReason = failureReason)
+    ScanJobRow(
+        id = id.toString(),
+        photoId = photoId.toString(),
+        failureReason = failureReason,
+        isReadByDeviceAi = method == ReadingMethod.DEVICE_AI,
+    )
 
 private fun Draft.toRow(): WaitingDraftRow {
     val storeName = store.value.trim().ifEmpty { "店名なし" }

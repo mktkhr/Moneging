@@ -1,6 +1,5 @@
 package io.github.mktkhr.moneging.scan
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 
@@ -11,8 +10,11 @@ import kotlin.time.Duration
  * failed job carries.
  */
 interface ReceiptScanner {
-    /** The reading of the photo [image]. */
-    suspend fun read(image: ByteArray): ReceiptReading
+    /** The reading of the photo [image], structured by [method]. */
+    suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+    ): ReceiptReading
 }
 
 /**
@@ -20,8 +22,12 @@ interface ReceiptScanner {
  * Intelligence, Gemini Nano on Android devices that support it.
  */
 interface OnDeviceLlm {
-    /** Whether this device has one; when not, [structure] is never asked. */
+    /** Whether this device has one and it can be used now; when not, [structure] is never asked. */
     val isAvailable: Boolean
+
+    /** Why it cannot be used (`設定で Apple Intelligence がオフになっています`), or `null` to say nothing more. */
+    val unavailableReason: String?
+        get() = null
 
     /** The reading the LLM structures [text] (recognised from a receipt) into. */
     suspend fun structure(text: String): ReceiptReading
@@ -34,40 +40,52 @@ fun interface TextRecognizer {
 }
 
 /**
- * Structures recognised text into a reading: by the on-device LLM when the
- * device has one, else by the rule-based parser [ruleBased]. When the LLM
- * fails on a text (a guardrail, a context too long, a malformed answer),
- * the rule-based parser reads it instead. Either way the reading has the
- * same shape.
+ * Structures recognised text into a reading by the reading method given
+ * (PRODUCT.md §3, Reading method): the device's AI [llm], or the rule-based
+ * parser [ruleBased]. Nothing falls back on its own: when the AI cannot be
+ * used or fails on a text, the reading fails with the reason, and the user
+ * chooses what to do. Either way a reading has the same shape.
  */
 class ReceiptStructuring(
     private val llm: OnDeviceLlm,
     private val ruleBased: ReceiptTextParser,
 ) {
-    /** The reading of [text]. */
-    suspend fun structure(text: String): ReceiptReading {
-        if (!llm.isAvailable) return ruleBased.parse(text = text)
-        return try {
-            llm.structure(text = text)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (ignoredFailure: IllegalStateException) {
-            ruleBased.parse(text = text)
-        } catch (ignoredMalformed: IllegalArgumentException) {
-            ruleBased.parse(text = text)
+    /** The reading of [text] by [method]; refuses with [IllegalStateException] when the AI cannot read it. */
+    suspend fun structure(
+        text: String,
+        method: ReadingMethod,
+    ): ReceiptReading =
+        when (method) {
+            ReadingMethod.NO_AI -> {
+                ruleBased.parse(text = text)
+            }
+
+            ReadingMethod.DEVICE_AI -> {
+                check(llm.isAvailable) { llm.unavailableReason ?: DEVICE_AI_UNUSABLE }
+                try {
+                    llm.structure(text = text)
+                } catch (malformed: IllegalArgumentException) {
+                    throw IllegalStateException(AI_ANSWER_UNREADABLE, malformed)
+                }
+            }
         }
-    }
 }
+
+private const val DEVICE_AI_UNUSABLE = "この端末の AI が使えません"
+private const val AI_ANSWER_UNREADABLE = "AI の答えを読み取れませんでした"
 
 /** The scanner of the product: text recognition by [recognizer], then [structuring]. */
 class TextRecognizingReceiptScanner(
     private val recognizer: TextRecognizer,
     private val structuring: ReceiptStructuring,
 ) : ReceiptScanner {
-    override suspend fun read(image: ByteArray): ReceiptReading {
+    override suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+    ): ReceiptReading {
         val text = recognizer.recognize(image = image)
         check(text.isNotBlank()) { "文字が見つかりませんでした" }
-        return structuring.structure(text = text)
+        return structuring.structure(text = text, method = method)
     }
 }
 
@@ -85,14 +103,18 @@ class FixtureReceipt(
  * The scanner that reads fixtures deterministically (PRODUCT.md §6,
  * determinism in tests): for a photo byte-identical to one of [receipts] it
  * answers that receipt's reading, after [duration]; any other photo is not
- * read. With [failure], every photo fails with that reason instead.
+ * read, whatever the reading method. With [failure], every photo fails with
+ * that reason instead.
  */
 class FixtureReceiptScanner(
     private val receipts: List<FixtureReceipt>,
     private val duration: Duration = Duration.ZERO,
     private val failure: String? = null,
 ) : ReceiptScanner {
-    override suspend fun read(image: ByteArray): ReceiptReading {
+    override suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+    ): ReceiptReading {
         if (duration.isPositive()) delay(duration)
         check(failure == null) { failure.orEmpty() }
         val receipt = receipts.firstOrNull { it.isPictureOf(photo = image) }
@@ -102,5 +124,8 @@ class FixtureReceiptScanner(
 
 /** The scanner of a store given none: nothing can be read. */
 internal object NoReceiptScanner : ReceiptScanner {
-    override suspend fun read(image: ByteArray): ReceiptReading = error("この端末ではレシートを読み取れません")
+    override suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+    ): ReceiptReading = error("この端末ではレシートを読み取れません")
 }

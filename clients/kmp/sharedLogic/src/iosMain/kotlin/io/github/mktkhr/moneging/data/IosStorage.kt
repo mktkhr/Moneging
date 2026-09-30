@@ -3,6 +3,7 @@ package io.github.mktkhr.moneging.data
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import io.github.mktkhr.moneging.data.db.MonegingDatabase
+import io.github.mktkhr.moneging.scan.ReadingMethods
 import io.github.mktkhr.moneging.scan.ReceiptScanner
 import io.github.mktkhr.moneging.scan.ScanPacer
 import kotlinx.cinterop.BetaInteropApi
@@ -46,7 +47,7 @@ fun localDataDirectory(): String {
 /**
  * The store kept in [directory] (created if missing) on [clock], stamping
  * records with [preferences]' device identifier and reading receipts with
- * [scanner] as [scanPacer] lets it.
+ * [scanner] as [scanPacer] lets it, by the method chosen in [readingMethods].
  */
 @OptIn(ExperimentalForeignApi::class)
 internal fun onDiskStore(
@@ -55,6 +56,7 @@ internal fun onDiskStore(
     clock: Clock,
     scanner: ReceiptScanner,
     scanPacer: ScanPacer,
+    readingMethods: ReadingMethods,
 ): LocalStore {
     val photos = "$directory/$PHOTOS_DIRECTORY_NAME"
     NSFileManager.defaultManager.createDirectoryAtPath(
@@ -78,7 +80,7 @@ internal fun onDiskStore(
         clock = clock,
         deviceId = deviceId(preferences),
         photoFiles = DirectoryPhotoFiles(photos),
-        scanning = Scanning(scanner = scanner, pacer = scanPacer),
+        scanning = Scanning(scanner = scanner, pacer = scanPacer, readingMethods = readingMethods),
     )
 }
 

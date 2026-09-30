@@ -6,6 +6,7 @@ import androidx.core.content.edit
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import io.github.mktkhr.moneging.data.db.MonegingDatabase
+import io.github.mktkhr.moneging.scan.ReadingMethods
 import java.io.File
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
@@ -13,6 +14,7 @@ import kotlin.uuid.Uuid
 private const val DATABASE_NAME = "moneging.db"
 private const val PHOTOS_DIRECTORY_NAME = "photos"
 private const val PREFERENCES_NAME = "moneging"
+private const val GEMINI_NANO = "Gemini Nano"
 
 /** The store in the app's private storage on [clock], stamping records with [preferences]' device identifier. */
 internal fun onDiskStore(
@@ -28,6 +30,11 @@ internal fun onDiskStore(
         clock = clock,
         deviceId = deviceId(preferences),
         photoFiles = DirectoryPhotoFiles(File(context.filesDir, PHOTOS_DIRECTORY_NAME)),
+        // Gemini Nano is not wired yet: reading uses no AI until it is.
+        scanning =
+            Scanning(
+                readingMethods = ReadingMethods(llm = null, preferences = preferences, aiName = GEMINI_NANO),
+            ),
     )
 }
 

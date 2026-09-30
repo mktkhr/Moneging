@@ -1,6 +1,7 @@
 -- The reading of one photo in the background (PRODUCT.md §3, Scan job): its
 -- state is a ScanState name and only moves forward; a succeeded job names
--- its draft, a failed one says why.
+-- its draft, a failed one says why. method is the ReadingMethod name it
+-- reads by (none for a job from before the reading method).
 CREATE TABLE scan_jobs (
     id TEXT NOT NULL PRIMARY KEY,
     ledger_id TEXT NOT NULL REFERENCES ledgers(id),
@@ -10,7 +11,8 @@ CREATE TABLE scan_jobs (
     failure_reason TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    method TEXT
 );
 
 CREATE INDEX scan_job_ledger ON scan_jobs(ledger_id);
@@ -18,7 +20,8 @@ CREATE INDEX scan_job_ledger ON scan_jobs(ledger_id);
 -- The result of a succeeded scan, waiting to be confirmed or discarded
 -- (§3, Draft); either leaves it a tombstone. Each field keeps the scanner's
 -- confidence (0 to 1); category_id is the whole expense's, for a draft
--- without items.
+-- without items; method is the ReadingMethod name it was read by (none
+-- for a draft from before the reading method).
 CREATE TABLE drafts (
     id TEXT NOT NULL PRIMARY KEY,
     ledger_id TEXT NOT NULL REFERENCES ledgers(id),
@@ -32,7 +35,8 @@ CREATE TABLE drafts (
     category_id TEXT REFERENCES categories(id),
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    method TEXT
 );
 
 CREATE INDEX draft_ledger ON drafts(ledger_id);
@@ -50,8 +54,10 @@ CREATE TABLE draft_items (
 CREATE INDEX draft_item_draft ON draft_items(draft_id);
 
 insertScanJob:
-INSERT INTO scan_jobs (id, ledger_id, photo_id, state, draft_id, failure_reason, created_at, updated_at, deleted_at)
-VALUES (?, ?, ?, 'QUEUED', NULL, NULL, ?, ?, NULL);
+INSERT INTO scan_jobs (
+    id, ledger_id, photo_id, state, draft_id, failure_reason, created_at, updated_at, deleted_at, method
+)
+VALUES (?, ?, ?, 'QUEUED', NULL, NULL, ?, ?, NULL, ?);
 
 -- Moves a job on; a job already at or past the state is left as it is.
 moveScanJob:
@@ -80,9 +86,9 @@ SELECT * FROM scan_jobs ORDER BY rowid;
 insertDraft:
 INSERT INTO drafts (
     id, ledger_id, photo_id, store, store_confidence, date, date_confidence, total, total_confidence,
-    category_id, created_at, updated_at, deleted_at
+    category_id, created_at, updated_at, deleted_at, method
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?);
 
 insertDraftItem:
 INSERT INTO draft_items (id, draft_id, position, name, amount, category_id, confidence)

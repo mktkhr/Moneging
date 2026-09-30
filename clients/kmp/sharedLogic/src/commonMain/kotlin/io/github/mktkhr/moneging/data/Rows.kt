@@ -21,6 +21,7 @@ import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.scan.Draft
 import io.github.mktkhr.moneging.scan.DraftItem
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ScanJob
 import io.github.mktkhr.moneging.scan.ScanState
 import io.github.mktkhr.moneging.scan.ScannedValue
@@ -127,6 +128,7 @@ internal fun Scan_jobs.toDomain(): ScanJob =
         failureReason = failure_reason,
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
+        method = readingMethodOf(method),
     )
 
 internal fun Drafts.toDomain(items: List<DraftItem>): Draft =
@@ -141,7 +143,11 @@ internal fun Drafts.toDomain(items: List<DraftItem>): Draft =
         items = items,
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
+        method = readingMethodOf(method),
     )
+
+// The reading method stored as [name], or `null` for none (or one unknown).
+private fun readingMethodOf(name: String?): ReadingMethod? = ReadingMethod.entries.firstOrNull { it.name == name }
 
 internal fun Draft_items.toDomain(): DraftItem =
     DraftItem(name = name, amount = amount, categoryId = category_id?.toUuid(), confidence = confidence)

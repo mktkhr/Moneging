@@ -15,8 +15,11 @@ private const val NOT_READ = "読み取れませんでした"
  * and the human-readable reason it could not.
  */
 interface IosReceiptReader {
-    /** Whether this device has Foundation Models available. */
+    /** Whether this device has Foundation Models available now. */
     val hasOnDeviceLlm: Boolean
+
+    /** Why Foundation Models cannot be used (`設定で Apple Intelligence がオフになっています`), or `null`. */
+    val onDeviceLlmUnavailableReason: String?
 
     /** Recognises the text of the photo [image], one receipt row per line. */
     fun recognizeText(
@@ -34,7 +37,10 @@ interface IosReceiptReader {
     )
 }
 
-/** The product's scanner on iOS: Vision, then Foundation Models or the rule-based parser. */
+/** The name of the device's AI on iOS. */
+internal const val APPLE_INTELLIGENCE = "Apple Intelligence"
+
+/** The product's scanner on iOS: Vision, then Foundation Models or the rule-based parser, by the method given. */
 internal fun iosReceiptScanner(reader: IosReceiptReader): ReceiptScanner =
     TextRecognizingReceiptScanner(
         recognizer = { image ->
@@ -43,11 +49,15 @@ internal fun iosReceiptScanner(reader: IosReceiptReader): ReceiptScanner =
         structuring = ReceiptStructuring(llm = FoundationModelsLlm(reader), ruleBased = RuleBasedReceiptParser()),
     )
 
-private class FoundationModelsLlm(
+/** Foundation Models, through [reader], as the device's AI. */
+internal class FoundationModelsLlm(
     private val reader: IosReceiptReader,
 ) : OnDeviceLlm {
     override val isAvailable: Boolean
         get() = reader.hasOnDeviceLlm
+
+    override val unavailableReason: String?
+        get() = reader.onDeviceLlmUnavailableReason
 
     override suspend fun structure(text: String): ReceiptReading =
         ReceiptReading.fromJson(

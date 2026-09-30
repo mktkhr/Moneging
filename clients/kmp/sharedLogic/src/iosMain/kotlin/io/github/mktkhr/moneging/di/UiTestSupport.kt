@@ -10,8 +10,10 @@ import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.scan.FixtureReceipt
 import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
+import io.github.mktkhr.moneging.scan.FoundationModelsLlm
 import io.github.mktkhr.moneging.scan.IosReceiptReader
 import io.github.mktkhr.moneging.scan.NoModuleInstaller
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ReadingModuleInstaller
 import io.github.mktkhr.moneging.scan.ReceiptReading
 import io.github.mktkhr.moneging.scan.ScanPacer
@@ -76,6 +78,7 @@ fun initKoinForUiTests(
     val pacer = if (isJobStepping) ScanPacer.Stepped().also { steppedPacer = it } else ScanPacer.Immediate
     startIosKoin(
         clock = clock,
+        llm = FoundationModelsLlm(reader),
         scanner = scannerFixtures?.let { fixtureScanner(directory = it) } ?: iosReceiptScanner(reader),
         scanPacer = pacer,
         installer = installer ?: NoModuleInstaller,
@@ -88,6 +91,15 @@ private var steppedPacer: ScanPacer.Stepped? = null
 /** Moves every unfinished scan job one state on, in a UI test that steps them. */
 fun stepScanJobsForUiTests() {
     steppedPacer?.step()
+}
+
+/**
+ * Sets the reading method, as if chosen in the settings: the device's AI when
+ * [deviceAi], else `AI を使わない`. Must run before [initKoin].
+ */
+fun chooseReadingMethodForUiTests(deviceAi: Boolean) {
+    val method = if (deviceAi) ReadingMethod.DEVICE_AI else ReadingMethod.NO_AI
+    UserDefaultsPreferences().setString(key = PreferenceKeys.READING_METHOD, value = method.name)
 }
 
 /** Enables reading receipts from photos, as if chosen in the onboarding; must run before the app state is resolved. */

@@ -42,6 +42,8 @@ data class ScanJob(
     val createdAt: Instant,
     /** When it last moved. */
     val updatedAt: Instant,
+    /** The method it reads by; `null` for a job from before the reading method. */
+    val method: ReadingMethod? = null,
 )
 
 /** A value the scanner read, with how sure it is of it (0 to 1). */
@@ -86,6 +88,8 @@ data class Draft(
     val createdAt: Instant,
     /** When it was last corrected. */
     val updatedAt: Instant,
+    /** The method it was read by; `null` for a draft from before the reading method. */
+    val method: ReadingMethod? = null,
 )
 
 /** The whole-expense category a correction sets: [id], or `null` for none. */

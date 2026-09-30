@@ -40,21 +40,24 @@ class ReceiptReadingTest {
         }
     }
 
-    /** When the on-device LLM fails, the rule-based parser reads the text instead. */
+    /** When the device's AI fails or answers what cannot be read, the reading fails; nothing falls back. */
     @Test
-    fun failingLlmFallsBackToRules(): TestResult =
+    fun failingAiFailsTheReading(): TestResult =
         runTest {
             val text = listOf("セブン-イレブン", "2026/02/14", "おにぎり ¥380", "合計 ¥380").joinToString(separator = "\n")
-            val failing =
-                object : OnDeviceLlm {
-                    override val isAvailable: Boolean = true
+            val failing = answeringAi { error("ガードレールで止まった") }
+            val malformed = answeringAi { ReceiptReading.fromJson(json = "[]") }
 
-                    override suspend fun structure(text: String): ReceiptReading = error("ガードレールで止まった")
+            val stopped =
+                assertFailsWith<IllegalStateException> {
+                    ReceiptStructuring(llm = failing, ruleBased = RuleBasedReceiptParser())
+                        .structure(text = text, method = ReadingMethod.DEVICE_AI)
                 }
-
-            val reading = ReceiptStructuring(llm = failing, ruleBased = RuleBasedReceiptParser()).structure(text = text)
-
-            assertEquals(expected = RuleBasedReceiptParser().parse(text = text), actual = reading)
+            assertEquals(expected = "ガードレールで止まった", actual = stopped.message)
+            assertFailsWith<IllegalStateException> {
+                ReceiptStructuring(llm = malformed, ruleBased = RuleBasedReceiptParser())
+                    .structure(text = text, method = ReadingMethod.DEVICE_AI)
+            }
         }
 }
 
@@ -66,3 +69,11 @@ internal fun draftJson(
         """"date": {"value": "2026-02-14", "confidence": 0.9}, """ +
         """"total": {"value": $total, "confidence": 0.4}, """ +
         """"items": [{"name": "おにぎり", "amount": $amount, "category": "食費", "confidence": 0.9}]}"""
+
+// A device AI that answers by [answer].
+internal fun answeringAi(answer: () -> ReceiptReading): OnDeviceLlm =
+    object : OnDeviceLlm {
+        override val isAvailable: Boolean = true
+
+        override suspend fun structure(text: String): ReceiptReading = answer()
+    }

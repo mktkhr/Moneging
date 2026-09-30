@@ -50,6 +50,9 @@ internal object PreferenceKeys {
 
     /** The value of [PHOTO_READING] while reading from photos is enabled. */
     const val PHOTO_READING_ON = "on"
+
+    /** The reading method the user chose (`ReadingMethod` name); absent until they choose. */
+    const val READING_METHOD = "readingMethod"
 }
 
 /**

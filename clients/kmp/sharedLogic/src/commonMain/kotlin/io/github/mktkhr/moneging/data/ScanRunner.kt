@@ -2,6 +2,7 @@ package io.github.mktkhr.moneging.data
 
 import io.github.mktkhr.moneging.data.db.MonegingDatabase
 import io.github.mktkhr.moneging.scan.DraftItem
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ReceiptReading
 import io.github.mktkhr.moneging.scan.ScanState
 import kotlinx.coroutines.CancellationException
@@ -46,35 +47,49 @@ internal class ScanRunner(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + context)
 
+    /** The method a scan reads by when none is given: the one the user chose. */
+    val chosenMethod: ReadingMethod
+        get() = scanning.readingMethods.chosen
+
     /** Fails every job left queued or running, as when the app ended while it ran. */
     fun failCutOffJobs() {
         database.scansQueries.failUnfinishedScanJobs(reason = CUT_OFF, updatedAt = now().toColumn())
     }
 
-    /** Runs the job [jobId] of the ledger [ledgerId], reading the photo [photoId]. */
+    /** Runs the job [jobId] of the ledger [ledgerId], reading the photo [photoId] by [method]. */
     fun run(
         ledgerId: Uuid,
         jobId: Uuid,
         photoId: Uuid,
+        method: ReadingMethod,
     ) {
         val rows = LedgerRows(ledgerId = ledgerId, database = database, now = now, context = context)
         scope.launch {
             scanning.pacer.awaitMove()
             move(jobId = jobId, state = ScanState.RUNNING, failureReason = null)
-            val reading = read(photoId = photoId)
+            val reading = read(photoId = photoId, method = method)
             scanning.pacer.awaitMove()
             reading.fold(
-                onSuccess = { succeed(rows = rows, jobId = jobId, photoId = photoId, reading = it) },
+                onSuccess = { read ->
+                    succeed(
+                        rows = rows,
+                        job = RunningJob(id = jobId, photoId = photoId, method = method),
+                        reading = read,
+                    )
+                },
                 onFailure = { move(jobId = jobId, state = ScanState.FAILED, failureReason = it.message ?: UNREADABLE) },
             )
         }
     }
 
     // What the scanner reads from the photo, or why it could not.
-    private suspend fun read(photoId: Uuid): Result<ReceiptReading> {
+    private suspend fun read(
+        photoId: Uuid,
+        method: ReadingMethod,
+    ): Result<ReceiptReading> {
         val bytes = withContext(context) { photoFiles.read(photoId) } ?: return unread(PHOTO_GONE)
         return try {
-            withTimeout(SCAN_DEADLINE) { Result.success(scanning.scanner.read(image = bytes)) }
+            withTimeout(SCAN_DEADLINE) { Result.success(scanning.scanner.read(image = bytes, method = method)) }
         } catch (late: TimeoutCancellationException) {
             unread(DEADLINE_PASSED, cause = late)
         } catch (cancelled: CancellationException) {
@@ -106,21 +121,21 @@ internal class ScanRunner(
     // a reading that makes no draft (no amount at all) fails the job.
     private suspend fun succeed(
         rows: LedgerRows,
-        jobId: Uuid,
-        photoId: Uuid,
+        job: RunningJob,
         reading: ReceiptReading,
     ) {
         val refusal =
             withContext(context) {
                 try {
                     database.transaction {
-                        val draftId = insertDraft(rows = rows, photoId = photoId, reading = reading)
+                        val draftId =
+                            insertDraft(rows = rows, photoId = job.photoId, reading = reading, method = job.method)
                         database.scansQueries.moveScanJob(
                             state = ScanState.SUCCEEDED.name,
                             draftId = draftId.toString(),
                             failureReason = null,
                             updatedAt = now().toColumn(),
-                            id = jobId.toString(),
+                            id = job.id.toString(),
                         )
                     }
                     null
@@ -128,9 +143,16 @@ internal class ScanRunner(
                     unreadable.message ?: UNREADABLE
                 }
             }
-        if (refusal != null) move(jobId = jobId, state = ScanState.FAILED, failureReason = refusal)
+        if (refusal != null) move(jobId = job.id, state = ScanState.FAILED, failureReason = refusal)
     }
 }
+
+// A job being run: [id], reading the photo [photoId] by [method].
+private data class RunningJob(
+    val id: Uuid,
+    val photoId: Uuid,
+    val method: ReadingMethod,
+)
 
 internal fun unread(
     reason: String,
@@ -140,11 +162,13 @@ internal fun unread(
 // Keeps [reading] of the photo [photoId] as a draft of [rows]' ledger:
 // category names become the ledger's active categories of that name (none
 // when it has none), a date not read is the photo's capture date and a total
-// not read the items' sum, both with the confidence 0.
+// not read the items' sum, both with the confidence 0. The draft records
+// the [method] it was read by.
 internal fun insertDraft(
     rows: LedgerRows,
     photoId: Uuid,
     reading: ReceiptReading,
+    method: ReadingMethod,
 ): Uuid {
     val livePhoto = rows.database.photosQueries.livePhoto(ledger_id = rows.ledgerKey, id = photoId.toString())
     val photo = checkNotNull(livePhoto.executeAsOneOrNull()) { PHOTO_GONE }
@@ -185,6 +209,7 @@ internal fun insertDraft(
         category_id = null,
         created_at = now,
         updated_at = now,
+        method = method.name,
     )
     insertDraftItems(rows = rows, draftId = id, items = items)
     return id

@@ -18,6 +18,7 @@ import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.domain.TransactionQuery
 import io.github.mktkhr.moneging.scan.Draft
 import io.github.mktkhr.moneging.scan.DraftCorrection
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ScanJob
 import io.github.mktkhr.moneging.scan.ScanState
 import kotlinx.coroutines.flow.Flow
@@ -101,11 +102,15 @@ interface LedgerPhotos {
  */
 interface LedgerScans {
     /**
-     * Starts reading this ledger's photo [photoId] and returns at once with
-     * its job, [ScanState.QUEUED]; the job moves on by itself, and its
-     * success leaves a draft.
+     * Starts reading this ledger's photo [photoId] by [method], or by the
+     * method the user chose when `null`, and returns at once with its job,
+     * [ScanState.QUEUED]; the job moves on by itself, and its success leaves
+     * a draft that records the method.
      */
-    suspend fun startScan(photoId: Uuid): ScanJob
+    suspend fun startScan(
+        photoId: Uuid,
+        method: ReadingMethod? = null,
+    ): ScanJob
 
     /** This ledger's scan job [id], or `null`. */
     suspend fun findScanJob(id: Uuid): ScanJob?

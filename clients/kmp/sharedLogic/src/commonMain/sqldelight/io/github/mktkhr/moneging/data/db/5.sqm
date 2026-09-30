@@ -1,0 +1,7 @@
+-- Version 5 to 6: the reading method (PRODUCT.md §3, Reading method). A job
+-- and its draft keep the method they were read by (a ReadingMethod name);
+-- those read before this version have none.
+
+ALTER TABLE scan_jobs ADD COLUMN method TEXT;
+
+ALTER TABLE drafts ADD COLUMN method TEXT;

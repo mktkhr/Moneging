@@ -4,8 +4,10 @@ import io.github.mktkhr.moneging.data.InMemoryPreferences
 import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.scan.FixtureReceipt
 import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
+import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ReceiptItem
 import io.github.mktkhr.moneging.scan.ReceiptReading
+import io.github.mktkhr.moneging.scan.ReceiptScanner
 import io.github.mktkhr.moneging.scan.ScannedValue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestResult
@@ -124,6 +126,42 @@ class ScanEditorTest {
             assertTrue(again.failed.size + again.inFlightCount == 1)
         }
 
+    /** A scan read by the device's AI that failed may be read without AI, and its draft says so. */
+    @Test
+    fun failedAiScanIsReadWithoutAi(): TestResult =
+        runTest {
+            val aiStore = LocalStore.inMemory(clock = NoonClock, deviceId = "test-device", scanner = FailingAiScanner)
+            val aiState = AppState(store = aiStore, preferences = InMemoryPreferences(), clock = NoonClock)
+            val aiData = ScanData(store = aiStore, appState = aiState)
+            val aiEditor = ScanEditor(store = aiStore, appState = aiState, clock = NoonClock)
+            val ledger = aiStore.createLedger("家計")
+            aiState.uiState.first { state -> state.ledgers.any { it.id == ledger.id } }
+            aiState.onIntent(AppIntent.SelectLedger(ledgerId = ledger.id.toString()))
+
+            aiEditor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG, method = ReadingMethod.DEVICE_AI)
+            val failed =
+                aiData.uiState
+                    .first { it.failed.isNotEmpty() }
+                    .failed
+                    .single()
+            assertEquals(expected = "組み立てられませんでした", actual = failed.failureReason)
+            assertTrue(failed.isReadByDeviceAi)
+
+            assertNull(aiEditor.readWithoutAi(jobId = failed.id))
+
+            val draft =
+                aiData.uiState
+                    .first { it.waiting.isNotEmpty() }
+                    .waiting
+                    .single()
+            assertEquals(
+                expected = "AI を使わずに読み取りました",
+                actual = assertNotNull(aiEditor.openDraft(draftId = draft.id)).methodText,
+            )
+            aiData.close()
+            aiState.close()
+        }
+
     /** The progress outside the app counts every ledger's scans, whatever ledger is in view. */
     @Test
     fun progressCountsEveryLedger(): TestResult =
@@ -161,3 +199,14 @@ internal fun sevenElevenReading(): ReceiptReading =
         total = ScannedValue(value = TOTAL, confidence = UNSURE),
         items = listOf(ReceiptItem(name = "おにぎり", amount = RICE_BALL, category = "食費", confidence = SURE)),
     )
+
+// Fails every scan by the device's AI; reads the fixture receipt without AI.
+private object FailingAiScanner : ReceiptScanner {
+    override suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+    ): ReceiptReading {
+        check(method == ReadingMethod.NO_AI) { "組み立てられませんでした" }
+        return sevenElevenReading()
+    }
+}
