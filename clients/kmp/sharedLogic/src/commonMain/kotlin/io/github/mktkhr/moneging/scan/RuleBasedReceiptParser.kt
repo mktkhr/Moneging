@@ -45,7 +45,7 @@ class RuleBasedReceiptParser : ReceiptTextParser {
                 ITEMS_END_PREFIXES.any { prefix -> lines[index].startsWith(prefix) }
             } ?: lines.size
         val items =
-            ItemReader(isDelivery = lines.firstOrNull() == DELIVERY_FIRST_LINE)
+            ItemReader(isDelivery = lines.firstOrNull()?.startsWith(DELIVERY_FIRST_LINE) == true)
                 .read(lines = lines.subList(fromIndex = itemsStart, toIndex = itemsEnd).map(::ReceiptLine))
         val hasAddedTax = lines.any { line -> ADDED_TAX_MARKS.any { mark -> line.contains(mark) } }
         val store = ReceiptChains.nameIn(lines) ?: lines.firstOrNull()

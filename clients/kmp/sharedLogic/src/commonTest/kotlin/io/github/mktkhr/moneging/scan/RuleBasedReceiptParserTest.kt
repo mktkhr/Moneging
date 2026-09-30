@@ -8,6 +8,7 @@ private const val THOUSANDS = 3_280L
 private const val DISCOUNT = -198L
 private const val LUNCH = 1_000L
 private const val LUNCH_ALONE = 800L
+private const val DISCOUNTED = 598L
 
 /** The pieces of the rule-based parser the recorded receipts do not all show. */
 class RuleBasedReceiptParserTest {
@@ -40,5 +41,15 @@ class RuleBasedReceiptParserTest {
 
         assertEquals(expected = listOf(LUNCH_ALONE), actual = included.items.map { item -> item.amount })
         assertEquals(expected = listOf(LUNCH_ALONE), actual = excluded.items.map { item -> item.amount })
+    }
+
+    /** An amount below zero whose label was not recognised is still a discount of the item above. */
+    @Test
+    fun bareNegativeIsADiscount() {
+        val text = listOf("店", "2026年09月28日", "大盛ペペロンチーノ *648", "-50", "合計 ¥598").joinToString(separator = "\n")
+
+        val reading = RuleBasedReceiptParser().parse(text = text)
+
+        assertEquals(expected = listOf("大盛ペペロンチーノ" to DISCOUNTED), actual = reading.items.map { it.name to it.amount })
     }
 }

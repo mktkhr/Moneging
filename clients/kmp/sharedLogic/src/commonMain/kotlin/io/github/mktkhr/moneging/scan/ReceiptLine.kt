@@ -36,8 +36,11 @@ internal class ReceiptLine(
     /** Whether it starts with a quantity and a unit price (`2コ✕単178 ¥356`). */
     val isQuantity: Boolean = QUANTITY.containsMatchIn(line)
 
-    /** Whether it is a discount (`値引額 -50`, `シール割引 50%`). */
-    val isDiscount: Boolean = DISCOUNT_MARKS.any { mark -> text.contains(mark) }
+    /**
+     * Whether it is a discount (`値引額 -50`, `シール割引 50%`), or an amount
+     * below zero whose label was not recognised (`-50`).
+     */
+    val isDiscount: Boolean = DISCOUNT_MARKS.any { mark -> text.contains(mark) } || amount ?: 0L < 0L
 
     /** Whether it is an option of the item above (`+ LARGE RICE ¥150`, `氷Ice※通常 ¥120`). */
     val isOption: Boolean = line.startsWith(OPTION_PREFIX) || hasOptionMark(amount = amount, text = text)
