@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 import SharedLogic
-import SwiftUI
 import UIKit
 
 /// `@Observable` adapter over the shared Kotlin `ScanData` (the scans of the
@@ -13,7 +12,7 @@ import UIKit
 /// environment. A write returns whether it was done; a refusal is kept in
 /// `failureMessage` for the screen to show. Accepting photos shows the
 /// notice `N枚の読み取りを受け付けました` for a moment (`notice`). While any
-/// scan is in flight its progress is shown outside the app
+/// scan of any ledger is in flight its progress is shown outside the app
 /// (`progressSurface`), and that ends as soon as none is.
 @MainActor
 @Observable
@@ -24,18 +23,14 @@ internal final class ScanStore {
     internal private(set) var notice: String?
     /// Why the last write was refused, or `nil`.
     internal var failureMessage: String?
-    /// The name of the ledger in view, which the progress outside the app shows.
-    internal var ledgerName: String = "" {
-        didSet {
-            self.showProgress()
-        }
-    }
 
     private let scanData: ScanData
     private let editor: ScanEditor
     private let progressSurface: any ScanProgressSurface
     /// Holds the observation loop; see `SharedStateStore.observationTask`.
     private let observationTask: ObservationTaskBox = ObservationTaskBox()
+    /// Holds the loop observing the scans in flight in every ledger.
+    private let progressTask: ObservationTaskBox = ObservationTaskBox()
     /// Hides the notice after `Theme.Scanning.noticeDuration`.
     private let noticeTask: ObservationTaskBox = ObservationTaskBox()
 
@@ -57,7 +52,16 @@ internal final class ScanStore {
                     return
                 }
                 self.state = published
-                self.showProgress()
+            }
+        }
+        let progressFlow: SkieSwiftStateFlow<ScanProgress> = scanData.progress
+        let progressBox: ObservationTaskBox = self.progressTask
+        progressBox.task = Task { [weak self] in
+            for await progress in progressFlow {
+                guard let self else {
+                    return
+                }
+                self.show(progress: progress)
             }
         }
     }
@@ -118,19 +122,21 @@ internal final class ScanStore {
         return UIImage(data: nsData(bytes: bytes))
     }
 
-    // Shows the scans in flight outside the app, or ends that when none is.
-    private func showProgress() {
-        let isInFlight: Bool = self.state.isInFlight
+    // Shows the scans in flight in every ledger outside the app, or ends
+    // that when none is.
+    private func show(progress: ScanProgress) {
+        guard progress.isInFlight else {
+            self.progressSurface.show(progress: nil)
+            return
+        }
         self.progressSurface.show(
-            ledgerName: self.ledgerName,
-            progress: isInFlight
-                ? ScanActivityAttributes.ContentState(
-                    inFlight: Int(self.state.inFlightCount),
-                    waiting: Int(self.state.waitingCount),
-                    finished: Int(self.state.finishedInRun),
-                    total: Int(self.state.totalInRun),
-                )
-                : nil,
+            progress: ScanActivityAttributes.ContentState(
+                inFlight: Int(progress.inFlight),
+                waiting: Int(progress.waiting),
+                finished: Int(progress.finishedInRun),
+                total: Int(progress.totalInRun),
+                ledgerLabel: progress.ledgerLabel,
+            ),
         )
     }
 
@@ -165,6 +171,7 @@ internal final class ScanStore {
 
     deinit {
         self.observationTask.task?.cancel()
+        self.progressTask.task?.cancel()
         self.noticeTask.task?.cancel()
     }
 }

@@ -20,7 +20,7 @@ internal final class LiveActivityProgressSurface: ScanProgressSurface {
     }
 
     /// Starts, updates or ends the Live Activity.
-    internal func show(ledgerName: String, progress: ScanActivityAttributes.ContentState?) {
+    internal func show(progress: ScanActivityAttributes.ContentState?) {
         guard let progress else {
             self.end()
             return
@@ -30,18 +30,16 @@ internal final class LiveActivityProgressSurface: ScanProgressSurface {
             state: progress,
             staleDate: nil,
         )
-        if let activity = self.activity, activity.attributes.ledgerName == ledgerName {
+        if let activity = self.activity {
             Task {
                 await activity.update(content)
             }
             return
         }
-        self.endActivity()
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             return
         }
         let attributes: ScanActivityAttributes = ScanActivityAttributes(
-            ledgerName: ledgerName,
             accentLightHex: Theme.accentLightHex,
             accentDarkHex: Theme.accentDarkHex,
         )

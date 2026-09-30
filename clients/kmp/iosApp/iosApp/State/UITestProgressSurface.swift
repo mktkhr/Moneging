@@ -7,7 +7,7 @@
     @MainActor
     @Observable
     internal final class UITestProgressSurface: ScanProgressSurface {
-        /// Whether any scan of the ledger in view is in flight.
+        /// Whether any scan is in flight.
         internal private(set) var isShown: Bool = false
 
         internal init() {
@@ -15,7 +15,7 @@
         }
 
         /// Shows while `progress` is given, hides at once when it is not.
-        internal func show(ledgerName _: String, progress: ScanActivityAttributes.ContentState?) {
+        internal func show(progress: ScanActivityAttributes.ContentState?) {
             self.isShown = progress != nil
         }
 

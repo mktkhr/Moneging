@@ -27,7 +27,7 @@ internal struct ScanLiveActivity: Widget {
                         .foregroundStyle(accent)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.attributes.ledgerName)
+                    Text(context.state.ledgerLabel)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Self.counts(context.state, accent: accent)
@@ -62,7 +62,7 @@ internal struct ScanLiveActivity: Widget {
                 Text("レシートを読み取り中")
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(context.attributes.ledgerName)
+                Text(context.state.ledgerLabel)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -1,7 +1,7 @@
 import ActivityKit
 
 /// The Live Activity of the scans in flight (`LiveActivity5.dc.html`): on
-/// the lock screen and in the Dynamic Island while any scan of the ledger
+/// the lock screen and in the Dynamic Island while any scan of any ledger
 /// is queued or running, ended as soon as none is.
 ///
 /// Compiled into the app, which starts, updates and ends it, and into the
@@ -17,10 +17,9 @@ internal struct ScanActivityAttributes: ActivityAttributes {
         internal var finished: Int
         /// Scans this run has.
         internal var total: Int
+        /// Whom the scans are of: the ledger's name, or `2つの家計簿`.
+        internal var ledgerLabel: String
     }
-
-    /// The name of the ledger the scans are of.
-    internal var ledgerName: String
     /// The user's accent colour, `#RRGGBB`, in light mode.
     internal var accentLightHex: String
     /// The user's accent colour, `#RRGGBB`, in dark mode.

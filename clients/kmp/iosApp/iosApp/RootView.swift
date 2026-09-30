@@ -19,9 +19,6 @@ internal struct RootView: View {
     @Environment(LedgerStore.self)
     private var ledgerStore: LedgerStore
 
-    @Environment(ScanStore.self)
-    private var scanStore: ScanStore
-
     @Environment(\.scenePhase)
     private var scenePhase: ScenePhase
 
@@ -81,10 +78,6 @@ internal struct RootView: View {
             .ledgerFailureAlert()
             .scanFailureAlert()
             .receiptCapture()
-            // The progress outside the app names the ledger in view.
-            .onChange(of: self.store.selectedLedgerName, initial: true) { _, name in
-                self.scanStore.ledgerName = name
-            }
             #if DEBUG
                 .overlay(alignment: .topLeading) {
                     if let installer = UITestScanning.moduleInstaller {

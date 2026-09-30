@@ -6,7 +6,7 @@
     /// moves every unfinished scan job one state on (`scan-job-step`, with
     /// `-UITestJobStepping YES`), and the stand-in for the Live Activity
     /// (`progress-surface`, with `-UITestFakeProgressSurface YES`), present
-    /// exactly while any scan of the ledger in view is in flight.
+    /// exactly while any scan is in flight.
     internal struct UITestScanControls: View {
         internal var body: some View {
             HStack(spacing: Theme.Spacing.small) {

@@ -51,13 +51,13 @@ data class ReceiptReading(
                         value = (date[VALUE] as? String)?.let { LocalDate.parse(it) },
                         confidence = date.confidence(),
                     ),
-                total = ScannedValue(value = (total[VALUE] as? Double)?.toYen(), confidence = total.confidence()),
+                total = ScannedValue(value = (total[VALUE] as? JsonNumber)?.toYen(), confidence = total.confidence()),
                 items =
                     (root["items"] as? List<*>).orEmpty().map { element ->
                         val item = element.asObject(what = "明細")
                         ReceiptItem(
                             name = (item["name"] as? String).orEmpty(),
-                            amount = requireNotNull((item["amount"] as? Double)?.toYen()) { "明細の金額がありません" },
+                            amount = requireNotNull((item["amount"] as? JsonNumber)?.toYen()) { "明細の金額がありません" },
                             category = item["category"] as? String,
                             confidence = item.confidence(),
                         )
@@ -77,10 +77,4 @@ private fun Any?.asObject(what: String): Map<*, *> =
 
 private fun Map<*, *>.field(name: String): Map<*, *> = this[name].asObject(what = name)
 
-private fun Map<*, *>.confidence(): Double = this[CONFIDENCE] as? Double ?: 0.0
-
-private fun Double.toYen(): Long {
-    val yen = toLong()
-    require(yen.toDouble() == this) { "金額が円単位の整数でありません" }
-    return yen
-}
+private fun Map<*, *>.confidence(): Double = (this[CONFIDENCE] as? JsonNumber)?.toConfidence() ?: 0.0

@@ -63,10 +63,6 @@ data class ScanUiState(
     val inFlight: List<ScanJobRow>,
     /** The failed scans still to be dealt with: not read again, their photo not recorded. */
     val failed: List<ScanJobRow>,
-    /** How many scans of the current run (since none was in flight) have finished. */
-    val finishedInRun: Int,
-    /** How many scans the current run has. */
-    val totalInRun: Int,
     /** Why reading failed, or `null`. */
     val loadErrorMessage: String?,
 ) {
@@ -77,10 +73,6 @@ data class ScanUiState(
     /** How many drafts wait. */
     val waitingCount: Int
         get() = waiting.size
-
-    /** Whether any scan is queued or running: its progress is shown outside the app. */
-    val isInFlight: Boolean
-        get() = inFlight.isNotEmpty()
 
     /** `読み取り中 1件`. */
     val inFlightText: String
@@ -118,8 +110,6 @@ data class ScanUiState(
                 waiting = emptyList(),
                 inFlight = emptyList(),
                 failed = emptyList(),
-                finishedInRun = 0,
-                totalInRun = 0,
                 loadErrorMessage = null,
             )
     }
@@ -129,8 +119,9 @@ data class ScanUiState(
 fun scanAcceptedNotice(count: Int): String = "${count}枚の読み取りを受け付けました"
 
 /**
- * App-lifetime holder of [ScanUiState]: the scans of the ledger in view,
- * read again whenever the ledger changes and whenever a scan, a draft, a
+ * App-lifetime holder of [ScanUiState], the scans of the ledger in view, and
+ * of [ScanProgress], those in flight in every ledger: read again whenever
+ * the ledger in view or the ledgers change and whenever a scan, a draft, a
  * photo or a transaction changes. Jobs and drafts are read from the
  * database, so reopening the app finds them again.
  */
@@ -141,12 +132,17 @@ class ScanData internal constructor(
 ) {
     private val coroutineScope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableUiState = MutableStateFlow(ScanUiState.EMPTY)
+    private val mutableProgress = MutableStateFlow(ScanProgress.NONE)
 
     /** The scans of the ledger in view. */
     val uiState: StateFlow<ScanUiState> = mutableUiState.asStateFlow()
 
+    /** The scans in flight in every ledger, whatever ledger is in view. */
+    val progress: StateFlow<ScanProgress> = mutableProgress.asStateFlow()
+
     init {
         coroutineScope.launch { observe(appState) }
+        coroutineScope.launch { observeProgress() }
     }
 
     /** Cancels this holder's coroutine scope; see [AppState.close]. */
@@ -159,6 +155,20 @@ class ScanData internal constructor(
         val ledgerInView = appState.uiState.map { it.selectedLedgerId }.distinctUntilChanged()
         combine(ledgerInView, store.observeScanChanges().conflate()) { ledgerId, _ -> ledgerId }
             .collectLatest { ledgerId -> read(ledgerId) }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun observeProgress() {
+        combine(store.observeLedgers(), store.observeScanChanges().conflate()) { _, _ -> }
+            .collectLatest {
+                try {
+                    mutableProgress.value = store.scanProgress()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (expected: IllegalStateException) {
+                    mutableUiState.update { state -> state.copy(loadErrorMessage = expected.message ?: READ_FAILED) }
+                }
+            }
     }
 
     private suspend fun read(ledgerId: String?) {
@@ -184,15 +194,11 @@ internal suspend fun LedgerScope.scanUiState(): ScanUiState {
     // The newest job of each photo: a photo read again shows only its new scan.
     val latest = jobs.groupBy { it.photoId }.mapValues { (_, photoJobs) -> photoJobs.last().id }
     val failed = jobs.filter { it.state == ScanState.FAILED && latest[it.photoId] == it.id && it.photoId !in linked }
-    val runStart = inFlight.minOfOrNull { it.createdAt }
-    val run = if (runStart == null) emptyList() else jobs.filter { it.createdAt >= runStart }
     return ScanUiState(
         ledgerId = ledgerId.toString(),
         waiting = waitingDrafts().map { it.toRow() },
         inFlight = inFlight.map { it.toRow() },
         failed = failed.map { it.toRow() },
-        finishedInRun = run.count { !it.state.isInFlight },
-        totalInRun = run.size,
         loadErrorMessage = null,
     )
 }

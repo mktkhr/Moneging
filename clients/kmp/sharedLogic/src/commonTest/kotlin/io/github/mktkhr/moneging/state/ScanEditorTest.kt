@@ -124,6 +124,28 @@ class ScanEditorTest {
             assertTrue(again.failed.size + again.inFlightCount == 1)
         }
 
+    /** The progress outside the app counts every ledger's scans, whatever ledger is in view. */
+    @Test
+    fun progressCountsEveryLedger(): TestResult =
+        runTest {
+            ledgerInView()
+            editor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG)
+            val other = store.createLedger("旅行")
+            appState.uiState.first { state -> state.ledgers.any { it.id == other.id } }
+            appState.onIntent(AppIntent.SelectLedger(ledgerId = other.id.toString()))
+            editor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG)
+
+            val progress = scanData.progress.first { it.waiting == 2 }
+
+            assertEquals(expected = 0, actual = progress.inFlight)
+            assertEquals(expected = ScanProgress.NONE.copy(waiting = 2), actual = progress)
+            assertEquals(
+                expected = "2つの家計簿",
+                actual = ScanProgress.NONE.copy(ledgerNames = listOf("家計", "旅行")).ledgerLabel,
+            )
+            assertEquals(expected = "家計", actual = ScanProgress.NONE.copy(ledgerNames = listOf("家計")).ledgerLabel)
+        }
+
     private suspend fun ledgerInView(): Uuid {
         val ledger = store.createLedger("家計")
         appState.uiState.first { state -> state.ledgers.any { it.id == ledger.id } }

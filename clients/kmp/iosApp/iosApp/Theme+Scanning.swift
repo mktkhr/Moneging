@@ -40,8 +40,6 @@ extension Theme {
         internal static let thumbnailRadius: CGFloat = 8
         /// The width of a thumbnail's border.
         internal static let thumbnailBorderWidth: CGFloat = 1
-        /// Where a list row's divider starts: past the thumbnail.
-        internal static let dividerInset: CGFloat = 70
         /// The 要確認 mark's text, and the draft's destructive action.
         internal static let review: Color = Color(
             light: "#B8432F",

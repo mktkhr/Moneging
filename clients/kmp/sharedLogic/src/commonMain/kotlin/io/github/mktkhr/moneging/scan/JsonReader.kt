@@ -2,12 +2,25 @@ package io.github.mktkhr.moneging.scan
 
 // A small reader of JSON text into Kotlin values, enough for the drafts the
 // scanners exchange (acceptance/fixtures/README.md): objects as maps,
-// arrays as lists, strings, numbers as Double, booleans and null. Malformed
+// arrays as lists, strings, numbers as their text (JsonNumber, so an amount
+// never passes through a floating-point type), booleans and null. Malformed
 // text is refused with IllegalArgumentException.
 
 private const val HEX_RADIX = 16
 private const val UNICODE_ESCAPE_LENGTH = 4
 private const val NUMBER_SIGNS = "+-.eE"
+
+/** A JSON number as it is written ([token]), read as the type its use needs. */
+internal data class JsonNumber(
+    /** The number's text (`1180`, `0.95`). */
+    val token: String,
+) {
+    /** The number as whole yen; refuses one that is not an integer (`1180.5`, `1.18e3`). */
+    fun toYen(): Long = requireNotNull(token.toLongOrNull()) { "金額が円単位の整数でありません" }
+
+    /** The number as a confidence, from 0 to 1. */
+    fun toConfidence(): Double = token.toDouble()
+}
 
 /** The value of the JSON document [text]. */
 internal fun readJson(text: String): Any? {
@@ -127,13 +140,14 @@ private class JsonValues(
         return requireNotNull(hex.toIntOrNull(radix = HEX_RADIX)) { "JSON の \\u が16進数でありません" }.toChar()
     }
 
-    private fun readNumber(): Double {
+    private fun readNumber(): JsonNumber {
         val start = cursor.position
         while (cursor.peek()?.let { it.isDigit() || it in NUMBER_SIGNS } == true) {
             cursor.next()
         }
         val number = cursor.text.substring(startIndex = start, endIndex = cursor.position)
-        return requireNotNull(number.toDoubleOrNull()) { "JSON の数が読めません" }
+        requireNotNull(number.toDoubleOrNull()) { "JSON の数が読めません" }
+        return JsonNumber(token = number)
     }
 
     private fun readLiteral(): Boolean? {

@@ -1,5 +1,6 @@
 package io.github.mktkhr.moneging.scan
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 
@@ -34,16 +35,28 @@ fun interface TextRecognizer {
 
 /**
  * Structures recognised text into a reading: by the on-device LLM when the
- * device has one, else by the rule-based parser [ruleBased]. Either way the
- * reading has the same shape.
+ * device has one, else by the rule-based parser [ruleBased]. When the LLM
+ * fails on a text (a guardrail, a context too long, a malformed answer),
+ * the rule-based parser reads it instead. Either way the reading has the
+ * same shape.
  */
 class ReceiptStructuring(
     private val llm: OnDeviceLlm,
     private val ruleBased: ReceiptTextParser,
 ) {
     /** The reading of [text]. */
-    suspend fun structure(text: String): ReceiptReading =
-        if (llm.isAvailable) llm.structure(text = text) else ruleBased.parse(text = text)
+    suspend fun structure(text: String): ReceiptReading {
+        if (!llm.isAvailable) return ruleBased.parse(text = text)
+        return try {
+            llm.structure(text = text)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (ignoredFailure: IllegalStateException) {
+            ruleBased.parse(text = text)
+        } catch (ignoredMalformed: IllegalArgumentException) {
+            ruleBased.parse(text = text)
+        }
+    }
 }
 
 /** The scanner of the product: text recognition by [recognizer], then [structuring]. */
