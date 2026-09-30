@@ -61,7 +61,7 @@ data class Transaction(
     val recurringMonth: YearMonth?,
 ) : SyncRecord
 
-/** A planned amount for a ledger, optionally for one category, from a month on. */
+/** A planned amount for a ledger, optionally for one category, from a month on, or its removal from a month on. */
 data class Budget(
     override val id: Uuid,
     /** The ledger it belongs to. */
@@ -74,6 +74,8 @@ data class Budget(
     val fromMonth: YearMonth,
     override val createdAt: Instant,
     override val updatedAt: Instant,
+    /** Whether it removes the budget from [fromMonth] on, rather than setting [amount]. */
+    val isRemoved: Boolean = false,
 ) : SyncRecord
 
 /** Where a recurring rule's date moves when it is not a business day (PRODUCT.md §3). */

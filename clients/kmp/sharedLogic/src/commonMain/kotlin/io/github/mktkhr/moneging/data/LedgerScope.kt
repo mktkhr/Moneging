@@ -1,8 +1,11 @@
 package io.github.mktkhr.moneging.data
 
 import io.github.mktkhr.moneging.domain.Budget
+import io.github.mktkhr.moneging.domain.CarryOverPolicy
 import io.github.mktkhr.moneging.domain.Category
 import io.github.mktkhr.moneging.domain.DailyTotal
+import io.github.mktkhr.moneging.domain.MonthBudgets
+import io.github.mktkhr.moneging.domain.MonthClose
 import io.github.mktkhr.moneging.domain.MonthTotals
 import io.github.mktkhr.moneging.domain.MonthlyReport
 import io.github.mktkhr.moneging.domain.MonthlyTotal
@@ -10,6 +13,7 @@ import io.github.mktkhr.moneging.domain.NewRecurringRule
 import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.domain.Photo
 import io.github.mktkhr.moneging.domain.RecurringRule
+import io.github.mktkhr.moneging.domain.Savings
 import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.domain.TransactionQuery
 import kotlinx.datetime.YearMonth
@@ -29,6 +33,7 @@ interface LedgerScope :
     LedgerReports,
     LedgerTransactionWrites,
     LedgerPlans,
+    LedgerMonthCloses,
     LedgerRecurringRules {
     /** The ledger these operations act within. */
     val ledgerId: Uuid
@@ -124,7 +129,12 @@ interface LedgerTransactionWrites {
     suspend fun deleteTransaction(transactionId: Uuid)
 }
 
-/** A ledger's budgets. */
+/**
+ * A ledger's budgets (PRODUCT.md §3, Budget). A budget set or removed from a
+ * month on holds for every later month until another is set or removed; a
+ * write from a month that is closed, or before one, is refused with
+ * [IllegalStateException] (a closed month's budgets are final).
+ */
 interface LedgerPlans {
     /** Sets a budget of [amount] for [categoryId] (`null`: the whole month) from the month [from] on. */
     suspend fun setBudget(
@@ -132,6 +142,48 @@ interface LedgerPlans {
         amount: Long,
         from: YearMonth,
     ): Budget
+
+    /** Removes the budget of [categoryId] (`null`: the whole month) from the month [from] on. */
+    suspend fun removeBudget(
+        categoryId: Uuid?,
+        from: YearMonth,
+    ): Budget
+
+    /**
+     * The budgets of [month]: the whole month's, then every category with a
+     * budget or with spending, in category order, each with what was
+     * carried in, spent and left.
+     */
+    suspend fun budgetRemaining(month: YearMonth): MonthBudgets
+}
+
+/**
+ * Closing a ledger's months (PRODUCT.md §3, Carry-over policy) and its
+ * savings. A refused close throws [IllegalStateException].
+ */
+interface LedgerMonthCloses {
+    /** The ledger's carry-over policy: [CarryOverPolicy.CARRY] until changed. */
+    suspend fun carryOverPolicy(): CarryOverPolicy
+
+    /** Changes the ledger's carry-over policy; closed months keep theirs. */
+    suspend fun setCarryOverPolicy(policy: CarryOverPolicy)
+
+    /**
+     * Closes [month] under the ledger's policy, once: a month closed already
+     * is not closed again, and its first close is reported. Refused while
+     * the month has not ended (Asia/Tokyo), and while an earlier month that
+     * has a budget is open.
+     */
+    suspend fun closeMonth(month: YearMonth): MonthClose
+
+    /** Whether [month] is closed. */
+    suspend fun isMonthClosed(month: YearMonth): Boolean
+
+    /** The earliest month that has ended, has a budget and is open: the one to offer closing; `null` for none. */
+    suspend fun monthToClose(): YearMonth?
+
+    /** The ledger's savings. */
+    suspend fun savings(): Savings
 }
 
 /** A ledger's recurring rules, and the transactions they record. */

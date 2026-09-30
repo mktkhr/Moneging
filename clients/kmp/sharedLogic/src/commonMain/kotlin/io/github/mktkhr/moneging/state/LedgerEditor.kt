@@ -95,6 +95,9 @@ class LedgerEditor internal constructor(
     val recurringRules: RecurringRuleEditor =
         RecurringRuleEditor(ledgerData = ledgerData) { write -> attempt(write) }
 
+    /** The writes of the budgets and the month closes of the ledger in view. */
+    val budgets: BudgetEditor = BudgetEditor { write -> attempt(write) }
+
     /** Records [draft] in the ledger in view. */
     @Throws(Exception::class)
     suspend fun recordTransaction(draft: TransactionDraft): String? =

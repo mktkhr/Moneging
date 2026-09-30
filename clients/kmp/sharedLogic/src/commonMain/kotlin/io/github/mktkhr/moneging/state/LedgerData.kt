@@ -1,12 +1,15 @@
 package io.github.mktkhr.moneging.state
 
 import io.github.mktkhr.moneging.data.LocalStore
+import io.github.mktkhr.moneging.domain.CarryOverPolicy
 import io.github.mktkhr.moneging.domain.Category
 import io.github.mktkhr.moneging.domain.DailyTotal
+import io.github.mktkhr.moneging.domain.MonthBudgets
 import io.github.mktkhr.moneging.domain.MonthTotals
 import io.github.mktkhr.moneging.domain.MonthlyReport
 import io.github.mktkhr.moneging.domain.MonthlyTotal
 import io.github.mktkhr.moneging.domain.RecurringRule
+import io.github.mktkhr.moneging.domain.Savings
 import io.github.mktkhr.moneging.domain.Transaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -28,7 +31,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.YearMonth
+import kotlinx.datetime.plus
 import kotlin.uuid.Uuid
 
 private const val READ_FAILED = "記録を読み込めませんでした"
@@ -56,6 +61,16 @@ data class LedgerUiState(
     val categories: List<Category>,
     /** The ledger's live recurring rules, in creation order. */
     val recurringRules: List<RecurringRule>,
+    /** The budgets of the month, or `null` before they are read. */
+    val budgets: MonthBudgets?,
+    /** The budgets of the month to offer closing, the earliest ended open one with a budget; `null` for none. */
+    val closing: MonthBudgets?,
+    /** The budgets of the month after [closing], or `null`. */
+    val closingNext: MonthBudgets?,
+    /** The ledger's savings. */
+    val savings: Savings,
+    /** The ledger's carry-over policy. */
+    val carryOverPolicy: CarryOverPolicy,
     /** Why reading failed, or `null`. */
     val loadErrorMessage: String?,
 ) {
@@ -78,6 +93,11 @@ data class LedgerUiState(
                 trend = emptyList(),
                 categories = emptyList(),
                 recurringRules = emptyList(),
+                budgets = null,
+                closing = null,
+                closingNext = null,
+                savings = Savings(balance = 0L, contributions = emptyList()),
+                carryOverPolicy = CarryOverPolicy.CARRY,
                 loadErrorMessage = null,
             )
     }
@@ -156,12 +176,13 @@ class LedgerData internal constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun observe() {
+        // Today too: which ended month is offered for closing follows it.
         val inView =
             appState.uiState
-                .map { it.selectedLedgerId to it.selectedMonth }
+                .map { Triple(it.selectedLedgerId, it.selectedMonth, it.today) }
                 .distinctUntilChanged()
         combine(inView, store.observeRecordChanges().conflate()) { key, _ -> key }
-            .collectLatest { (ledgerId, month) -> read(ledgerId = ledgerId, month = month) }
+            .collectLatest { (ledgerId, month, _) -> read(ledgerId = ledgerId, month = month) }
     }
 
     private suspend fun read(
@@ -174,6 +195,7 @@ class LedgerData internal constructor(
         }
         val scope = store.ledger(Uuid.parse(ledgerId))
         try {
+            val monthToClose = scope.monthToClose()
             mutableUiState.value =
                 LedgerUiState(
                     ledgerId = ledgerId,
@@ -186,6 +208,11 @@ class LedgerData internal constructor(
                     trend = scope.monthlyTrend(to = month),
                     categories = scope.categories(),
                     recurringRules = scope.recurringRules(),
+                    budgets = scope.budgetRemaining(month),
+                    closing = monthToClose?.let { scope.budgetRemaining(it) },
+                    closingNext = monthToClose?.let { scope.budgetRemaining(it.plus(1, DateTimeUnit.MONTH)) },
+                    savings = scope.savings(),
+                    carryOverPolicy = scope.carryOverPolicy(),
                     loadErrorMessage = null,
                 )
         } catch (cancelled: CancellationException) {

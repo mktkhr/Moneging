@@ -1,16 +1,18 @@
 -- A book of money (PRODUCT.md §3). Instants are epoch milliseconds; a
--- non-null deleted_at is a tombstone (§6, sync-ready data).
+-- non-null deleted_at is a tombstone (§6, sync-ready data). carry_over_policy
+-- is a CarryOverPolicy name (§3).
 CREATE TABLE ledgers (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    carry_over_policy TEXT NOT NULL DEFAULT 'CARRY'
 );
 
 insertLedger:
-INSERT INTO ledgers (id, name, created_at, updated_at, deleted_at)
-VALUES (?, ?, ?, ?, NULL);
+INSERT INTO ledgers (id, name, created_at, updated_at, deleted_at, carry_over_policy)
+VALUES (?, ?, ?, ?, NULL, 'CARRY');
 
 liveLedgers:
 SELECT * FROM ledgers WHERE deleted_at IS NULL ORDER BY rowid;
@@ -23,3 +25,9 @@ SELECT * FROM ledgers ORDER BY rowid;
 
 renameLedger:
 UPDATE ledgers SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL;
+
+carryOverPolicy:
+SELECT carry_over_policy FROM ledgers WHERE id = ? AND deleted_at IS NULL;
+
+setCarryOverPolicy:
+UPDATE ledgers SET carry_over_policy = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL;

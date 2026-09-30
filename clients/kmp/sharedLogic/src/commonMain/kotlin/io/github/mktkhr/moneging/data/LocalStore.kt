@@ -82,14 +82,18 @@ class LocalStore internal constructor(
             .map { rows -> rows.map { it.toDomain() } }
 
     /**
-     * Emits at once, then whenever a transaction, a category or a recurring
-     * rule of any ledger changes: when to read a ledger's records again.
+     * Emits at once, then whenever a transaction, a category, a recurring
+     * rule, a budget, a close or a ledger's settings change: when to read a
+     * ledger's records again.
      */
     fun observeRecordChanges(): Flow<Unit> =
         merge(
             database.transactionsQueries.allTransactions().asFlow(),
             database.categoriesQueries.allCategories().asFlow(),
             database.recurringRulesQueries.allRecurringRules().asFlow(),
+            database.budgetsQueries.allBudgets().asFlow(),
+            database.monthClosesQueries.allMonthCloses().asFlow(),
+            database.ledgersQueries.allLedgers().asFlow(),
         ).map { }
 
     /** The ledger [id], or `null` when there is none. */

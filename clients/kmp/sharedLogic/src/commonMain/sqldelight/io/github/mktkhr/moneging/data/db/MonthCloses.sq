@@ -1,0 +1,48 @@
+-- A month closed (PRODUCT.md §3, Carry-over policy): at most one per ledger
+-- and month, with the policy it was closed under and what it saved.
+CREATE TABLE month_closes (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    month TEXT NOT NULL,
+    policy TEXT NOT NULL,
+    saved INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE UNIQUE INDEX month_close_ledger_month ON month_closes(ledger_id, month);
+
+-- What a close carried into the same budget next month: category_id null
+-- for the whole-month budget.
+CREATE TABLE month_close_carries (
+    id TEXT NOT NULL PRIMARY KEY,
+    close_id TEXT NOT NULL REFERENCES month_closes(id),
+    category_id TEXT REFERENCES categories(id),
+    amount INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX month_close_carry_close ON month_close_carries(close_id);
+
+insertMonthClose:
+INSERT INTO month_closes (id, ledger_id, month, policy, saved, created_at, updated_at, deleted_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, NULL);
+
+insertCarry:
+INSERT INTO month_close_carries (id, close_id, category_id, amount, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- A ledger's closes, oldest month first.
+liveMonthCloses:
+SELECT * FROM month_closes WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY month;
+
+liveMonthClose:
+SELECT * FROM month_closes WHERE ledger_id = ? AND month = ? AND deleted_at IS NULL;
+
+carriesOf:
+SELECT * FROM month_close_carries WHERE close_id = ? ORDER BY rowid;
+
+allMonthCloses:
+SELECT * FROM month_closes ORDER BY rowid;

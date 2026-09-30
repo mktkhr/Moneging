@@ -90,6 +90,7 @@ internal fun Budgets.toDomain(): Budget =
         fromMonth = YearMonth.parse(from_month),
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
+        isRemoved = is_removed.toBoolean(),
     )
 
 internal fun Recurring_rules.toDomain(): RecurringRule =

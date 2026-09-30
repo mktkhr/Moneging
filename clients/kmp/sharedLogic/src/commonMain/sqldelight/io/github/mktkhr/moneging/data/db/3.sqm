@@ -1,0 +1,31 @@
+-- Version 3 to 4: budget and savings (PRODUCT.md §8, stage 4).
+
+-- A ledger's carry-over policy, a CarryOverPolicy name.
+ALTER TABLE ledgers ADD COLUMN carry_over_policy TEXT NOT NULL DEFAULT 'CARRY';
+
+-- A budget row may remove the budget from its month on.
+ALTER TABLE budgets ADD COLUMN is_removed INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE month_closes (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    month TEXT NOT NULL,
+    policy TEXT NOT NULL,
+    saved INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE UNIQUE INDEX month_close_ledger_month ON month_closes(ledger_id, month);
+
+CREATE TABLE month_close_carries (
+    id TEXT NOT NULL PRIMARY KEY,
+    close_id TEXT NOT NULL REFERENCES month_closes(id),
+    category_id TEXT REFERENCES categories(id),
+    amount INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX month_close_carry_close ON month_close_carries(close_id);

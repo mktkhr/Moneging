@@ -1,4 +1,7 @@
 -- A planned amount for a ledger, optionally for one category, from a month on.
+-- A row with is_removed = 1 removes that budget from its month on. For a
+-- month, the budget of a category (or of the whole month, category_id null)
+-- is the row set last (by rowid) among those whose from_month is not after it.
 CREATE TABLE budgets (
     id TEXT NOT NULL PRIMARY KEY,
     ledger_id TEXT NOT NULL REFERENCES ledgers(id),
@@ -7,14 +10,19 @@ CREATE TABLE budgets (
     from_month TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    is_removed INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX budget_ledger ON budgets(ledger_id);
 
 insertBudget:
-INSERT INTO budgets (id, ledger_id, category_id, amount, from_month, created_at, updated_at, deleted_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, NULL);
+INSERT INTO budgets (id, ledger_id, category_id, amount, from_month, created_at, updated_at, deleted_at, is_removed)
+VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?);
 
 allBudgets:
 SELECT * FROM budgets ORDER BY rowid;
+
+-- A ledger's live budget rows, in the order they were set.
+liveBudgets:
+SELECT * FROM budgets WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY rowid;

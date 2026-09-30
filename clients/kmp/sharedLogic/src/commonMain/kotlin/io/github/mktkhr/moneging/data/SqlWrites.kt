@@ -1,6 +1,5 @@
 package io.github.mktkhr.moneging.data
 
-import io.github.mktkhr.moneging.domain.Budget
 import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.domain.Transaction
@@ -178,45 +177,5 @@ internal fun insertLineItems(
             created_at = now,
             updated_at = now,
         )
-    }
-}
-
-/** [LedgerPlans] over the database. */
-internal class SqlPlans(
-    private val rows: LedgerRows,
-) : LedgerPlans {
-    override suspend fun setBudget(
-        categoryId: Uuid?,
-        amount: Long,
-        from: YearMonth,
-    ): Budget {
-        require(amount >= 0L) { "予算は0円以上にしてください" }
-        return withContext(rows.context) {
-            rows.database.transactionWithResult {
-                rows.requireLedger()
-                categoryId?.let { rows.requireActiveCategory(it) }
-                val now = rows.now()
-                val budget =
-                    Budget(
-                        id = Uuid.random(),
-                        ledgerId = rows.ledgerId,
-                        categoryId = categoryId,
-                        amount = amount,
-                        fromMonth = from,
-                        createdAt = now,
-                        updatedAt = now,
-                    )
-                rows.database.budgetsQueries.insertBudget(
-                    id = budget.id.toString(),
-                    ledger_id = rows.ledgerKey,
-                    category_id = categoryId?.toString(),
-                    amount = amount,
-                    from_month = from.toString(),
-                    created_at = now.toColumn(),
-                    updated_at = now.toColumn(),
-                )
-                budget
-            }
-        }
     }
 }
