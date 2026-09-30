@@ -1,16 +1,51 @@
 import Foundation
 import FoundationModels
+import SharedLogic
 
 /// Structures a receipt's recognised text with Foundation Models, on a
 /// device with Apple Intelligence, into the draft JSON the shared logic
 /// reads (`ReceiptReading.fromJson`, the format of
 /// `acceptance/fixtures/README.md`).
 internal enum ReceiptStructurer {
-    /// What the model is told before every receipt.
-    private static let instructions: String = """
-        あなたは家計簿アプリの読み取り係です。レシートから文字認識した文章を渡すので、\
-        店名・日付・合計・品目を読み取ってください。文章にないものは作らないでください。
-        """
+    /// What the model is told before every receipt: the reading of a
+    /// receipt the rule-based parser follows too (PRODUCT.md §3, Draft), so
+    /// both ways read a receipt alike.
+    private static var instructions: String {
+        let chains: String = ReceiptChains.shared.known.map(\.name).joined(separator: "・")
+        return """
+            あなたは家計簿アプリの読み取り係です。レシートから文字認識した文章（1行が\
+            レシートの1行）を渡すので、店名・日付・合計・品目を読み取ってください。\
+            文章にないものは作らないでください。読み方:
+            - 店名: 文章に次のチェーンのどれかの名前があれば、そのチェーン1つの名前だけ: \(chains)。\
+            なければ店の名前の行。
+            - 日付: 文章の最初の 2026/09/28 や 2026年09月28日 を、2026-09-28 の形で。
+            - 合計: 「合計」で始まる最初の行の金額。
+            - 品目: 日付の行より後、「小計」「合計」「（」で始まる行より前の、金額で終わる行。
+            - 数量の行（2コ×単178 ¥356、@159x 3 *477）は品目にしない。その金額を、すぐ上の\
+            金額のない行（品名）の品目の金額にする。
+            - 値引きの行（値引額 -50、★割引(20%) -120）は品目にしない。上の品目の金額から引く。\
+            シール割引 の行の次の数量の行（2コX単-99 -198）の金額も、上の品目から引く。
+            - オプションの行（+ で始まる行、金額の前に ※ がある行: 氷Ice※通常 ¥120）は品目にしない。\
+            上の品目の金額に足す。¥0 のオプションは何も足さない。
+            - 品名の先頭の3桁の商品コード、軽減税率の印（* ＊）、チェック欄（ロ ■ □）は除く。
+            - 外税のレシート（外税・外8%・税抜 のどれかがある）では、最後に品目「消費税」（分類は空）を\
+            足し、その金額は合計から品目の和を引いた額。内税（内消費税等）なら足さない。
+            - 品目の金額の和が合計と等しくなる。
+
+            例:
+            セブン-イレブン 芝店
+            2026年09月28日（月）13:44
+            651 大盛ペペロンチーノ *648
+            値引額 -50
+            キリンファイア600ml
+            @159x 3 *477
+            小計（税抜8%） ¥1,075
+            消費税等（8%） ¥86
+            合計 ¥1,161
+            → 店名 セブン-イレブン、日付 2026-09-28、合計 1161、品目 大盛ペペロンチーノ 598、\
+            キリンファイア600ml 477、消費税 86
+            """
+    }
 
     /// Whether this device has Foundation Models available now.
     internal static var isAvailable: Bool {
@@ -18,6 +53,9 @@ internal enum ReceiptStructurer {
     }
 
     /// The draft JSON of the receipt whose text is `text`.
+    ///
+    /// A well-known chain the text names is its store, as the rule-based
+    /// parser reads it, whatever the model answered.
     internal static func json(for text: String) async throws -> String {
         let session: LanguageModelSession = LanguageModelSession(instructions: Self.instructions)
         let response: LanguageModelSession.Response<GeneratedReceipt> = try await session.respond(
@@ -25,7 +63,10 @@ internal enum ReceiptStructurer {
             generating: GeneratedReceipt.self,
         )
         let data: Data = try JSONSerialization.data(
-            withJSONObject: Self.draft(of: response.content),
+            withJSONObject: Self.draft(
+                of: response.content,
+                chain: ReceiptChains.shared.nameIn(lines: text.components(separatedBy: "\n")),
+            ),
         )
         guard let json = String(bytes: data, encoding: .utf8) else {
             throw CocoaError(.coderInvalidValue)
@@ -33,12 +74,14 @@ internal enum ReceiptStructurer {
         return json
     }
 
-    /// `receipt` in the draft format: a date or total not read is `null`.
-    private static func draft(of receipt: GeneratedReceipt) -> [String: Any] {
+    /// `receipt` in the draft format, its store `chain` when there is one.
+    ///
+    /// A date or total not read is `null`.
+    private static func draft(of receipt: GeneratedReceipt, chain: String?) -> [String: Any] {
         let date: Any = receipt.date.isEmpty ? NSNull() : receipt.date
         let total: Any = receipt.total > 0 ? receipt.total : NSNull()
         return [
-            "store": ["value": receipt.store, "confidence": receipt.storeConfidence],
+            "store": ["value": chain ?? receipt.store, "confidence": receipt.storeConfidence],
             "date": ["value": date, "confidence": receipt.dateConfidence],
             "total": ["value": total, "confidence": receipt.totalConfidence],
             "items": receipt.items.map { item in

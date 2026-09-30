@@ -8,11 +8,11 @@ internal struct GeneratedReceipt {
     @Generable(description: "レシートの1品目")
     internal struct Item {
         /// Its name as printed.
-        @Guide(description: "品名。レシートに印字されたとおり")
+        @Guide(description: "品名。レシートに印字されたとおり（先頭の商品コード・軽減税率の印は除く）")
         internal var name: String
 
         /// Its amount in whole yen.
-        @Guide(description: "金額（円、整数）")
+        @Guide(description: "金額（円、整数）。値引き・オプションを反映した額")
         internal var amount: Int
 
         /// A default category's name, or empty for none.
@@ -28,7 +28,7 @@ internal struct GeneratedReceipt {
     }
 
     /// The store name.
-    @Guide(description: "店名。レシートの最初の行にあることが多い")
+    @Guide(description: "店名。よく知られたチェーンならその名前。レシートの最初の行にあることが多い")
     internal var store: String
 
     /// How sure the model is of the store name, 0 to 1.
@@ -51,7 +51,11 @@ internal struct GeneratedReceipt {
     @Guide(description: "合計の読み取りにどれだけ自信があるか（0〜1）")
     internal var totalConfidence: Double
 
-    /// The items, in the receipt's order; add-ons (`+ …`) and subtotals excluded.
-    @Guide(description: "品目。レシートの順。小計・合計・税・お預り・お釣り・「+」で始まる追加は含めない")
+    /// The items, in the receipt's order: options, discounts and subtotals
+    /// excluded, an added tax included.
+    @Guide(
+        description:
+            "品目。レシートの順。小計・合計・お預り・お釣り・値引き・オプションの行は含めない。外税なら最後に「消費税」"
+    )
     internal var items: [Item]
 }
