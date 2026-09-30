@@ -21,31 +21,16 @@ internal struct DraftSheet: View {
     @State private var photoId: String?
     @State private var draft: DraftFormState?
     @State private var isWorking: Bool = false
-    @State private var isDiscardConfirmationShown: Bool = false
 
     internal var body: some View {
         NavigationStack {
-            ScrollView {
-                self.content
-                    .padding(.horizontal, Theme.Spacing.large)
-                    .padding(.bottom, Theme.Spacing.extraLarge)
-            }
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollDismissesKeyboard(.interactively)
-            .background(Theme.background)
-            .navigationTitle("下書きを確認")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                self.toolbar
-            }
-            .confirmationDialog(
-                "この下書きを捨てますか？",
-                isPresented: self.$isDiscardConfirmationShown,
-                titleVisibility: .visible,
-            ) {
-                Button("捨てる", role: .destructive, action: self.discard)
-                    .accessibilityIdentifier("draft-discard-confirm")
-            }
+            self.content
+                .background(Theme.background)
+                .navigationTitle("下書きを確認")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    self.toolbar
+                }
         }
         .tint(Theme.accent)
         .presentationDetents([.large])
@@ -61,9 +46,8 @@ internal struct DraftSheet: View {
                 form: editing,
                 photoId: self.photoId,
                 categories: self.ledgerStore.state.activeCategories,
-            ) {
-                self.isDiscardConfirmationShown = true
-            }
+                onDiscard: self.discard,
+            )
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity)

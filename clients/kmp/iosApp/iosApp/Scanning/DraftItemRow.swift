@@ -1,83 +1,60 @@
 import SharedLogic
 import SwiftUI
-import UIKit
 
-/// One item of a draft (`Draft5.dc.html`).
+/// One item of a draft, to look at (`DraftItemsA5.dc.html`).
 ///
-/// Its 品名 and 金額 are editable in place, marked 要確認 when the scanner
-/// was not sure of it; its カテゴリ is below, and a button removes it.
-/// Changing it makes it certain.
+/// Its whole name wraps over as many lines as it needs, its category is
+/// below it (未選択（その他） for none), and its amount and a chevron are on
+/// the right; 要確認 marks an item the scanner was not sure of. Pressing it
+/// opens 明細を直す. It reads as `弁当 800円` with its category as its value,
+/// identified `draft-item-<index>`.
 internal struct DraftItemRow: View {
-    internal let item: Binding<DraftItemState>
-    /// Its position among the items, from 0: `draft-item-*-<index>`.
+    internal let item: DraftItemState
+    /// Its position among the items, from 0.
     internal let index: Int
-    internal let categories: [SharedLogic.Category]
-    internal let onRemove: () -> Void
+    /// Its category's name, or `nil` for none.
+    internal let categoryName: String?
+    internal let onOpen: () -> Void
+
+    private var amountText: String {
+        Formats.shared.yen(amount: self.item.amount)
+    }
 
     internal var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.medium) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.extraSmall) {
-                self.nameAndAmount
-                DraftCategoryMenu(
-                    selection: self.certain(\.categoryId),
-                    categories: self.categories,
-                    identifier: "draft-item-category-\(self.index)",
-                )
+        Button(action: self.onOpen) {
+            HStack(alignment: .center, spacing: Theme.Spacing.medium) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
+                    Text(self.item.name.isEmpty ? String(localized: "品名なし") : self.item.name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Theme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(self.categoryName ?? String(localized: "未選択（その他）"))
+                        .font(.caption)
+                        .foregroundStyle(Theme.mutedText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if self.item.needsReview {
+                    ReviewMark(field: "item-\(self.index)")
+                }
+                Text(self.amountText)
+                    .font(.body.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.text)
+                    .fixedSize()
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.mutedText)
+                    .accessibilityHidden(true)
             }
-            self.removeButton
-        }
-        .padding(.horizontal, Theme.Spacing.large)
-        .padding(.vertical, Theme.Spacing.small)
-    }
-
-    private var nameAndAmount: some View {
-        HStack(spacing: Theme.Spacing.small) {
-            TextField("品名", text: self.certain(\.name))
-                .font(.body.weight(.medium))
-                .foregroundStyle(Theme.text)
-                .accessibilityLabel("品名")
-                .accessibilityIdentifier("draft-item-name-\(self.index)")
-            if self.item.wrappedValue.needsReview {
-                ReviewMark(field: "item-\(self.index)")
-            }
-            AmountTextField(
-                placeholder: "0",
-                text: self.certain(\.amountText),
-                identifier: "draft-item-amount-\(self.index)",
-                label: "金額",
-                font: UIFont.preferredFont(forTextStyle: .body),
-                color: UIColor(Theme.text),
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            Text("円")
-                .foregroundStyle(Theme.text)
-        }
-    }
-
-    private var removeButton: some View {
-        Button(action: self.onRemove) {
-            Image(systemName: "minus.circle")
-                .foregroundStyle(Theme.mutedText)
-                .frame(minWidth: Theme.minimumTapTarget, minHeight: Theme.minimumTapTarget)
+            .frame(minHeight: Theme.minimumTapTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(self.item.wrappedValue.name)を消す")
-        .accessibilityIdentifier("draft-item-remove-\(self.index)")
-    }
-
-    // A binding to the item's `path` that makes the item certain once changed.
-    private func certain<Value: Equatable>(
-        _ path: WritableKeyPath<DraftItemState, Value>,
-    ) -> Binding<Value> {
-        Binding(
-            get: { self.item.wrappedValue[keyPath: path] },
-            set: { value in
-                guard value != self.item.wrappedValue[keyPath: path] else {
-                    return
-                }
-                self.item.wrappedValue[keyPath: path] = value
-                self.item.wrappedValue.confidence = Theme.Scanning.certain
-            },
-        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(self.item.name) \(self.amountText)")
+        .accessibilityValue(self.categoryName ?? "")
+        .accessibilityHint("押すと明細を直せます")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("draft-item-\(self.index)")
     }
 }
