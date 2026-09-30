@@ -105,8 +105,9 @@ product, and no floating-point type may hold an amount.
 | **Line item** | A transaction may instead be split into several items, each with its own amount, category and optional item name. When a transaction has items, its amount equals the sum of its items, and each item is at least 1 yen. An item name is filled from a confirmed draft and may be set or changed by hand. |
 | **Recurring rule** | An expense or an income that repeats every month, from a start month to an optional end month, on a day of the month (1 to 31) or on the month's last day; a day the month does not have means its last day. When that date is not a business day, the rule keeps it, moves it to the next business day or moves it to the previous business day, as chosen (kept unless chosen). A business day is a weekday that is neither a Japanese public holiday nor 31 December to 3 January. Public holidays are computed on the device from the Public Holiday Act — the named days, the vernal and autumnal equinoxes, substitute holidays and citizens' holidays — since nothing is fetched. A month's transaction of a rule is recorded automatically once its date has come (Asia/Tokyo), whenever the app runs; months that passed while it did not run are recorded on the next run. Materialising a rule's month creates its transaction exactly once, whatever the number of attempts, and it remains that month's transaction even when moving the date puts it in another month. Changing or ending a rule affects only the months not yet recorded; recorded transactions stay. Ending a rule sets its end month to the last month it recorded, so nothing more is recorded. An ended rule is resumed by clearing its end month; the months whose date came while it was ended are not recorded. Deleting a rule removes it; the transactions it recorded stay, still marked as recorded by a rule. A recorded transaction the user deletes is not recorded again: the month counts as done. |
 | **Photo** | An image belonging to a ledger. Its bytes live in the app's private storage on the device; its record carries the content type, the size and the capture instant. Deleting a photo removes the stored bytes as well as the record. A photo referenced by a transaction cannot be deleted until the reference is removed. |
-| **Scanner** | A reader of receipts, entirely on the device, in three steps. Capture: the OS document scanner (VisionKit on iOS, the ML Kit document scanner on Android), where a session of several pages yields one receipt per page, or one or several photos picked from the photo library. Text recognition: Vision on iOS, ML Kit text recognition on Android. Structuring the recognised text into a draft: an on-device LLM — Foundation Models on iOS devices with Apple Intelligence, Gemini Nano through ML Kit GenAI (AICore) on Android devices that support it — or, on a device without one, a deterministic rule-based parser. Every path answers the same question — store name, date, total, line items, each with the scanner's confidence — so the product never branches on which one is in use. A scan costs nothing per use, so there is no scan quota. Reading from photos works only while the user has it enabled (see **Photo reading**). |
+| **Scanner** | A reader of receipts, entirely on the device, in three steps. Capture: the OS document scanner (VisionKit on iOS, the ML Kit document scanner on Android), where a session of several pages yields one receipt per page, or one or several photos picked from the photo library. Text recognition: Vision on iOS, ML Kit text recognition on Android. Structuring the recognised text into a draft, by the method the user chose for the device (see **Reading method**): the device's own LLM — Foundation Models on iOS devices with Apple Intelligence, Gemini Nano through ML Kit GenAI (AICore) on Android devices that support it — or a deterministic rule-based parser that uses no AI. Every method answers the same question — store name, date, total, line items, each with the scanner's confidence — and each draft records which method structured it. A scan costs nothing per use, so there is no scan quota. Reading from photos works only while the user has it enabled (see **Photo reading**). |
 | **Photo reading** | Whether the device reads receipts from photos, chosen by the user during onboarding and changeable at any time afterwards. When it is enabled, on Android the modules it needs — the ML Kit document scanner and text recognition, through Google Play services, and Gemini Nano only on a device that supports it — are downloaded then. iOS needs no download: its scanner, text recognition and Foundation Models are part of the OS, Foundation Models only on devices with Apple Intelligence. |
+| **Reading method** | How the device structures recognised text, chosen by the user and kept on the device: its own AI, named after it (`Apple Intelligence` on iOS, `Gemini Nano` on Android), or `AI を使わない`, the rule-based parser. A user who never chose has the device's AI when the device has one, else `AI を使わない`. A method the device cannot use (it has no AI, or its AI is turned off) is listed but cannot be chosen, and says why. When the chosen AI cannot be used as a scan is started, the user is told before anything is kept or read, and chooses to read without AI, to open the settings, or to stop; nothing falls back on its own. When the AI fails while structuring a scan, the scan fails with that reason, and the user may read it again, read it without AI, or record it by hand. Later methods (v2) are each named after their provider. |
 | **Scan job** | The reading of one photo, in the background: sending a photo never waits for its reading, and the user may send more, record by hand or leave the app meanwhile. Moves `queued → running → succeeded` or `→ failed`, never backwards. A failed job carries a human-readable reason. A job left running longer than its deadline, or cut off because the app ended, becomes failed. While a ledger's jobs are queued or running, their progress is shown outside the app: as a Live Activity on iOS and as an ongoing notification on Android. Jobs and waiting drafts are read from the database, so reopening the app finds them again. |
 | **Draft** | The result of a succeeded scan: a proposed store name, date, total and line items (each with a name, an amount and optionally a category), each field carrying the scanner's confidence. A succeeded scan always keeps the items it read, even when they do not add up to the total it read. A draft is not a transaction until a user confirms it, and any field may be corrected first, its category and items included. Confirming a draft with items creates one expense with the draft's store and date, linked to the photo, and one line item per draft item; an item without a category is confirmed into その他. When the items add up to the total, the expense is the total. When they do not, confirming is refused unless the user accepts the mismatch (`acceptMismatch`), and then the expense is marked needs-review: below the total, the expense is the total and gains, after the items, one item `差額` of the difference, in the items' category when every item names the same active one, else その他; above the total, the expense is the items' sum. A user may instead record the total alone by removing the items: a draft with no items confirms into one unsplit expense of its total in its category, or その他 when it has none, with its store and date, linked to the photo. A draft may also be discarded. Either way it is gone afterwards. A receipt is read as a shopper reads it. The date is read as `2026/09/28` or `2026年09月28日`. The store is a well-known chain's name when the receipt names one, from a list kept on the device (`ライフ`, `マルエツ プチ`, `セブン-イレブン`, `ゴンチャ`), else the line naming the shop. A quantity line (`2コ×単178`, `@159x 3`) belongs to the item above it and gives its amount; a discount line (`値引額 -50`, `★割引(20%) -120`, `シール割引`) is taken off the item above it; an option line with a price (a delivery order's `氷なし ¥120`) is added to the item it belongs to. When the total includes a tax the items do not (外税), an item `消費税` of that tax, without a category, is added so that the items add up to the total. A photo picked from the library is straightened, as the document scanner straightens its pages, before its text is recognised. |
 | **Budget** | For one ledger and optionally one category: a planned amount, set from a month on and continuing into every later month until another amount is set or the budget is removed from a month on. A month has at most one budget per category and at most one whole-month budget. Remaining is the budget, plus whatever was carried into it, minus the spending recorded against it; it may be negative. A category budget counts its category's expenses, split items included; the whole-month budget counts every expense. |
@@ -239,7 +240,9 @@ chosen, and every field editable: `店名`,
 removable, and items may be added. A draft with no items has one `カテゴリ`
 for the whole expense, left empty for その他. A field whose confidence is below
 0.6 is marked `要確認`. The photo stays with the confirmed record and can be
-viewed from it (`レシートの写真を見る`).
+viewed from it (`レシートの写真を見る`). Each draft says how it was read
+(`Apple Intelligence で読み取りました`, `AI を使わずに読み取りました`), and the
+settings show the device's reading method (`読み取りの方法`).
 
 While a draft has items whose sum differs from `合計`, the user is warned with
 the items' sum, the total and the difference
@@ -686,9 +689,10 @@ chooses `貯金にする` and confirms, then the offer is gone, the savings read
 | AC-B-505 | A draft is corrected field by field and confirmed into a transaction. | `TestDraftCorrectionAndConfirm` |
 | AC-B-506 | A failed scan leaves a reason, and the photo stays usable by hand.    | `TestScanFailureIsRecoverable`  |
 | AC-B-510 | The rule-based parser reads recorded receipt text into drafts, deterministically. | `TestRuleBasedReceiptParser` |
-| AC-B-511 | Recognised text is structured by the on-device LLM when there is one, else by the rule-based parser. | `TestReceiptStructuringPath` |
+| AC-B-511 | Recognised text is structured by the reading method the user chose, never falling back on its own. | `TestReceiptStructuringPath` |
 | AC-F-501 | A scanned receipt shows its scan progressing, then an editable draft. | `AC-F-501`                      |
 | AC-F-504 | Enabling reading from photos downloads what the device needs, then.   | `AC-F-504`                      |
+| AC-F-505 | A reading method that cannot be used is told before scanning, and each draft says how it was read. | `AC-F-505` |
 | AC-E-501 | A user scans a receipt, corrects the draft and confirms it.           | `AC-E-501`                      |
 
 The fixture scanner reads `acceptance/fixtures/receipts/`, shared by the
@@ -759,12 +763,18 @@ for `seven-eleven.txt` that draft has store `セブン-イレブン`, date 2026-
 total 1,180 and the items おにぎり 380 and 弁当 800. When each is parsed again,
 then the draft is identical to the first.
 
-**AC-B-511** — Given the recorded text `seven-eleven.txt` and a fake on-device
-LLM answering `seven-eleven.llm.json`. When the text is structured, then the
-draft is the fake's answer and the rule-based parser is not used. Given the
-fake reporting that the device has no on-device LLM, when the same text is
-structured, then the draft is the rule-based parser's, equal to
-`seven-eleven.rule.json`, and the job's result has the same shape either way.
+**AC-B-511** — Given the recorded text `seven-eleven.txt` and a fake device AI
+answering `seven-eleven.llm.json`. With the reading method set to the device's
+AI, when the text is structured, then the draft is the fake's answer, the
+rule-based parser is not used, and the draft records the AI as its method. With
+the method set to `AI を使わない`, then the draft is the rule-based parser's,
+equal to `seven-eleven.rule.json`, the fake is not asked, and the draft records
+that method. With the device's AI chosen and the fake failing with the reason
+`generation failed`, when a scan of `seven-eleven.jpg` completes, then the job
+is `failed` with that reason and no draft; when it is read again without AI,
+then its draft equals `seven-eleven.rule.json`. A user who never chose has the
+device's AI when the fake reports one, and `AI を使わない` when it reports none.
+The job's result has the same shape whichever method made it.
 
 **AC-F-501** — Given today 2026-02-15, reading from photos enabled, a fake
 progress surface, and the fixture scanner answering the draft of AC-B-504
@@ -795,6 +805,16 @@ it; on iOS nothing is downloaded. Given the user declined during the
 onboarding, then nothing is downloaded and reading from photos is off; when
 the user later turns it on, then the same download is requested at that time,
 and the choice survives a relaunch.
+
+**AC-F-505** — Given today 2026-02-15, reading from photos enabled, a device
+whose AI is turned off, and the reading method set to the device's AI. When the
+user scans a receipt, then before anything is kept or read the user is told
+`Apple Intelligence が使えません` and offered `AI を使わずに読み取る`, `設定を開く`
+and `やめる`. Choosing `やめる` keeps no photo and starts no scan. When the user
+scans again and chooses `AI を使わずに読み取る`, then the receipt is read, and
+its waiting draft, opened, says `AI を使わずに読み取りました`. In the settings,
+`読み取りの方法` reads `Apple Intelligence`, and opened, `Apple Intelligence`
+cannot be chosen and says why, while `AI を使わない` can.
 
 **AC-E-501** — Given the built app, freshly installed, and the fixture scanner
 handing it `seven-eleven.jpg`. When the user creates `家計`, enables reading
@@ -1062,7 +1082,7 @@ passing, so progress is real even if the product is unfinished.
 2. **Recording money** — categories, transactions, line items, search, income, recurring rules recorded on their business-day-adjusted date. AC-B-201 to AC-B-211, AC-F-201 to AC-F-205, AC-E-201.
 3. **Reporting and calendar** — monthly report, daily totals, trend, charts, calendar with the NMD badge. AC-B-301 to AC-B-303, AC-F-301, AC-F-302.
 4. **Budget and savings** — budgets, remaining, month close, carry or save. AC-B-401 to AC-B-403, AC-F-401, AC-F-402.
-5. **Photos and scanning** — photo storage, the document scanner and photo library, on-device text recognition, structuring by the on-device LLM or the rule-based parser, background scanning with its progress, enabling reading from photos, drafts. AC-B-501, AC-B-503 to AC-B-506, AC-B-510, AC-B-511, AC-F-501, AC-F-504, AC-E-501.
+5. **Photos and scanning** — photo storage, the document scanner and photo library, on-device text recognition, structuring by the reading method the user chose (the device's AI or none), background scanning with its progress, enabling reading from photos, drafts. AC-B-501, AC-B-503 to AC-B-506, AC-B-510, AC-B-511, AC-F-501, AC-F-504, AC-F-505, AC-E-501.
 6. **Receipts that do not add up** — AC-B-508, AC-F-502.
 7. **Needs-review records** — AC-B-509, AC-F-503.
 8. **Pace and notifications** — learned pace, alerts, the notification list, local OS notifications, the permission request in the onboarding. AC-B-601 to AC-B-604, AC-F-601, AC-F-602.

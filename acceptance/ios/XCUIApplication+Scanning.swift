@@ -1,7 +1,7 @@
 import XCTest
 
 /// The contract the app honours for reading receipts (AC-F-501, AC-F-504,
-/// AC-E-501): debug-only launch arguments that stand in for the OS, and the
+/// AC-F-505, AC-E-501): debug-only launch arguments that stand in for the OS, and the
 /// accessibility identifiers of the scan surfaces.
 ///
 /// **Launch arguments** (debug builds only; every one is optional):
@@ -27,6 +27,13 @@ import XCTest
 ///   of requests as digits (`0`).
 /// - `-AcceptancePhotoReading YES`: reading from photos is enabled from the
 ///   start, as if chosen in the onboarding, without asking the installer.
+/// - `-UITestDeviceAi <on|off>`: the state of the device's own AI (Apple
+///   Intelligence): `on` is a device that has it and can use it, `off` a
+///   device that has it turned off in the settings. Without it the AI is
+///   reported as usable.
+/// - `-AcceptanceReadingMethod <ai|none>`: the reading method is set from the
+///   start, as if chosen in the settings: `ai` the device's AI, `none`
+///   `AI を使わない`. Without it the user has never chosen.
 ///
 /// **Home.** The record sheet (`record-button`) offers `record-option-scan`
 /// (the document scanner) and `record-option-library` (the photo library)
@@ -59,6 +66,25 @@ import XCTest
 /// `tour-step-photo-reading`, with the switch `tour-photo-reading` (value
 /// `1` on, `0` off; off unless turned on). 設定 has the same switch as
 /// `settings-photo-reading`.
+///
+/// **Reading method (AC-F-505).** When a scan is started (`record-option-scan`
+/// or `record-option-library`) while the chosen method is the device's AI and
+/// the AI cannot be used, before anything is kept or read the notice
+/// `reading-unavailable-notice` (labelled `Apple Intelligence が使えません`)
+/// shows, with the buttons `reading-unavailable-without-ai`
+/// (`AI を使わずに読み取る`), `reading-unavailable-open-settings` (`設定を開く`)
+/// and `reading-unavailable-cancel` (`やめる`). The last keeps nothing and
+/// starts no scan; the first reads the receipt (accepted as usual) without AI
+/// for that scan only. An opened draft has the line `draft-reading-method`
+/// labelled `Apple Intelligence で読み取りました` or `AI を使わずに読み取りました`.
+/// 設定 has the row `settings-reading-method` labelled `読み取りの方法` whose
+/// value is the name of the chosen method (`Apple Intelligence`,
+/// `AI を使わない`); it opens the screen `読み取りの方法` with the options
+/// `reading-method-option-ai` (labelled with `Apple Intelligence`) and
+/// `reading-method-option-none` (labelled with `AI を使わない`). An option that
+/// cannot be chosen is not enabled (`isEnabled` false) and has beside it
+/// `reading-method-reason-ai`, whose label says why; the option `none` is
+/// always enabled.
 extension XCUIApplication {
     /// The most tour steps stepped through to reach one.
     private static let maxStepsToReach: Int = 10

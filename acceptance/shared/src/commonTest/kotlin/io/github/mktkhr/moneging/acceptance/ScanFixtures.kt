@@ -5,6 +5,8 @@ import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.domain.Photo
 import io.github.mktkhr.moneging.scan.FixtureReceipt
 import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
+import io.github.mktkhr.moneging.scan.ReadingMethod
+import io.github.mktkhr.moneging.scan.ReadingMethods
 import io.github.mktkhr.moneging.scan.ReceiptReading
 import io.github.mktkhr.moneging.scan.ReceiptScanner
 import io.github.mktkhr.moneging.scan.ScanJob
@@ -67,13 +69,20 @@ internal data class ScanningLedger(
     val scope: LedgerScope,
 )
 
-/** A store reading with [scanner] and holding only the ledger `家計`. */
-internal suspend fun scanningLedger(scanner: ReceiptScanner = fixtureScanner()): ScanningLedger {
+/**
+ * A store reading with [scanner] under [readingMethods] (a device without an AI, the user never
+ * having chosen, by default) and holding only the ledger `家計`.
+ */
+internal suspend fun scanningLedger(
+    scanner: ReceiptScanner = fixtureScanner(),
+    readingMethods: ReadingMethods = ReadingMethods(llm = null),
+): ScanningLedger {
     val store =
         LocalStore.inMemory(
             clock = ManualClock(current = FIXTURE_NOON),
             deviceId = FIXTURE_DEVICE_ID,
             scanner = scanner,
+            readingMethods = readingMethods,
         )
     val ledger = store.createLedger(name = FIXTURE_LEDGER_NAME)
     return ScanningLedger(store = store, scope = store.ledger(id = ledger.id))
@@ -83,9 +92,15 @@ internal suspend fun scanningLedger(scanner: ReceiptScanner = fixtureScanner()):
 internal suspend fun LedgerScope.addReceiptPhoto(name: String): Photo =
     addPhoto(bytes = receiptImage(name = name), contentType = JPEG, capturedAt = FIXTURE_NOON)
 
-/** Starts the scan of [photo] and waits until its job has succeeded or failed. */
-internal suspend fun LedgerScope.scanUntilFinished(photo: Photo): ScanJob {
-    val started = startScan(photoId = photo.id)
+/**
+ * Starts the scan of [photo], by [method] when given, else by the method the user chose, and waits
+ * until its job has succeeded or failed.
+ */
+internal suspend fun LedgerScope.scanUntilFinished(
+    photo: Photo,
+    method: ReadingMethod? = null,
+): ScanJob {
+    val started = startScan(photoId = photo.id, method = method)
     return observeScanJob(jobId = started.id).first { job -> job.state.isFinished }
 }
 
