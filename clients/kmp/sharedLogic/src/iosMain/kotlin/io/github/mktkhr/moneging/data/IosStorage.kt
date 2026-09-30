@@ -3,6 +3,8 @@ package io.github.mktkhr.moneging.data
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import io.github.mktkhr.moneging.data.db.MonegingDatabase
+import io.github.mktkhr.moneging.scan.ReceiptScanner
+import io.github.mktkhr.moneging.scan.ScanPacer
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -13,7 +15,9 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
+import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.writeToFile
+import platform.posix.memcpy
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -41,13 +45,16 @@ fun localDataDirectory(): String {
 
 /**
  * The store kept in [directory] (created if missing) on [clock], stamping
- * records with [preferences]' device identifier.
+ * records with [preferences]' device identifier and reading receipts with
+ * [scanner] as [scanPacer] lets it.
  */
 @OptIn(ExperimentalForeignApi::class)
 internal fun onDiskStore(
     directory: String,
     preferences: Preferences,
     clock: Clock,
+    scanner: ReceiptScanner,
+    scanPacer: ScanPacer,
 ): LocalStore {
     val photos = "$directory/$PHOTOS_DIRECTORY_NAME"
     NSFileManager.defaultManager.createDirectoryAtPath(
@@ -71,6 +78,7 @@ internal fun onDiskStore(
         clock = clock,
         deviceId = deviceId(preferences),
         photoFiles = DirectoryPhotoFiles(photos),
+        scanning = Scanning(scanner = scanner, pacer = scanPacer),
     )
 }
 
@@ -87,9 +95,49 @@ internal class DirectoryPhotoFiles(
             bytes.usePinned { pinned ->
                 NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
             }
-        check(data.writeToFile(path = "$directory/$id", atomically = true)) { "写真を保存できませんでした" }
+        check(data.writeToFile(path = path(id), atomically = true)) { "写真を保存できませんでした" }
     }
+
+    override fun read(id: Uuid): ByteArray? = NSData.dataWithContentsOfFile(path(id))?.toByteArray()
+
+    @OptIn(ExperimentalForeignApi::class)
+    override fun delete(id: Uuid) {
+        NSFileManager.defaultManager.removeItemAtPath(path(id), error = null)
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    override fun ids(): Set<Uuid> =
+        NSFileManager.defaultManager
+            .contentsOfDirectoryAtPath(directory, error = null)
+            .orEmpty()
+            .mapNotNull { name -> (name as? String)?.let { Uuid.parseOrNull(it) } }
+            .toSet()
+
+    private fun path(id: Uuid): String = "$directory/$id"
 }
+
+/** The bytes of this data. */
+@OptIn(ExperimentalForeignApi::class)
+fun NSData.toByteArray(): ByteArray {
+    val size = length.toInt()
+    val bytes = ByteArray(size)
+    if (size > 0) {
+        bytes.usePinned { pinned -> memcpy(pinned.addressOf(0), this.bytes, length) }
+    }
+    return bytes
+}
+
+/** [bytes] as data, for the iOS app. */
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+fun nsData(bytes: ByteArray): NSData =
+    if (bytes.isEmpty()) {
+        NSData()
+    } else {
+        bytes.usePinned { pinned -> NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong()) }
+    }
+
+/** The bytes of [data], for the iOS app. */
+fun byteArray(data: NSData): ByteArray = data.toByteArray()
 
 /** [Preferences] in the app's user defaults. */
 internal class UserDefaultsPreferences(
@@ -110,6 +158,7 @@ internal class UserDefaultsPreferences(
             PreferenceKeys.LEDGER_IN_VIEW,
             PreferenceKeys.TOUR_NEXT_STEP,
             PreferenceKeys.DEVICE_ID,
+            PreferenceKeys.PHOTO_READING,
         ).forEach { defaults.removeObjectForKey(it) }
     }
 }

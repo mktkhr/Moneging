@@ -44,4 +44,10 @@ sealed interface AppIntent {
 
     /** Dismiss the error shown. */
     data object DismissError : AppIntent
+
+    /** Turn reading receipts from photos on or off. */
+    data class SetPhotoReading(
+        /** Whether it is to be enabled. */
+        val isEnabled: Boolean,
+    ) : AppIntent
 }

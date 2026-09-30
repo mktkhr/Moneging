@@ -16,6 +16,11 @@ import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Savings
 import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.domain.TransactionQuery
+import io.github.mktkhr.moneging.scan.Draft
+import io.github.mktkhr.moneging.scan.DraftCorrection
+import io.github.mktkhr.moneging.scan.ScanJob
+import io.github.mktkhr.moneging.scan.ScanState
+import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.YearMonth
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -34,7 +39,8 @@ interface LedgerScope :
     LedgerTransactionWrites,
     LedgerPlans,
     LedgerMonthCloses,
-    LedgerRecurringRules {
+    LedgerRecurringRules,
+    LedgerScans {
     /** The ledger these operations act within. */
     val ledgerId: Uuid
 }
@@ -71,6 +77,70 @@ interface LedgerPhotos {
 
     /** This ledger's photo [id]; `null` for another ledger's. */
     suspend fun findPhoto(id: Uuid): Photo?
+
+    /** This ledger's live photos, oldest first. */
+    suspend fun photos(): List<Photo>
+
+    /** The photos of this ledger a live transaction links to. */
+    suspend fun linkedPhotoIds(): Set<Uuid>
+
+    /** The bytes of this ledger's photo [id]; `null` when it is deleted or another ledger's. */
+    suspend fun photoBytes(id: Uuid): ByteArray?
+
+    /**
+     * Deletes this ledger's photo [id] and its bytes, with its drafts and scan
+     * jobs. Refused with [IllegalStateException] while a live transaction
+     * links to it or a scan of it is in flight.
+     */
+    suspend fun deletePhoto(id: Uuid)
+}
+
+/**
+ * Reading a ledger's receipt photos in the background (PRODUCT.md §3, Scan
+ * job and Draft).
+ */
+interface LedgerScans {
+    /**
+     * Starts reading this ledger's photo [photoId] and returns at once with
+     * its job, [ScanState.QUEUED]; the job moves on by itself, and its
+     * success leaves a draft.
+     */
+    suspend fun startScan(photoId: Uuid): ScanJob
+
+    /** This ledger's scan job [id], or `null`. */
+    suspend fun findScanJob(id: Uuid): ScanJob?
+
+    /** The scan job [jobId] now and whenever it moves; ends if it is gone. */
+    fun observeScanJob(jobId: Uuid): Flow<ScanJob>
+
+    /** This ledger's scan jobs in [state] (every one when `null`), oldest first. */
+    suspend fun scanJobs(state: ScanState? = null): List<ScanJob>
+
+    /** This ledger's drafts waiting to be confirmed or discarded, newest first. */
+    suspend fun waitingDrafts(): List<Draft>
+
+    /** This ledger's waiting draft [id], or `null` once it is confirmed, discarded or another ledger's. */
+    suspend fun findDraft(id: Uuid): Draft?
+
+    /** Applies [correction] to the draft [draftId]; the fields it leaves `null` stay as they are. */
+    suspend fun updateDraft(
+        draftId: Uuid,
+        correction: DraftCorrection,
+    ): Draft
+
+    /**
+     * Confirms the draft [draftId] into one expense linked to its photo, and
+     * removes the draft. Items that do not add up to the total are refused
+     * with [IllegalArgumentException] unless [acceptMismatch]; then the
+     * expense is marked needs-review.
+     */
+    suspend fun confirmDraft(
+        draftId: Uuid,
+        acceptMismatch: Boolean = false,
+    ): Transaction
+
+    /** Discards the draft [draftId]. */
+    suspend fun discardDraft(draftId: Uuid)
 }
 
 /** Reading a ledger's transactions; deleted ones are never found, listed or counted. */

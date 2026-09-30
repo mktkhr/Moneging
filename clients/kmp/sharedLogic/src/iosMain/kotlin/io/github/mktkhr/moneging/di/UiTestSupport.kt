@@ -4,9 +4,18 @@ import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.data.PreferenceKeys
 import io.github.mktkhr.moneging.data.UserDefaultsPreferences
 import io.github.mktkhr.moneging.data.localDataDirectory
+import io.github.mktkhr.moneging.data.toByteArray
 import io.github.mktkhr.moneging.data.todayInTokyo
 import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.NewTransaction
+import io.github.mktkhr.moneging.scan.FixtureReceipt
+import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
+import io.github.mktkhr.moneging.scan.IosReceiptReader
+import io.github.mktkhr.moneging.scan.NoModuleInstaller
+import io.github.mktkhr.moneging.scan.ReadingModuleInstaller
+import io.github.mktkhr.moneging.scan.ReceiptReading
+import io.github.mktkhr.moneging.scan.ScanPacer
+import io.github.mktkhr.moneging.scan.iosReceiptScanner
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
@@ -14,7 +23,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
 import org.koin.mp.KoinPlatform
+import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
+import platform.Foundation.dataWithContentsOfFile
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.time.TimeSource
@@ -39,17 +50,72 @@ fun resetLocalDataForUiTests() {
 }
 
 /**
- * Starts the shared Koin container, like [initKoin], on a clock that reads
- * [isoDate] (`2026-02-15`) at 12:00 in Asia/Tokyo when the app launches and
- * advances with the time elapsed since: a UI test's today.
+ * Starts the shared Koin container, like [initKoin], for a UI test: on a
+ * clock that reads [isoDate] (`2026-02-15`) at 12:00 in Asia/Tokyo when the
+ * app launches and advances with the time elapsed since (the device's clock
+ * when `null`); reading receipts with the fixture scanner over the fixtures
+ * directory [scannerFixtures] (`acceptance/fixtures`) when given, else with
+ * [reader]; moving scan jobs only on [stepScanJobsForUiTests] when
+ * [isJobStepping]; and downloading through [installer] (none when `null`).
  */
-fun initKoinForUiTests(isoDate: String) {
-    val launchedAt = LocalDate.parse(isoDate).atTime(hour = NOON, minute = 0).toInstant(TimeZone.of("Asia/Tokyo"))
-    val sinceLaunch = TimeSource.Monotonic.markNow()
-    startIosKoin(
-        clock =
+fun initKoinForUiTests(
+    isoDate: String?,
+    reader: IosReceiptReader,
+    scannerFixtures: String?,
+    isJobStepping: Boolean,
+    installer: ReadingModuleInstaller?,
+) {
+    val clock =
+        isoDate?.let { date ->
+            val launchedAt = LocalDate.parse(date).atTime(hour = NOON, minute = 0).toInstant(TimeZone.of("Asia/Tokyo"))
+            val sinceLaunch = TimeSource.Monotonic.markNow()
             object : Clock {
                 override fun now(): Instant = launchedAt + sinceLaunch.elapsedNow()
+            }
+        } ?: Clock.System
+    val pacer = if (isJobStepping) ScanPacer.Stepped().also { steppedPacer = it } else ScanPacer.Immediate
+    startIosKoin(
+        clock = clock,
+        scanner = scannerFixtures?.let { fixtureScanner(directory = it) } ?: iosReceiptScanner(reader),
+        scanPacer = pacer,
+        installer = installer ?: NoModuleInstaller,
+    )
+}
+
+// The pacer of a UI test that steps its scan jobs, or `null`.
+private var steppedPacer: ScanPacer.Stepped? = null
+
+/** Moves every unfinished scan job one state on, in a UI test that steps them. */
+fun stepScanJobsForUiTests() {
+    steppedPacer?.step()
+}
+
+/** Enables reading receipts from photos, as if chosen in the onboarding; must run before the app state is resolved. */
+fun enablePhotoReadingForUiTests() {
+    UserDefaultsPreferences().setString(key = PreferenceKeys.PHOTO_READING, value = PreferenceKeys.PHOTO_READING_ON)
+}
+
+// The fixture scanner over `<directory>/receipts`: each picture beside its draft (`<name>.jpg`, `<name>.json`).
+@OptIn(ExperimentalForeignApi::class)
+private fun fixtureScanner(directory: String): FixtureReceiptScanner {
+    val receipts = "$directory/receipts"
+    val names =
+        NSFileManager.defaultManager
+            .contentsOfDirectoryAtPath(receipts, error = null)
+            .orEmpty()
+            .mapNotNull { (it as? String)?.removeSuffix(suffix = ".json")?.takeIf { name -> name != it } }
+    return FixtureReceiptScanner(
+        receipts =
+            names.mapNotNull { name ->
+                val image = NSData.dataWithContentsOfFile("$receipts/$name.jpg")?.toByteArray()
+                val json = NSData.dataWithContentsOfFile("$receipts/$name.json")?.toByteArray()?.decodeToString()
+                if (image == null ||
+                    json == null
+                ) {
+                    null
+                } else {
+                    FixtureReceipt(image = image, reading = ReceiptReading.fromJson(json))
+                }
             },
     )
 }

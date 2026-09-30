@@ -1,0 +1,45 @@
+-- Version 4 to 5: photos and scanning (PRODUCT.md §8, stage 5).
+
+CREATE TABLE scan_jobs (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    photo_id TEXT NOT NULL REFERENCES photos(id),
+    state TEXT NOT NULL,
+    draft_id TEXT,
+    failure_reason TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX scan_job_ledger ON scan_jobs(ledger_id);
+
+CREATE TABLE drafts (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    photo_id TEXT NOT NULL REFERENCES photos(id),
+    store TEXT NOT NULL,
+    store_confidence REAL NOT NULL,
+    date TEXT NOT NULL,
+    date_confidence REAL NOT NULL,
+    total INTEGER NOT NULL,
+    total_confidence REAL NOT NULL,
+    category_id TEXT REFERENCES categories(id),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX draft_ledger ON drafts(ledger_id);
+
+CREATE TABLE draft_items (
+    id TEXT NOT NULL PRIMARY KEY,
+    draft_id TEXT NOT NULL REFERENCES drafts(id),
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    category_id TEXT REFERENCES categories(id),
+    confidence REAL NOT NULL
+);
+
+CREATE INDEX draft_item_draft ON draft_items(draft_id);

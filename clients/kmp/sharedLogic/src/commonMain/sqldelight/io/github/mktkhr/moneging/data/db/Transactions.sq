@@ -137,3 +137,7 @@ UPDATE transactions SET deleted_at = ? WHERE ledger_id = ? AND id = ? AND delete
 
 allTransactions:
 SELECT * FROM transactions ORDER BY rowid;
+
+-- Marks a transaction needs-review: confirmed from a draft whose items did not add up.
+markNeedsReview:
+UPDATE transactions SET needs_review = 1 WHERE ledger_id = ? AND id = ?;

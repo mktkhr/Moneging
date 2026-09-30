@@ -44,6 +44,12 @@ internal object PreferenceKeys {
 
     /** This install's device identifier. */
     const val DEVICE_ID = "deviceId"
+
+    /** Whether reading receipts from photos is enabled: [PHOTO_READING_ON] when it is. */
+    const val PHOTO_READING = "photoReading"
+
+    /** The value of [PHOTO_READING] while reading from photos is enabled. */
+    const val PHOTO_READING_ON = "on"
 }
 
 /**

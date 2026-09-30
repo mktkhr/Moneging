@@ -30,6 +30,8 @@ data class AppUiState(
     val ledgerNameDraft: String,
     /** A failed operation to tell the user about, or `null`. */
     val errorMessage: String?,
+    /** Whether the device reads receipts from photos (off until the user enables it). */
+    val isPhotoReadingEnabled: Boolean = false,
 ) {
     /** The year of [selectedMonth]. */
     val selectedYear: Int

@@ -143,5 +143,6 @@ class LedgerEditorTest {
             storeName = "",
             memo = "ランチ",
             items = emptyList(),
+            photoId = null,
         )
 }

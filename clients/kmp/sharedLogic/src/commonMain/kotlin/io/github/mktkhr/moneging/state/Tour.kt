@@ -17,6 +17,9 @@ enum class TourStep {
 
     /** The tab bar: calendar, report and budget. */
     TABS,
+
+    /** Whether to read receipts from photos (PRODUCT.md §3, Photo reading). */
+    PHOTO_READING,
     ;
 
     /** The step after this one, or `null` for the last. */

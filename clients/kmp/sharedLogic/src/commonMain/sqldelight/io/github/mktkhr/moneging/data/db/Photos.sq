@@ -22,3 +22,19 @@ SELECT * FROM photos WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
 
 allPhotos:
 SELECT * FROM photos ORDER BY rowid;
+
+-- A ledger's live photos, oldest first.
+livePhotos:
+SELECT * FROM photos WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY rowid;
+
+markPhotoDeleted:
+UPDATE photos SET deleted_at = :deletedAt, updated_at = :deletedAt
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+-- How many live transactions of the ledger link to the photo.
+liveTransactionsOfPhoto:
+SELECT COUNT(*) FROM transactions WHERE ledger_id = ? AND photo_id = ? AND deleted_at IS NULL;
+
+-- The photos of the ledger a live transaction links to.
+linkedPhotoIds:
+SELECT DISTINCT photo_id FROM transactions WHERE ledger_id = ? AND photo_id IS NOT NULL AND deleted_at IS NULL;

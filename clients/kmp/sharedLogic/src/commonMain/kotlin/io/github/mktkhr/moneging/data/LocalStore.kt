@@ -8,6 +8,9 @@ import io.github.mktkhr.moneging.domain.Ledger
 import io.github.mktkhr.moneging.domain.LedgerName
 import io.github.mktkhr.moneging.domain.RecordSnapshot
 import io.github.mktkhr.moneging.domain.StoredRecord
+import io.github.mktkhr.moneging.scan.NoReceiptScanner
+import io.github.mktkhr.moneging.scan.ReceiptScanner
+import io.github.mktkhr.moneging.scan.ScanPacer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -33,8 +36,22 @@ class LocalStore internal constructor(
     private val deviceId: String,
     private val photoFiles: PhotoFiles,
     private val context: CoroutineContext = Dispatchers.Default,
+    scanning: Scanning = Scanning(),
 ) {
     private val database = MonegingDatabase(openDriver())
+    private val scanRunner =
+        ScanRunner(
+            database = database,
+            photoFiles = photoFiles,
+            scanning = scanning,
+            context = context,
+            now = ::now,
+        )
+
+    init {
+        // A job still queued or running was cut off when the app last ended.
+        scanRunner.failCutOffJobs()
+    }
 
     /** Creates the ledger named [name] (trimmed), with the default categories; refuses a name the rule refuses. */
     suspend fun createLedger(name: String): Ledger {
@@ -96,6 +113,21 @@ class LocalStore internal constructor(
             database.ledgersQueries.allLedgers().asFlow(),
         ).map { }
 
+    /**
+     * Emits at once, then whenever a scan job, a draft, a photo or a
+     * transaction changes: when to read a ledger's scans again.
+     */
+    fun observeScanChanges(): Flow<Unit> =
+        merge(
+            database.scansQueries.allScanJobs().asFlow(),
+            database.scansQueries.allDrafts().asFlow(),
+            database.photosQueries.allPhotos().asFlow(),
+            database.transactionsQueries.allTransactions().asFlow(),
+        ).map { }
+
+    /** The photos whose bytes are in the app's private storage, whatever their ledger. */
+    suspend fun storedPhotoIds(): Set<Uuid> = withContext(context) { photoFiles.ids() }
+
     /** The ledger [id], or `null` when there is none. */
     suspend fun findLedger(id: Uuid): Ledger? =
         withContext(context) {
@@ -128,6 +160,7 @@ class LocalStore internal constructor(
             rows = LedgerRows(ledgerId = id, database = database, now = ::now, context = context),
             photoFiles = photoFiles,
             deviceId = deviceId,
+            scanRunner = scanRunner,
         )
 
     /** The whole database, tombstones included (sync and backup). */
@@ -169,11 +202,6 @@ class LocalStore internal constructor(
     // equals the one returned when it was written.
     private fun now(): Instant = clock.now().toColumn().toInstant()
 
-    private fun requireLedgerName(name: String): String =
-        requireNotNull(LedgerName.normalized(name)) {
-            "家計簿の名前は前後の空白を除いて1〜${LedgerName.MAX_LENGTH}文字にしてください"
-        }
-
     /** Factories for the store. */
     companion object {
         /**
@@ -183,11 +211,13 @@ class LocalStore internal constructor(
          * Its work runs one at a time on [context]: the JVM's in-memory
          * driver has one connection whose transaction every thread shares,
          * so a transaction started alongside another would join it and lose
-         * its change notifications.
+         * its change notifications. Receipts are read with [scanner]
+         * (none by default: every scan fails).
          */
         fun inMemory(
             clock: Clock,
             deviceId: String,
+            scanner: ReceiptScanner = NoReceiptScanner,
             context: CoroutineContext = Dispatchers.Default.limitedParallelism(parallelism = 1),
         ): LocalStore =
             LocalStore(
@@ -196,9 +226,23 @@ class LocalStore internal constructor(
                 deviceId = deviceId,
                 photoFiles = InMemoryPhotoFiles(),
                 context = context,
+                scanning = Scanning(scanner = scanner),
             )
     }
 }
+
+internal fun requireLedgerName(name: String): String =
+    requireNotNull(LedgerName.normalized(name)) {
+        "家計簿の名前は前後の空白を除いて1〜${LedgerName.MAX_LENGTH}文字にしてください"
+    }
+
+/** How a store reads receipts: with [scanner], moving its jobs as [pacer] lets them. */
+internal data class Scanning(
+    /** The scanner. */
+    val scanner: ReceiptScanner = NoReceiptScanner,
+    /** When a job moves on. */
+    val pacer: ScanPacer = ScanPacer.Immediate,
+)
 
 /** A fresh, private in-memory database with the current schema. */
 internal expect fun inMemoryDriver(): SqlDriver

@@ -1,0 +1,119 @@
+-- The reading of one photo in the background (PRODUCT.md §3, Scan job): its
+-- state is a ScanState name and only moves forward; a succeeded job names
+-- its draft, a failed one says why.
+CREATE TABLE scan_jobs (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    photo_id TEXT NOT NULL REFERENCES photos(id),
+    state TEXT NOT NULL,
+    draft_id TEXT,
+    failure_reason TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX scan_job_ledger ON scan_jobs(ledger_id);
+
+-- The result of a succeeded scan, waiting to be confirmed or discarded
+-- (§3, Draft); either leaves it a tombstone. Each field keeps the scanner's
+-- confidence (0 to 1); category_id is the whole expense's, for a draft
+-- without items.
+CREATE TABLE drafts (
+    id TEXT NOT NULL PRIMARY KEY,
+    ledger_id TEXT NOT NULL REFERENCES ledgers(id),
+    photo_id TEXT NOT NULL REFERENCES photos(id),
+    store TEXT NOT NULL,
+    store_confidence REAL NOT NULL,
+    date TEXT NOT NULL,
+    date_confidence REAL NOT NULL,
+    total INTEGER NOT NULL,
+    total_confidence REAL NOT NULL,
+    category_id TEXT REFERENCES categories(id),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+);
+
+CREATE INDEX draft_ledger ON drafts(ledger_id);
+
+CREATE TABLE draft_items (
+    id TEXT NOT NULL PRIMARY KEY,
+    draft_id TEXT NOT NULL REFERENCES drafts(id),
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    category_id TEXT REFERENCES categories(id),
+    confidence REAL NOT NULL
+);
+
+CREATE INDEX draft_item_draft ON draft_items(draft_id);
+
+insertScanJob:
+INSERT INTO scan_jobs (id, ledger_id, photo_id, state, draft_id, failure_reason, created_at, updated_at, deleted_at)
+VALUES (?, ?, ?, 'QUEUED', NULL, NULL, ?, ?, NULL);
+
+-- Moves a job on; a job already at or past the state is left as it is.
+moveScanJob:
+UPDATE scan_jobs SET state = :state, draft_id = :draftId, failure_reason = :failureReason, updated_at = :updatedAt
+WHERE id = :id AND state IN ('QUEUED', 'RUNNING') AND deleted_at IS NULL;
+
+-- Every job cut off before it finished (the app ended) fails.
+failUnfinishedScanJobs:
+UPDATE scan_jobs SET state = 'FAILED', failure_reason = :reason, updated_at = :updatedAt
+WHERE state IN ('QUEUED', 'RUNNING') AND deleted_at IS NULL;
+
+liveScanJob:
+SELECT * FROM scan_jobs WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+-- A ledger's live jobs, oldest first.
+liveScanJobs:
+SELECT * FROM scan_jobs WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY created_at, rowid;
+
+markScanJobsOfPhotoDeleted:
+UPDATE scan_jobs SET deleted_at = :deletedAt, updated_at = :deletedAt
+WHERE ledger_id = :ledgerId AND photo_id = :photoId AND deleted_at IS NULL;
+
+allScanJobs:
+SELECT * FROM scan_jobs ORDER BY rowid;
+
+insertDraft:
+INSERT INTO drafts (
+    id, ledger_id, photo_id, store, store_confidence, date, date_confidence, total, total_confidence,
+    category_id, created_at, updated_at, deleted_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+
+insertDraftItem:
+INSERT INTO draft_items (id, draft_id, position, name, amount, category_id, confidence)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateDraft:
+UPDATE drafts SET
+    store = :store, store_confidence = :storeConfidence, date = :date, date_confidence = :dateConfidence,
+    total = :total, total_confidence = :totalConfidence, category_id = :categoryId, updated_at = :updatedAt
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+deleteDraftItemsOf:
+DELETE FROM draft_items WHERE draft_id = ?;
+
+markDraftDeleted:
+UPDATE drafts SET deleted_at = :deletedAt, updated_at = :deletedAt
+WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
+
+markDraftsOfPhotoDeleted:
+UPDATE drafts SET deleted_at = :deletedAt, updated_at = :deletedAt
+WHERE ledger_id = :ledgerId AND photo_id = :photoId AND deleted_at IS NULL;
+
+liveDraft:
+SELECT * FROM drafts WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
+
+-- A ledger's drafts waiting to be confirmed, newest first.
+liveDrafts:
+SELECT * FROM drafts WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, rowid DESC;
+
+draftItemsOf:
+SELECT * FROM draft_items WHERE draft_id = ? ORDER BY position;
+
+allDrafts:
+SELECT * FROM drafts ORDER BY rowid;

@@ -5,6 +5,7 @@ import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.data.Preferences
 import io.github.mktkhr.moneging.data.SharedPreferencesStore
 import io.github.mktkhr.moneging.data.onDiskStore
+import io.github.mktkhr.moneging.scan.NoModuleInstaller
 import org.koin.dsl.module
 import kotlin.time.Clock
 
@@ -20,6 +21,8 @@ fun initKoin(context: Context) {
             single<Clock> { Clock.System }
             single<Preferences> { SharedPreferencesStore(application) }
             single<LocalStore> { onDiskStore(context = application, preferences = get(), clock = get()) }
+            // Reading receipts on Android (the ML Kit modules) is not wired yet: nothing is downloaded.
+            single { PhotoReadingSetup(modules = emptyList(), installer = NoModuleInstaller) }
         },
     )
 }

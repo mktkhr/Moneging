@@ -5,6 +5,9 @@ import io.github.mktkhr.moneging.data.PreferenceKeys
 import io.github.mktkhr.moneging.data.Preferences
 import io.github.mktkhr.moneging.data.todayInTokyo
 import io.github.mktkhr.moneging.domain.Ledger
+import io.github.mktkhr.moneging.scan.NoModuleInstaller
+import io.github.mktkhr.moneging.scan.ReadingModule
+import io.github.mktkhr.moneging.scan.ReadingModuleInstaller
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +54,8 @@ class AppState internal constructor(
     private val preferences: Preferences,
     private val clock: Clock,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val readingModules: List<ReadingModule> = emptyList(),
+    private val moduleInstaller: ReadingModuleInstaller = NoModuleInstaller,
 ) {
     // Owns the observation of the store; cancelled by close().
     private val coroutineScope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -67,6 +72,8 @@ class AppState internal constructor(
                 tour = null,
                 ledgerNameDraft = DEFAULT_LEDGER_NAME,
                 errorMessage = null,
+                isPhotoReadingEnabled =
+                    preferences.string(PreferenceKeys.PHOTO_READING) == PreferenceKeys.PHOTO_READING_ON,
             ),
         )
 
@@ -121,6 +128,10 @@ class AppState internal constructor(
 
             AppIntent.DismissError -> {
                 mutableUiState.update { it.copy(errorMessage = null) }
+            }
+
+            is AppIntent.SetPhotoReading -> {
+                setPhotoReading(isEnabled = intent.isEnabled)
             }
         }
     }
@@ -185,6 +196,20 @@ class AppState internal constructor(
         if (!isKnownLedger) return
         preferences.setString(key = PreferenceKeys.LEDGER_IN_VIEW, value = ledgerId)
         mutableUiState.update { it.copy(selectedLedgerId = ledgerId) }
+    }
+
+    // Keeps the choice on the device; enabling it asks for the modules the
+    // device needs to be downloaded then (none on iOS).
+    private fun setPhotoReading(isEnabled: Boolean) {
+        val isNewlyEnabled = isEnabled && !mutableUiState.value.isPhotoReadingEnabled
+        preferences.setString(
+            key = PreferenceKeys.PHOTO_READING,
+            value = PreferenceKeys.PHOTO_READING_ON.takeIf { isEnabled },
+        )
+        mutableUiState.update { it.copy(isPhotoReadingEnabled = isEnabled) }
+        if (isNewlyEnabled && readingModules.isNotEmpty()) {
+            moduleInstaller.requestInstall(modules = readingModules)
+        }
     }
 
     private fun changeTour(change: (TourState) -> TourState?) {

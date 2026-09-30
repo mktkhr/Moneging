@@ -1,11 +1,13 @@
 package io.github.mktkhr.moneging.data
 
+import io.github.mktkhr.moneging.data.db.Scan_jobs
 import io.github.mktkhr.moneging.domain.Category
 import io.github.mktkhr.moneging.domain.Direction
 import io.github.mktkhr.moneging.domain.MonthTotals
 import io.github.mktkhr.moneging.domain.Photo
 import io.github.mktkhr.moneging.domain.Transaction
 import io.github.mktkhr.moneging.domain.TransactionQuery
+import io.github.mktkhr.moneging.scan.ScanState
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.YearMonth
 import kotlin.time.Instant
@@ -21,6 +23,7 @@ internal class SqlLedgerScope(
     rows: LedgerRows,
     photoFiles: PhotoFiles,
     deviceId: String,
+    scanRunner: ScanRunner,
 ) : LedgerScope,
     LedgerCategories by SqlCategories(rows),
     LedgerPhotos by SqlPhotos(rows, photoFiles),
@@ -29,7 +32,8 @@ internal class SqlLedgerScope(
     LedgerTransactionWrites by SqlTransactionWrites(rows, deviceId),
     LedgerPlans by SqlPlans(rows),
     LedgerMonthCloses by SqlMonthCloses(rows),
-    LedgerRecurringRules by SqlRecurringRules(rows, deviceId) {
+    LedgerRecurringRules by SqlRecurringRules(rows, deviceId),
+    LedgerScans by SqlScans(rows, scanRunner, deviceId) {
     override val ledgerId: Uuid = rows.ledgerId
 }
 
@@ -153,7 +157,64 @@ internal class SqlPhotos(
                 .executeAsOneOrNull()
                 ?.toDomain()
         }
+
+    override suspend fun photos(): List<Photo> =
+        withContext(rows.context) {
+            rows.database.photosQueries
+                .livePhotos(rows.ledgerKey)
+                .executeAsList()
+                .map { it.toDomain() }
+        }
+
+    override suspend fun linkedPhotoIds(): Set<Uuid> =
+        withContext(rows.context) {
+            rows.database.photosQueries
+                .linkedPhotoIds(rows.ledgerKey)
+                .executeAsList()
+                .map { it.toUuid() }
+                .toSet()
+        }
+
+    override suspend fun photoBytes(id: Uuid): ByteArray? =
+        withContext(rows.context) {
+            val isLive =
+                rows.database.photosQueries
+                    .livePhoto(ledger_id = rows.ledgerKey, id = id.toString())
+                    .executeAsOneOrNull() != null
+            if (isLive) photoFiles.read(id) else null
+        }
+
+    override suspend fun deletePhoto(id: Uuid) {
+        withContext(rows.context) {
+            rows.database.transaction {
+                rows.requirePhoto(id)
+                val key = id.toString()
+                val linked =
+                    rows.database.photosQueries.liveTransactionsOfPhoto(
+                        ledger_id = rows.ledgerKey,
+                        photo_id = key,
+                    )
+                check(linked.executeAsOne() == 0L) { "記録に使われている写真は削除できません" }
+                val scans = rows.database.scansQueries
+                val isScanInFlight =
+                    scans.liveScanJobs(rows.ledgerKey).executeAsList().any { job ->
+                        job.photo_id == key &&
+                            job.isInFlight
+                    }
+                check(!isScanInFlight) { "読み取り中の写真は削除できません" }
+                val now = rows.now().toColumn()
+                scans.markDraftsOfPhotoDeleted(deletedAt = now, ledgerId = rows.ledgerKey, photoId = key)
+                scans.markScanJobsOfPhotoDeleted(deletedAt = now, ledgerId = rows.ledgerKey, photoId = key)
+                rows.database.photosQueries.markPhotoDeleted(deletedAt = now, ledgerId = rows.ledgerKey, id = key)
+            }
+            photoFiles.delete(id)
+        }
+    }
 }
+
+// Whether the job is queued or running.
+internal val Scan_jobs.isInFlight: Boolean
+    get() = ScanState.valueOf(state).isInFlight
 
 /** [LedgerTransactionReads] over the database. */
 internal class SqlTransactionReads(

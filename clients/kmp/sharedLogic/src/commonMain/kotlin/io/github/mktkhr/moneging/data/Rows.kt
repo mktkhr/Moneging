@@ -2,10 +2,13 @@ package io.github.mktkhr.moneging.data
 
 import io.github.mktkhr.moneging.data.db.Budgets
 import io.github.mktkhr.moneging.data.db.Categories
+import io.github.mktkhr.moneging.data.db.Draft_items
+import io.github.mktkhr.moneging.data.db.Drafts
 import io.github.mktkhr.moneging.data.db.Ledgers
 import io.github.mktkhr.moneging.data.db.Line_items
 import io.github.mktkhr.moneging.data.db.Photos
 import io.github.mktkhr.moneging.data.db.Recurring_rules
+import io.github.mktkhr.moneging.data.db.Scan_jobs
 import io.github.mktkhr.moneging.data.db.Transactions
 import io.github.mktkhr.moneging.domain.Budget
 import io.github.mktkhr.moneging.domain.BusinessDayAdjustment
@@ -16,6 +19,11 @@ import io.github.mktkhr.moneging.domain.LineItem
 import io.github.mktkhr.moneging.domain.Photo
 import io.github.mktkhr.moneging.domain.RecurringRule
 import io.github.mktkhr.moneging.domain.Transaction
+import io.github.mktkhr.moneging.scan.Draft
+import io.github.mktkhr.moneging.scan.DraftItem
+import io.github.mktkhr.moneging.scan.ScanJob
+import io.github.mktkhr.moneging.scan.ScanState
+import io.github.mktkhr.moneging.scan.ScannedValue
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 
@@ -108,3 +116,32 @@ internal fun Recurring_rules.toDomain(): RecurringRule =
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),
     )
+
+internal fun Scan_jobs.toDomain(): ScanJob =
+    ScanJob(
+        id = id.toUuid(),
+        ledgerId = ledger_id.toUuid(),
+        photoId = photo_id.toUuid(),
+        state = ScanState.valueOf(state),
+        draftId = draft_id?.toUuid(),
+        failureReason = failure_reason,
+        createdAt = created_at.toInstant(),
+        updatedAt = updated_at.toInstant(),
+    )
+
+internal fun Drafts.toDomain(items: List<DraftItem>): Draft =
+    Draft(
+        id = id.toUuid(),
+        ledgerId = ledger_id.toUuid(),
+        photoId = photo_id.toUuid(),
+        store = ScannedValue(value = store, confidence = store_confidence),
+        date = ScannedValue(value = LocalDate.parse(date), confidence = date_confidence),
+        total = ScannedValue(value = total, confidence = total_confidence),
+        categoryId = category_id?.toUuid(),
+        items = items,
+        createdAt = created_at.toInstant(),
+        updatedAt = updated_at.toInstant(),
+    )
+
+internal fun Draft_items.toDomain(): DraftItem =
+    DraftItem(name = name, amount = amount, categoryId = category_id?.toUuid(), confidence = confidence)

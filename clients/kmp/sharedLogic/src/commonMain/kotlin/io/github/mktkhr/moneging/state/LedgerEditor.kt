@@ -44,6 +44,8 @@ data class TransactionDraft(
     val memo: String,
     /** Its line items; empty when it is not split. */
     val items: List<LineItemDraft>,
+    /** The photo it is linked to (`Photo.id` as text), or `null`. */
+    val photoId: String?,
 )
 
 /** A recurring rule as the rule form holds it. */
@@ -224,6 +226,7 @@ internal fun TransactionDraft.toNewTransaction(): NewTransaction {
         categoryId = categoryId?.takeIf { !isIncome && lineItems.isEmpty() }?.let { Uuid.parse(it) },
         memo = memo.orNullIfBlank(),
         storeName = storeName.orNullIfBlank(),
+        photoId = photoId?.let { Uuid.parse(it) },
         items = lineItems,
     )
 }

@@ -42,6 +42,19 @@ internal class DirectoryPhotoFiles(
         directory.mkdirs()
         File(directory, id.toString()).writeBytes(bytes)
     }
+
+    override fun read(id: Uuid): ByteArray? = File(directory, id.toString()).takeIf { it.isFile }?.readBytes()
+
+    override fun delete(id: Uuid) {
+        File(directory, id.toString()).delete()
+    }
+
+    override fun ids(): Set<Uuid> =
+        directory
+            .listFiles()
+            .orEmpty()
+            .mapNotNull { file -> Uuid.parseOrNull(file.name) }
+            .toSet()
 }
 
 /** [Preferences] in the app's private shared preferences. */

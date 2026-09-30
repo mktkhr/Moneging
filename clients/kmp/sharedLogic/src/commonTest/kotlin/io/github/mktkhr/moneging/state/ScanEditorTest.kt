@@ -1,0 +1,141 @@
+package io.github.mktkhr.moneging.state
+
+import io.github.mktkhr.moneging.data.InMemoryPreferences
+import io.github.mktkhr.moneging.data.LocalStore
+import io.github.mktkhr.moneging.scan.FixtureReceipt
+import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
+import io.github.mktkhr.moneging.scan.ReceiptItem
+import io.github.mktkhr.moneging.scan.ReceiptReading
+import io.github.mktkhr.moneging.scan.ScannedValue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.TestResult
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlin.uuid.Uuid
+
+private const val SURE = 0.9
+private const val UNSURE = 0.4
+private const val RICE_BALL = 380L
+private const val TOTAL = 380L
+private val RECEIPT = byteArrayOf(1, 2, 3)
+private val UNKNOWN_PICTURE = byteArrayOf(9, 9, 9)
+private const val JPEG = "image/jpeg"
+
+private object NoonClock : Clock {
+    override fun now(): Instant = Instant.parse("2026-02-15T03:00:00Z")
+}
+
+/**
+ * [ScanEditor] keeps photos and starts their scans, and [ScanData] shows the
+ * scans of the ledger in view: in flight, waiting as drafts, or failed until
+ * read again or recorded by hand.
+ */
+class ScanEditorTest {
+    private val store =
+        LocalStore.inMemory(
+            clock = NoonClock,
+            deviceId = "test-device",
+            scanner =
+                FixtureReceiptScanner(
+                    receipts = listOf(FixtureReceipt(image = RECEIPT, reading = sevenElevenReading())),
+                ),
+        )
+    private val appState = AppState(store = store, preferences = InMemoryPreferences(), clock = NoonClock)
+    private val scanData = ScanData(store = store, appState = appState)
+    private val editor = ScanEditor(store = store, appState = appState, clock = NoonClock)
+
+    /** Stops the holders the test started. */
+    @AfterTest
+    fun tearDown() {
+        scanData.close()
+        appState.close()
+    }
+
+    /** Two photos are accepted at once, and read into drafts home counts as waiting. */
+    @Test
+    fun acceptedPhotosWait(): TestResult =
+        runTest {
+            ledgerInView()
+
+            val accepted = editor.acceptPhotos(images = listOf(RECEIPT, RECEIPT), contentType = JPEG)
+
+            assertEquals(expected = "2枚の読み取りを受け付けました", actual = accepted.noticeText)
+            val shown = scanData.uiState.first { it.waitingCount == 2 }
+            assertEquals(expected = "確認待ち 2件", actual = shown.statusText)
+            assertEquals(expected = "セブン-イレブン 380円、2月14日", actual = shown.waiting.first().accessibilityLabel)
+        }
+
+    /** A draft opens with the scanner's values and confidences, and its confirmed form is recorded. */
+    @Test
+    fun draftIsOpenedAndConfirmed(): TestResult =
+        runTest {
+            val ledgerId = ledgerInView()
+            editor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG)
+            val row =
+                scanData.uiState
+                    .first { it.waitingCount == 1 }
+                    .waiting
+                    .single()
+
+            val editing = assertNotNull(editor.openDraft(draftId = row.id))
+            assertTrue(needsReview(editing.form.totalConfidence))
+            assertEquals(
+                expected = "380",
+                actual =
+                    editing.form.items
+                        .single()
+                        .amountText,
+            )
+
+            val confirmed = editing.form.copy(store = "セブンイレブン 新宿店", totalConfidence = 1.0)
+            assertNull(editor.confirmDraft(draftId = row.id, form = confirmed))
+
+            val transaction = store.ledger(ledgerId).transactions(YearMonth(year = 2026, month = 2)).single()
+            assertEquals(expected = "セブンイレブン 新宿店", actual = transaction.storeName)
+            assertEquals(expected = row.photoId, actual = transaction.photoId?.toString())
+            assertEquals(expected = null, actual = scanData.uiState.first { it.waitingCount == 0 }.statusText)
+        }
+
+    /** A failed scan is listed with its reason until its photo is read again. */
+    @Test
+    fun failedScanIsListed(): TestResult =
+        runTest {
+            ledgerInView()
+            editor.acceptPhotos(images = listOf(UNKNOWN_PICTURE), contentType = JPEG)
+            val failed =
+                scanData.uiState
+                    .first { it.failed.isNotEmpty() }
+                    .failed
+                    .single()
+            assertEquals(expected = "このレシートは読み取れませんでした", actual = failed.failureReason)
+
+            assertNull(editor.readAgain(jobId = failed.id))
+
+            val again = scanData.uiState.first { state -> state.failed.none { it.id == failed.id } }
+            assertTrue(again.failed.size + again.inFlightCount == 1)
+        }
+
+    private suspend fun ledgerInView(): Uuid {
+        val ledger = store.createLedger("家計")
+        appState.uiState.first { state -> state.ledgers.any { it.id == ledger.id } }
+        appState.onIntent(AppIntent.SelectLedger(ledgerId = ledger.id.toString()))
+        return ledger.id
+    }
+}
+
+internal fun sevenElevenReading(): ReceiptReading =
+    ReceiptReading(
+        store = ScannedValue(value = "セブン-イレブン", confidence = SURE),
+        date = ScannedValue(value = LocalDate(year = 2026, month = 2, day = 14), confidence = SURE),
+        total = ScannedValue(value = TOTAL, confidence = UNSURE),
+        items = listOf(ReceiptItem(name = "おにぎり", amount = RICE_BALL, category = "食費", confidence = SURE)),
+    )
