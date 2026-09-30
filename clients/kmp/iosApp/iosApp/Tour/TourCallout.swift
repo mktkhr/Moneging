@@ -178,7 +178,12 @@ internal struct TourCallout: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Int(self.tour.position) + 1) / \(Int(self.tour.count))")
+        .accessibilityLabel(self.pageLabel)
+    }
+
+    // `1 / 4`, the numbers without separators.
+    private var pageLabel: String {
+        "\(Int(self.tour.position) + 1) / \(Int(self.tour.count))"
     }
 
     @ViewBuilder

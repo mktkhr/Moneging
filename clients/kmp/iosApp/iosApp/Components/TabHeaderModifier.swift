@@ -81,15 +81,15 @@ internal struct TabHeaderModifier: ViewModifier {
         let year: Int = self.store.selectedYear
         let month: Int = self.store.selectedMonth
         return Menu {
-            Button("\(year - 1)年へ", systemImage: "chevron.left") {
+            Button("\(String(year - 1))年へ", systemImage: "chevron.left") {
                 self.store.selectMonth(year: year - 1, month: month)
             }
-            Button("\(year + 1)年へ", systemImage: "chevron.right") {
+            Button("\(String(year + 1))年へ", systemImage: "chevron.right") {
                 self.store.selectMonth(year: year + 1, month: month)
             }
-            Section("\(year)年") {
+            Section("\(String(year))年") {
                 ForEach(Self.firstMonth...Self.lastMonth, id: \.self) { choice in
-                    Button("\(choice)月") {
+                    Button("\(String(choice))月") {
                         self.store.selectMonth(year: year, month: choice)
                     }
                 }
