@@ -1,4 +1,4 @@
 # The highest stage of PRODUCT.md §8 whose acceptance criteria make check
 # requires. 0 means none yet. Raised by the human's approved unlock when a
 # stage's acceptance tests are committed; never lowered to make a check pass.
-4
+5
