@@ -9,6 +9,8 @@ import UIKit
 internal struct DraftFieldsCard: View {
     internal let form: Binding<DraftFormState>
 
+    @State private var isDatePickerShown: Bool = false
+
     internal var body: some View {
         let current: DraftFormState = self.form.wrappedValue
         return VStack(spacing: 0) {
@@ -18,6 +20,9 @@ internal struct DraftFieldsCard: View {
             Divider()
             self.row(name: "日付", field: "date", confidence: current.dateConfidence) {
                 self.dateField
+            }
+            if self.isDatePickerShown {
+                self.datePicker
             }
             Divider()
             self.row(name: "合計", field: "total", confidence: current.totalConfidence) {
@@ -35,19 +40,37 @@ internal struct DraftFieldsCard: View {
             .accessibilityIdentifier("draft-store")
     }
 
+    // The date, `2026年2月14日`; chosen, it opens a calendar below its row.
     private var dateField: some View {
-        HStack(spacing: 0) {
-            DatePicker(
-                "日付",
-                selection: self.certain(\.date, confidence: \.dateConfidence),
-                displayedComponents: .date,
-            )
-            .labelsHidden()
-            .environment(\.calendar, IsoDate.calendar)
-            .environment(\.timeZone, IsoDate.timeZone)
-            .accessibilityIdentifier("draft-date")
-            Spacer(minLength: 0)
+        Button {
+            self.isDatePickerShown.toggle()
+        } label: {
+            HStack(spacing: Theme.Spacing.small) {
+                Text(IsoDate.longText(from: self.form.wrappedValue.date))
+                    .foregroundStyle(Theme.text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: self.isDatePickerShown ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(Theme.mutedText)
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: Theme.minimumTapTarget)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("日付 \(IsoDate.longText(from: self.form.wrappedValue.date))")
+        .accessibilityHint("カレンダーで日付を変えます")
+        .accessibilityIdentifier("draft-date")
+    }
+
+    private var datePicker: some View {
+        DatePicker(
+            "日付",
+            selection: self.certain(\.date, confidence: \.dateConfidence),
+            displayedComponents: .date,
+        )
+        .datePickerStyle(.graphical)
+        .tint(Theme.accent)
+        .labelsHidden()
     }
 
     private var totalField: some View {

@@ -15,6 +15,11 @@ internal struct MonegingApp: App {
                 .environment(self.store)
                 .environment(self.ledgerStore)
                 .environment(self.scanStore)
+                // Japanese only (PRODUCT.md §5): dates read `2026年2月14日`
+                // whatever the device's language, on the product's calendar.
+                .environment(\.locale, IsoDate.locale)
+                .environment(\.calendar, IsoDate.calendar)
+                .environment(\.timeZone, IsoDate.timeZone)
         }
     }
 
