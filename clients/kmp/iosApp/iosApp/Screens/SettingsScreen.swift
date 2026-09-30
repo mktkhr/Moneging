@@ -2,9 +2,9 @@ import SharedLogic
 import SwiftUI
 
 /// 設定: a grouped list, matching `Settings2.dc.html`: the ledger in
-/// view's 分類 and 毎月の定期, placeholder rows, one row per ledger opening
-/// the editor of its name, and 使い方をもう一度見る, which replays the tour
-/// over ホーム.
+/// view's 分類, 毎月の定期 and 予算の残りの扱い, placeholder rows, one row
+/// per ledger opening the editor of its name, and 使い方をもう一度見る,
+/// which replays the tour over ホーム.
 internal struct SettingsScreen: View {
     private static let groups: [(title: String, items: [SettingsItem])] = [
         (title: "表示", items: [.appearance]),
@@ -76,9 +76,30 @@ internal struct SettingsScreen: View {
                 route: .recurringRules,
                 identifier: "settings-recurring",
             )
+            self.carryOverRow
         } header: {
             Text("家計簿「\(self.store.selectedLedgerName)」")
         }
+    }
+
+    // What closing a month does with the leftover, kept for the ledger in view.
+    private var carryOverRow: some View {
+        Picker(
+            "予算の残りの扱い",
+            selection: Binding(
+                get: { self.ledgerStore.state.carryOverPolicy },
+                set: { policy in
+                    Task {
+                        _ = await self.ledgerStore.setCarryOverPolicy(policy)
+                    }
+                },
+            ),
+        ) {
+            Text("繰り越す").tag(CarryOverPolicy.carry)
+            Text("貯金にする").tag(CarryOverPolicy.save)
+        }
+        .pickerStyle(.menu)
+        .accessibilityIdentifier("settings-carry-over")
     }
 
     private func ledgerRow(

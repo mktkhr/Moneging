@@ -90,6 +90,8 @@ data class CloseOffer(
 
 /** The budget view of the month in view. */
 data class BudgetView(
+    /** The month in view, ISO (`2026-02`). */
+    val month: String,
     /** The offer to close a month, or `null` when there is nothing to close. */
     val closeOffer: CloseOffer?,
     /** The whole-month budget, shown even when unset. */
@@ -121,6 +123,7 @@ fun LedgerUiState.budgetView(todayIso: String): BudgetView? {
     val budgets = budgets ?: return null
     val today = LocalDate.parse(todayIso)
     return BudgetView(
+        month = budgets.month.toString(),
         closeOffer = closing?.let { closeOffer(month = it.month, today = today) },
         whole = wholeBudget(line = budgets.whole, title = "${monthName(budgets.month, today)}の予算"),
         rows = budgets.categories.map { budgetRow(it) },

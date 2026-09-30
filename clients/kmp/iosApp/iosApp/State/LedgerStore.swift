@@ -124,6 +124,42 @@ internal final class LedgerStore {
         await self.write { try await self.editor.recurringRules.deleteRecurringRule(ruleId: id) }
     }
 
+    /// Sets the budget of `categoryId` (`nil` for the whole month) to
+    /// `amountText` from the ISO month `fromMonth` on; returns whether it
+    /// was set.
+    internal func setBudget(
+        categoryId: String?,
+        amountText: String,
+        fromMonth: String,
+    ) async -> Bool {
+        await self.write {
+            try await self.editor.budgets.setBudget(
+                categoryId: categoryId,
+                amountText: amountText,
+                fromMonth: fromMonth,
+            )
+        }
+    }
+
+    /// Removes the budget of `categoryId` (`nil` for the whole month) from
+    /// the ISO month `fromMonth` on; returns whether it was removed.
+    internal func removeBudget(categoryId: String?, fromMonth: String) async -> Bool {
+        await self.write {
+            try await self.editor.budgets.removeBudget(categoryId: categoryId, fromMonth: fromMonth)
+        }
+    }
+
+    /// Changes the ledger's carry-over policy; returns whether it was changed.
+    internal func setCarryOverPolicy(_ policy: CarryOverPolicy) async -> Bool {
+        await self.write { try await self.editor.budgets.setCarryOverPolicy(policy: policy) }
+    }
+
+    /// Keeps `policy` for the ledger and closes the ISO month `month` under
+    /// it; returns whether it was closed.
+    internal func closeMonth(_ month: String, policy: CarryOverPolicy) async -> Bool {
+        await self.write { try await self.editor.budgets.closeMonth(month: month, policy: policy) }
+    }
+
     /// The transactions of the ledger in view matching `draft`; empty when
     /// the search fails, which is kept in `failureMessage`.
     internal func search(_ draft: SearchDraft) async -> [Transaction] {

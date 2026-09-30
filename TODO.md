@@ -6,7 +6,7 @@
 1. Foundation（完了: stage.txt = 1）
 2. Recording money（完了: stage.txt = 2）
 3. Reporting and calendar（完了: stage.txt = 3）
-4. Budget and savings（次: 未決事項を Claude Design で提示する）
+4. Budget and savings（実装済み: AC-B-401〜403・AC-F-401/402 が pass。次: test-auditor の監査を経て stage.txt を 4 に上げる）
 5. Photos and scanning
 6. Receipts that do not add up
 7. Needs-review records
