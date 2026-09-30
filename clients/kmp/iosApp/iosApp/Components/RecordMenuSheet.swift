@@ -1,9 +1,13 @@
 import SwiftUI
 
-/// 記録する: the sheet the floating record button presents, matching
-/// `RecordMenu2.dc.html`: 手で入力する opens the entry sheet; reading a
-/// receipt comes later, so its two rows are shown disabled, marked 準備中.
+/// 記録する: the sheet the floating record button presents (`RecordMenu5.dc.html`).
+///
+/// 手で入力する opens the entry sheet, レシートを撮る the document scanner
+/// and 写真を選ぶ the photo library. The two receipt rows work only while
+/// reading from photos is enabled; otherwise they are shown disabled,
+/// saying where to turn it on.
 internal struct RecordMenuSheet: View {
+    internal let isPhotoReadingEnabled: Bool
     internal let onChoose: (RecordOption) -> Void
 
     internal var body: some View {
@@ -13,13 +17,16 @@ internal struct RecordMenuSheet: View {
                 .accessibilityIdentifier("record-sheet-title")
             VStack(spacing: Theme.Spacing.small) {
                 ForEach(RecordOption.sheetOrder, id: \.self) { option in
+                    let isAvailable: Bool = option.isAvailable(
+                        isPhotoReadingEnabled: self.isPhotoReadingEnabled,
+                    )
                     Button {
                         self.onChoose(option)
                     } label: {
-                        RecordOptionRow(option: option)
+                        RecordOptionRow(option: option, isAvailable: isAvailable)
                     }
                     .buttonStyle(.plain)
-                    .disabled(!option.isAvailable)
+                    .disabled(!isAvailable)
                     .accessibilityIdentifier("record-option-\(option.identifier)")
                 }
             }
@@ -35,7 +42,7 @@ internal struct RecordMenuSheet: View {
 }
 
 #Preview {
-    RecordMenuSheet { _ in
+    RecordMenuSheet(isPhotoReadingEnabled: true) { _ in
         // No-op for preview.
     }
 }

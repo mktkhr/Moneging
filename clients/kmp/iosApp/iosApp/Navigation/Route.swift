@@ -9,6 +9,9 @@ internal enum Route: Hashable {
     /// The editor renaming the ledger with this `Ledger.id` (as text),
     /// opened from 設定.
     case renameLedger(String)
+    /// レシートの読み取り: the scans of the ledger in view, opened from the
+    /// status band on ホーム.
+    case scans
     /// The 設定 screen, opened from the header's account icon.
     case settings
     /// A row inside 設定, pushed on top of the settings screen.

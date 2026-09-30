@@ -1,8 +1,10 @@
 import SharedLogic
 import SwiftUI
 
-/// ホーム tab root content (`Home2.dc.html`): the month in view's 支出 /
-/// 収入 / 収支, then its transactions grouped by day, newest first.
+/// ホーム tab root content (`Home2.dc.html`, `Home5.dc.html`): while any
+/// scan is in flight or any draft waits, how many (opening レシートの読み取り);
+/// the month in view's 支出 / 収入 / 収支, then its transactions grouped by
+/// day, newest first.
 ///
 /// Each transaction is a row `transaction-row-<yyyy-MM-dd>-<id>`; tapping
 /// it opens its edit sheet, swiping it deletes it. While the month is read
@@ -25,6 +27,9 @@ internal struct HomeTabContent: View {
     @Environment(AppRouter.self)
     private var router: AppRouter
 
+    @Environment(ScanStore.self)
+    private var scanStore: ScanStore
+
     // Whether the records shown are the month in view's of the ledger in view.
     private var isShowingMonthInView: Bool {
         let state: LedgerUiState = self.ledgerStore.state
@@ -33,6 +38,15 @@ internal struct HomeTabContent: View {
 
     internal var body: some View {
         List {
+            if let status = self.scanStore.state.statusText {
+                Section {
+                    ScanStatusBand(text: status) {
+                        self.router.push(.scans)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Theme.background)
+                }
+            }
             Section {
                 MonthTotalsCard(totals: self.ledgerStore.state.totals)
                     .listRowInsets(EdgeInsets())

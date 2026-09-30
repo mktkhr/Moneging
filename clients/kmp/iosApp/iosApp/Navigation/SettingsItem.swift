@@ -4,7 +4,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
     case appearance
     case backup
     case notificationsDevice
-    case receiptScanning
 
     /// The row's Japanese label.
     internal var label: String {
@@ -17,9 +16,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
 
         case .notificationsDevice:
             "通知"
-
-        case .receiptScanning:
-            "写真からの読み取り"
         }
     }
 
@@ -34,9 +30,6 @@ internal enum SettingsItem: CaseIterable, Hashable {
 
         case .notificationsDevice:
             "notifications-device"
-
-        case .receiptScanning:
-            "receipt-scanning"
         }
     }
 }

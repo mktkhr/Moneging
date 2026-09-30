@@ -63,6 +63,11 @@ internal enum Theme {
         light: Self.light.accent,
         dark: Self.dark.accent,
     )
+    /// `accent` in light mode, `#RRGGBB`: for surfaces drawn outside the app
+    /// (the Live Activity), which cannot read this type.
+    internal static let accentLightHex: String = Self.light.accent
+    /// `accent` in dark mode, `#RRGGBB`; see `accentLightHex`.
+    internal static let accentDarkHex: String = Self.dark.accent
     /// The colour scheme's own fixed text/icon colour drawn on top of `accent`.
     internal static let onAccent: Color = Color(
         light: Self.light.onAccent,

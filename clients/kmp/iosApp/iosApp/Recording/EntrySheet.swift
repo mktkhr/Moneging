@@ -8,10 +8,14 @@ import SwiftUI
 /// 支出 / 収入, the amount on the number pad, the category (an expense's;
 /// an income has none), the date (today unless changed), the store name
 /// and the memo; an expense may be split into line items, whose sum is its
-/// amount. The toolbar's × closes it and ✓ saves it.
+/// amount. The toolbar's × closes it and ✓ saves it. A record linked to a
+/// receipt's photo keeps it, and shows it (レシートの写真を見る).
 internal struct EntrySheet: View {
     /// The transaction edited, or `nil` for a new record.
     internal let editing: SharedLogic.Transaction?
+    /// The receipt photo a new record is linked to (one that could not be
+    /// read), or `nil`.
+    internal var newPhotoId: String?
 
     @Environment(LedgerStore.self)
     private var ledgerStore: LedgerStore
@@ -32,6 +36,11 @@ internal struct EntrySheet: View {
     @State private var isSaving: Bool = false
     @State private var isDeleteConfirmationShown: Bool = false
     @State private var isPrepared: Bool = false
+
+    // The photo the record is linked to: the edited one's, or the new one's.
+    private var photoId: String? {
+        self.editing?.photoId?.description ?? self.newPhotoId
+    }
 
     private var isSplit: Bool {
         !self.items.isEmpty
@@ -125,15 +134,27 @@ internal struct EntrySheet: View {
                 isIncome: self.isIncome,
                 todayIso: self.store.todayIso,
             )
-            if !self.isIncome, !self.isSplit {
-                Button("明細に分ける", systemImage: "list.bullet", action: self.startSplit)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
-                    .accessibilityIdentifier("entry-split")
-            }
-            if self.editing != nil {
-                self.deleteButton
-            }
+            self.extras
+        }
+    }
+
+    // The receipt's photo (a record linked to one), splitting, deleting.
+    @ViewBuilder private var extras: some View {
+        if let photoId = self.photoId {
+            ReceiptPhotoLink(
+                photoId: photoId,
+                width: Theme.Scanning.rowThumbnailWidth,
+                height: Theme.Scanning.rowThumbnailHeight,
+            )
+        }
+        if !self.isIncome, !self.isSplit {
+            Button("明細に分ける", systemImage: "list.bullet", action: self.startSplit)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .accessibilityIdentifier("entry-split")
+        }
+        if self.editing != nil {
+            self.deleteButton
         }
     }
 
@@ -229,6 +250,7 @@ internal struct EntrySheet: View {
             storeName: self.isIncome ? "" : self.storeName,
             memo: self.memo,
             items: isSplitExpense ? itemDrafts : [],
+            photoId: self.photoId,
         )
     }
 

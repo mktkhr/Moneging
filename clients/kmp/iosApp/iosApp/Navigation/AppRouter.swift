@@ -27,8 +27,13 @@ internal final class AppRouter {
     internal var isAddLedgerSheetPresented: Bool = false
     /// The entry or edit sheet presented, or `nil`.
     internal var entrySheet: EntrySheetRequest?
-    /// Whether the entry sheet opens once the 記録する sheet has closed.
-    internal var isEntryPendingOnRecordSheet: Bool = false
+    /// What opens once the 記録する sheet has closed: the option chosen in it.
+    internal var optionPendingOnRecordSheet: RecordOption?
+    /// The way of handing over receipt photos to open now (the document
+    /// scanner or the photo library), or `nil`.
+    internal var receiptCapture: RecordOption?
+    /// The draft whose sheet is presented, or `nil`.
+    internal var draftSheet: DraftSheetRequest?
 
     /// Whether the floating 記録する button should show.
     ///
@@ -112,6 +117,8 @@ internal final class AppRouter {
         self.isRecordSheetPresented = false
         self.isAddLedgerSheetPresented = false
         self.entrySheet = nil
+        self.draftSheet = nil
+        self.receiptCapture = nil
         self.selectedTab = .home
         self.homePath = NavigationPath()
         self.calendarPath = NavigationPath()
@@ -120,22 +127,27 @@ internal final class AppRouter {
         self.searchPath = NavigationPath()
     }
 
-    /// Dismisses the 記録する sheet; 手で入力する then opens the entry sheet
+    /// Dismisses the 記録する sheet; what `option` opens (the entry sheet,
+    /// the document scanner or the photo library) then opens
     /// (`recordSheetDidDismiss()`).
     internal func chooseRecordOption(_ option: RecordOption) {
-        guard option.isAvailable else {
-            return
-        }
-        self.isEntryPendingOnRecordSheet = option == .manual
+        self.optionPendingOnRecordSheet = option
         self.isRecordSheetPresented = false
     }
 
-    /// Opens the entry sheet once the 記録する sheet has closed, when
-    /// 手で入力する closed it.
+    /// Opens what the option chosen in the 記録する sheet opens, once the
+    /// sheet has closed.
     internal func recordSheetDidDismiss() {
-        if self.isEntryPendingOnRecordSheet {
-            self.isEntryPendingOnRecordSheet = false
-            self.entrySheet = .new
+        guard let option = self.optionPendingOnRecordSheet else {
+            return
+        }
+        self.optionPendingOnRecordSheet = nil
+        switch option {
+        case .manual:
+            self.entrySheet = .new(photoId: nil)
+
+        case .photoPick, .receiptScan:
+            self.receiptCapture = option
         }
     }
 

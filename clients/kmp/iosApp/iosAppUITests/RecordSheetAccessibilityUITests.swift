@@ -33,8 +33,8 @@ final class RecordSheetAccessibilityUITests: XCTestCase {
 
         let rows = [
             app.buttons["record-option-manual"],
-            app.buttons["record-option-receipt-scan"],
-            app.buttons["record-option-photo-pick"],
+            app.buttons["record-option-scan"],
+            app.buttons["record-option-library"],
         ]
         for row in rows {
             XCTAssertTrue(

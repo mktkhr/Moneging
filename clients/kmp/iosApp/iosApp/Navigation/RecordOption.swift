@@ -1,4 +1,4 @@
-/// A single row inside the 記録する sheet (`RecordMenu.dc.html`).
+/// A single row inside the 記録する sheet (`RecordMenu5.dc.html`).
 ///
 /// Declared in alphabetical order (SwiftLint's `sorted_enum_cases`); the
 /// sheet's own row order comes from `sheetOrder`, not from this
@@ -33,10 +33,10 @@ internal enum RecordOption: CaseIterable, Hashable {
             "金額と分類を入れて記録"
 
         case .photoPick:
-            "撮ったレシートの写真から"
+            "写真ライブラリから何枚でも"
 
         case .receiptScan:
-            "撮るだけで下書きに"
+            "何枚でも続けて。1ページが1枚のレシート"
         }
     }
 
@@ -54,23 +54,28 @@ internal enum RecordOption: CaseIterable, Hashable {
         }
     }
 
-    /// Whether it can be used yet; the others are shown disabled, marked
-    /// 準備中 (reading receipts comes with stage 5).
-    internal var isAvailable: Bool {
-        self == .manual
+    /// Whether it reads receipts from photos, which works only while the
+    /// user has it enabled (設定 → 写真からの読み取り).
+    internal var readsPhotos: Bool {
+        self != .manual
     }
 
-    /// A stable, ASCII identifier for UI testing.
+    /// A stable, ASCII identifier for UI testing (`record-option-<identifier>`).
     internal var identifier: String {
         switch self {
         case .manual:
             "manual"
 
         case .photoPick:
-            "photo-pick"
+            "library"
 
         case .receiptScan:
-            "receipt-scan"
+            "scan"
         }
+    }
+
+    /// Whether it can be used: reading from photos only while it is enabled.
+    internal func isAvailable(isPhotoReadingEnabled: Bool) -> Bool {
+        !self.readsPhotos || isPhotoReadingEnabled
     }
 }

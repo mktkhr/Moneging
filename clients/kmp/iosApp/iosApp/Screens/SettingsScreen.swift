@@ -8,7 +8,6 @@ import SwiftUI
 internal struct SettingsScreen: View {
     private static let groups: [(title: String, items: [SettingsItem])] = [
         (title: "表示", items: [.appearance]),
-        (title: "記録", items: [.receiptScanning]),
         (title: "端末", items: [.notificationsDevice, .backup]),
     ]
 
@@ -24,6 +23,7 @@ internal struct SettingsScreen: View {
     internal var body: some View {
         List {
             self.ledgerInViewSection
+            self.readingSection
             ForEach(Self.groups, id: \.title) { group in
                 Section(group.title) {
                     ForEach(group.items, id: \.self) { item in
@@ -45,6 +45,40 @@ internal struct SettingsScreen: View {
         }
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // Whether the device reads receipts from photos (PRODUCT.md §3, Photo reading).
+    private var readingSection: some View {
+        Section {
+            let isOn: Binding<Bool> = Binding(
+                get: { self.store.isPhotoReadingEnabled },
+                set: { self.store.setPhotoReading($0) },
+            )
+            // The whole row turns it on or off, and reads as one switch.
+            Button {
+                isOn.wrappedValue.toggle()
+            } label: {
+                HStack(spacing: Theme.Spacing.medium) {
+                    Text("写真からの読み取り")
+                        .foregroundStyle(Theme.text)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Toggle("写真からの読み取り", isOn: isOn)
+                        .labelsHidden()
+                        .tint(Theme.accent)
+                        .allowsHitTesting(false)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityRepresentation {
+                Toggle("写真からの読み取り", isOn: isOn)
+            }
+            .accessibilityIdentifier("settings-photo-reading")
+        } header: {
+            Text("記録")
+        } footer: {
+            Text("レシートの写真から下書きを作ります。読み取りはこの端末の中だけで行います。")
+        }
     }
 
     // One row per ledger, opening the editor of its name.

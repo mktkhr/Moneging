@@ -12,6 +12,9 @@ import SwiftUI
 /// squeezing it into a narrow column.
 internal struct RecordOptionRow: View {
     internal let option: RecordOption
+    /// Whether it can be used now; a receipt row is not while reading from
+    /// photos is off, and says where to turn it on.
+    internal let isAvailable: Bool
 
     @Environment(\.dynamicTypeSize)
     private var dynamicTypeSize: DynamicTypeSize
@@ -45,13 +48,17 @@ internal struct RecordOptionRow: View {
                 Text(self.option.title)
                     .font(.body.weight(.bold))
                     .foregroundStyle(Theme.text)
-                Text(self.option.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.mutedText)
+                Text(
+                    self.isAvailable
+                        ? self.option.subtitle
+                        : String(localized: "設定の「写真からの読み取り」をオンにすると使えます")
+                )
+                .font(.footnote)
+                .foregroundStyle(Theme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if !self.option.isAvailable {
-                Text("準備中")
+            if !self.isAvailable {
+                Text("オフ")
                     .font(.caption)
                     .foregroundStyle(Theme.mutedText)
                     .padding(.horizontal, Theme.Spacing.small)
@@ -59,7 +66,7 @@ internal struct RecordOptionRow: View {
                     .background(Theme.Recording.badgeBackground, in: Capsule())
             }
         }
-        .opacity(self.option.isAvailable ? 1 : Theme.disabledOpacity)
+        .opacity(self.isAvailable ? 1 : Theme.disabledOpacity)
         .padding(.horizontal, Theme.Spacing.large)
         .padding(.vertical, Theme.Spacing.medium)
         .frame(minHeight: Theme.minimumTapTarget)
@@ -68,5 +75,5 @@ internal struct RecordOptionRow: View {
 }
 
 #Preview {
-    RecordOptionRow(option: .manual)
+    RecordOptionRow(option: .manual, isAvailable: true)
 }

@@ -18,6 +18,9 @@ internal struct RouteDestination: View {
         case .recurringRules:
             RecurringRulesScreen()
 
+        case .scans:
+            ScansScreen()
+
         case .settings:
             SettingsScreen()
 

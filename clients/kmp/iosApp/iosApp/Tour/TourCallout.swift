@@ -71,6 +71,9 @@ internal struct TourCallout: View {
             if self.tour.step == .ledger {
                 self.nameField
             }
+            if self.tour.step == .photoReading {
+                self.photoReadingSwitch
+            }
             self.controls
         }
     }
@@ -138,6 +141,28 @@ internal struct TourCallout: View {
                     .strokeBorder(Theme.accent, lineWidth: Theme.Tour.fieldBorderWidth)
             }
         }
+    }
+
+    // Whether to read receipts from photos: off unless turned on.
+    private var photoReadingSwitch: some View {
+        HStack(spacing: Theme.Spacing.medium) {
+            Text("写真から読み取る")
+                .font(.body.weight(.medium))
+                .foregroundStyle(Theme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
+            Toggle(
+                "写真から読み取る",
+                isOn: Binding(
+                    get: { self.store.isPhotoReadingEnabled },
+                    set: { self.store.setPhotoReading($0) },
+                ),
+            )
+            .labelsHidden()
+            .tint(Theme.accent)
+            .accessibilityIdentifier("tour-photo-reading")
+        }
+        .frame(minHeight: Theme.minimumTapTarget)
     }
 
     private var pageDots: some View {

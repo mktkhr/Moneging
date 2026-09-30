@@ -16,8 +16,8 @@ final class RecordSheetUITests: XCTestCase {
     }
 
     /// The floating 記録する button opens a sheet with three rows:
-    /// 手で入力する opens the entry sheet, and the two receipt rows, which
-    /// come with a later stage, are shown disabled.
+    /// 手で入力する opens the entry sheet, and the two receipt rows are shown
+    /// disabled while reading from photos is off (as it is until turned on).
     func testRecordSheetOpensEntrySheetAndDisablesReceiptRows() throws {
         app.switchToTab("ホーム")
 
@@ -25,8 +25,8 @@ final class RecordSheetUITests: XCTestCase {
         XCTAssertTrue(recordButton.appears(within: 5))
         recordButton.tap()
 
-        XCTAssertFalse(app.buttons["record-option-receipt-scan"].isEnabled, "レシートを撮る が押せる")
-        XCTAssertFalse(app.buttons["record-option-photo-pick"].isEnabled, "写真を選ぶ が押せる")
+        XCTAssertFalse(app.buttons["record-option-scan"].isEnabled, "レシートを撮る が押せる")
+        XCTAssertFalse(app.buttons["record-option-library"].isEnabled, "写真を選ぶ が押せる")
         let manual = app.buttons["record-option-manual"]
         XCTAssertTrue(manual.appears(within: 5), "手で入力する の行が見つからない")
         manual.tap()
@@ -50,8 +50,8 @@ final class RecordSheetUITests: XCTestCase {
         app.buttons["record-button"].tap()
 
         let manualRow = app.buttons["record-option-manual"]
-        let receiptRow = app.buttons["record-option-receipt-scan"]
-        let photoRow = app.buttons["record-option-photo-pick"]
+        let receiptRow = app.buttons["record-option-scan"]
+        let photoRow = app.buttons["record-option-library"]
         XCTAssertTrue(manualRow.appears(within: 5))
         XCTAssertTrue(receiptRow.exists)
         XCTAssertTrue(photoRow.exists)

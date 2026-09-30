@@ -43,12 +43,17 @@
         }
 
         /// Starts the shared container, on the injected today when a launch
-        /// argument gives one.
-        internal static func initKoin() {
-            if let today = UserDefaults.standard.string(forKey: Self.todayKey) {
-                doInitKoinForUiTests(isoDate: today)
-            } else {
-                doInitKoin()
+        /// argument gives one, reading receipts as `UITestScanning` chooses.
+        internal static func initKoin(reader: SystemReceiptReader) {
+            doInitKoinForUiTests(
+                isoDate: UserDefaults.standard.string(forKey: Self.todayKey),
+                reader: reader,
+                scannerFixtures: UITestScanning.fixturesDirectory,
+                isJobStepping: UITestScanning.isJobStepping,
+                installer: UITestScanning.moduleInstaller,
+            )
+            if UITestScanning.isPhotoReadingEnabled {
+                enablePhotoReadingForUiTests()
             }
         }
 

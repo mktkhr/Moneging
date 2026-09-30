@@ -19,6 +19,9 @@ internal struct RootView: View {
     @Environment(LedgerStore.self)
     private var ledgerStore: LedgerStore
 
+    @Environment(ScanStore.self)
+    private var scanStore: ScanStore
+
     @Environment(\.scenePhase)
     private var scenePhase: ScenePhase
 
@@ -76,6 +79,25 @@ internal struct RootView: View {
                 Text(self.store.shownErrorMessage ?? "")
             }
             .ledgerFailureAlert()
+            .scanFailureAlert()
+            .receiptCapture()
+            // The progress outside the app names the ledger in view.
+            .onChange(of: self.store.selectedLedgerName, initial: true) { _, name in
+                self.scanStore.ledgerName = name
+            }
+            #if DEBUG
+                .overlay(alignment: .topLeading) {
+                    if let installer = UITestScanning.moduleInstaller {
+                        Text(String(installer.requestCount))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.mutedText)
+                        .allowsHitTesting(false)
+                        .accessibilityLabel("モジュールのダウンロード要求")
+                        .accessibilityValue(String(installer.requestCount))
+                        .accessibilityIdentifier("module-install-requests")
+                    }
+                }
+            #endif
             // Back in the foreground: today again, and the recurring rules whose date has come.
             .onChange(of: self.scenePhase) { _, phase in
                 if phase == .active {
@@ -100,8 +122,8 @@ internal struct RootView: View {
         case .edit(let transaction):
             EntrySheet(editing: transaction)
 
-        case .new:
-            EntrySheet(editing: nil)
+        case .new(let photoId):
+            EntrySheet(editing: nil, newPhotoId: photoId)
         }
     }
 
@@ -145,12 +167,15 @@ internal struct RootView: View {
             isPresented: $router.isRecordSheetPresented,
             onDismiss: router.recordSheetDidDismiss,
         ) {
-            RecordMenuSheet { option in
+            RecordMenuSheet(isPhotoReadingEnabled: self.store.isPhotoReadingEnabled) { option in
                 router.chooseRecordOption(option)
             }
             .fittedSheet(maxHeight: sheetMaxHeight)
         }
         .sheet(item: $router.entrySheet, content: Self.entrySheet)
+        .sheet(item: $router.draftSheet) { request in
+            DraftSheet(draftId: request.draftId)
+        }
         .sheet(isPresented: $router.isAddLedgerSheetPresented) {
             AddLedgerSheet()
         }

@@ -46,6 +46,8 @@ internal final class SharedStateStore {
     internal private(set) var errorMessage: String?
     /// A write that failed without the shared state reporting it, or `nil`.
     internal private(set) var writeFailureMessage: String?
+    /// Whether the device reads receipts from photos.
+    internal private(set) var isPhotoReadingEnabled: Bool
 
     /// The failed operation to tell the user about, or `nil`.
     internal var shownErrorMessage: String? {
@@ -81,6 +83,7 @@ internal final class SharedStateStore {
         self.tour = initial.tour
         self.ledgerNameDraft = initial.ledgerNameDraft
         self.errorMessage = initial.errorMessage
+        self.isPhotoReadingEnabled = initial.isPhotoReadingEnabled
 
         let stateFlow: SkieSwiftStateFlow<AppUiState> = appState.uiState
         let taskBox: ObservationTaskBox = self.observationTask
@@ -128,6 +131,12 @@ internal final class SharedStateStore {
     /// Replays the tour from the step after the ledger step.
     internal func replayTour() {
         self.send(AppIntentReplayTour.shared)
+    }
+
+    /// Turns reading receipts from photos on or off; enabling it downloads
+    /// what the device needs then (nothing on iOS).
+    internal func setPhotoReading(_ isEnabled: Bool) {
+        self.send(AppIntentSetPhotoReading(isEnabled: isEnabled))
     }
 
     /// Dismisses the error shown.
@@ -186,6 +195,7 @@ internal final class SharedStateStore {
         self.tour = state.tour
         self.ledgerNameDraft = state.ledgerNameDraft
         self.errorMessage = state.errorMessage
+        self.isPhotoReadingEnabled = state.isPhotoReadingEnabled
     }
 
     deinit {

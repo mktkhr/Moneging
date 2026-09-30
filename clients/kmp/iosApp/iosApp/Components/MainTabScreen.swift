@@ -20,6 +20,9 @@ internal struct MainTabScreen<Content: View>: View {
     @Environment(AppRouter.self)
     private var router: AppRouter
 
+    @Environment(ScanStore.self)
+    private var scanStore: ScanStore
+
     internal var body: some View {
         NavigationStack(path: self.path) {
             Group {
@@ -34,6 +37,13 @@ internal struct MainTabScreen<Content: View>: View {
             .background(Theme.background)
             .tabHeader(isTourHost: self.isTourHost)
             .appNavigationDestinations()
+            // The notice that photos were accepted, above the record button.
+            .overlay(alignment: .bottom) {
+                if let notice = self.scanStore.notice {
+                    ScanAcceptedNotice(text: notice)
+                        .padding(.bottom, Theme.Spacing.large)
+                }
+            }
             // Places the floating 記録する button in the tab root's own
             // bottom safe-area inset, right-aligned. Inside a tab, the tab
             // bar (whatever its current height: Liquid Glass's
@@ -51,11 +61,7 @@ internal struct MainTabScreen<Content: View>: View {
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
                 VStack(alignment: .trailing, spacing: 0) {
                     if self.router.isRecordButtonVisible {
-                        FloatingRecordButton {
-                            self.router.isRecordSheetPresented = true
-                        }
-                        .tourTarget(.recordButton, isReporting: self.isTourHost)
-                        .padding([.trailing, .bottom], Theme.Spacing.large)
+                        self.recordButtonRow
                     }
                     Spacer(minLength: 0)
                         .frame(maxWidth: .infinity, maxHeight: 0)
@@ -64,5 +70,23 @@ internal struct MainTabScreen<Content: View>: View {
                 }
             }
         }
+    }
+
+    // The floating 記録する button, right-aligned; in a UI test reading
+    // receipts, ホーム's test controls on its left.
+    private var recordButtonRow: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            #if DEBUG
+                if self.isTourHost {
+                    UITestScanControls()
+                }
+            #endif
+            Spacer(minLength: 0)
+            FloatingRecordButton {
+                self.router.isRecordSheetPresented = true
+            }
+            .tourTarget(.recordButton, isReporting: self.isTourHost)
+        }
+        .padding([.horizontal, .bottom], Theme.Spacing.large)
     }
 }
