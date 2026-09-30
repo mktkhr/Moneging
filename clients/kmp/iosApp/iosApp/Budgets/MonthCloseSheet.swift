@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Asks before closing the month offered (`MonthClose4.dc.html`): each
 /// budget's leftover (a negative one does not move), the carry-over policy
-/// (`budget-close-policy`: 繰り越す / 貯金にする, kept for the ledger as
-/// soon as it is chosen) with what each does, then `<月>を締める`
+/// (`budget-close-policy`: 繰り越す / 貯金にする, kept for the ledger only
+/// when the month is closed) with what the chosen one does, then `<月>を締める`
 /// (`budget-close-confirm`); × keeps the month open.
 ///
 /// A sheet sized to its content, as `DeleteRecurringRuleSheet`.
@@ -125,17 +125,9 @@ internal struct MonthCloseSheet: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("budget-close-policy")
-            .onChange(of: self.policy) { _, policy in
-                Task {
-                    _ = await self.ledgerStore.setCarryOverPolicy(policy)
-                }
-            }
-            VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
-                Text(sheet.carryNote)
-                Text(sheet.saveNote)
-            }
-            .font(.caption)
-            .foregroundStyle(Theme.mutedText)
+            Text(self.policy == .carry ? sheet.carryNote : sheet.saveNote)
+                .font(.caption)
+                .foregroundStyle(Theme.mutedText)
         }
     }
 

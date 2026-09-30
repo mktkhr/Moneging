@@ -139,7 +139,7 @@ fun LedgerUiState.budgetSheet(categoryId: String?): BudgetSheet {
         budgets?.let { month ->
             if (categoryId == null) month.whole else month.categories.firstOrNull { it.categoryId == category?.id }
         }
-    val planned = line?.run { budget?.takeIf { it != carriedIn }?.minus(carriedIn) }
+    val planned = line?.planned
     return BudgetSheet(
         title = "${category?.name ?: WHOLE_NAME}の予算",
         categoryName = category?.name,

@@ -78,6 +78,7 @@ internal class BudgetBook(
             categoryId = key,
             budget = if (planned == null && carriedIn == 0L) null else (planned ?: 0L) + carriedIn,
             carriedIn = carriedIn,
+            planned = planned,
             spent = spent,
         )
     }

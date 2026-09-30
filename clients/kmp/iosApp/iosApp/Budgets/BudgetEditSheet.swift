@@ -53,7 +53,7 @@ internal struct BudgetEditSheet: View {
     }
 
     private var canSave: Bool {
-        (Int64(self.amountText) ?? 0) > 0 && (!self.isAdding || self.chosenCategoryId != nil)
+        Int64(self.amountText) != nil && (!self.isAdding || self.chosenCategoryId != nil)
     }
 
     internal var body: some View {

@@ -125,6 +125,26 @@ class BudgetPresentationTest {
             )
         }
 
+    /** A budget of 0 is a budget: its sheet shows 0 and offers removing it, unlike a category without one. */
+    @Test
+    fun zeroBudgetIsSet(): TestResult =
+        runTest {
+            val scope = januaryScope()
+            val daily =
+                scope
+                    .categories()
+                    .first { it.name == "日用品" }
+                    .id
+                    .toString()
+            assertEquals(expected = false, actual = scope.stateOf(FEBRUARY).budgetSheet(categoryId = daily).hasBudget)
+
+            scope.setBudget(categoryId = Uuid.parse(daily), amount = 0L, from = FEBRUARY)
+
+            val sheet = scope.stateOf(FEBRUARY).budgetSheet(categoryId = daily)
+            assertEquals(expected = "0", actual = sheet.amountText)
+            assertEquals(expected = true, actual = sheet.hasBudget)
+        }
+
     // A ledger (today 2026-02-15) with budgets from January: the whole month 50,000, 食費 30,000 and 娯楽 5,000;
     // January spent 18,500 食費, 6,500 娯楽 and 3,000 交通費, and February 1 娯楽 (so it is listed).
     private suspend fun januaryScope(): LedgerScope {

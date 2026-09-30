@@ -23,6 +23,8 @@ data class BudgetLine(
     val budget: Long?,
     /** What was carried into it from the month before, in yen; 0 when nothing was. */
     val carriedIn: Long,
+    /** The amount set for the month, what was carried in excluded (0 is a budget of 0); `null` when none is set. */
+    val planned: Long?,
     /** What was spent against it in yen: the category's expenses (split items included), or every expense. */
     val spent: Long,
 ) {
