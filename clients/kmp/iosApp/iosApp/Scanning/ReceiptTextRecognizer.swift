@@ -35,11 +35,11 @@ internal enum ReceiptTextRecognizer {
                 return nil
             }
             let run: CGFloat = observation.topRight.x - observation.topLeft.x
-            text = candidate
-            minX = min(observation.topLeft.x, observation.bottomLeft.x)
-            mid = CGPoint(x: observation.boundingBox.midX, y: observation.boundingBox.midY)
-            slope = run > 0 ? (observation.topRight.y - observation.topLeft.y) / run : 0
-            height = hypot(
+            self.text = candidate
+            self.minX = min(observation.topLeft.x, observation.bottomLeft.x)
+            self.mid = CGPoint(x: observation.boundingBox.midX, y: observation.boundingBox.midY)
+            self.slope = run > 0 ? (observation.topRight.y - observation.topLeft.y) / run : 0
+            self.height = hypot(
                 observation.topLeft.x - observation.bottomLeft.x,
                 observation.topLeft.y - observation.bottomLeft.y
             )
