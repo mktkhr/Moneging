@@ -29,7 +29,7 @@ import kotlin.test.assertNotNull
 class TestReceiptStructuringPath {
     /** With an LLM the draft is its answer and the parser stays unused; without one it is the parser's. */
     @Test
-    fun llmWhenThereIsOneElseRuleBasedParser(): TestResult = runTest { assertBothPaths() }
+    fun llmWhenAvailableElseRules(): TestResult = runTest { assertBothPaths() }
 
     private suspend fun assertBothPaths() {
         val text = recordedText(name = SEVEN_ELEVEN)
@@ -83,7 +83,7 @@ class TestReceiptStructuringPath {
         assertEquals(
             expected = ScanState.SUCCEEDED,
             actual = job.state,
-            message = "スキャンが succeeded にならない: ${job.failureReason}",
+            message = "スキャンが succeeded にならない: ${job.failureReason ?: "理由なし"}",
         )
         return scope
     }

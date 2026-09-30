@@ -57,17 +57,17 @@ class TestDraftCorrectionAndConfirm {
             assertConfirmed(scope = scope, transaction = transaction, photoId = photo.id, food = food, other = other)
             assertNull(actual = scope.findDraft(id = original.id), message = "確認した下書きがまだ読める")
             assertFails(message = "確認した下書きをもう一度確認できてしまう") { scope.confirmDraft(draftId = original.id) }
-            assertDiscardKeepsOneTransaction(scope = scope, photo = photo)
+            assertDiscardedDraftIsGone(scope = scope, photo = photo)
         }
 }
 
-private suspend fun LedgerScope.draftOf(id: Uuid?): Draft {
+internal suspend fun LedgerScope.draftOf(id: Uuid?): Draft {
     val draftId = assertNotNull(actual = id, message = "下書きの id がない")
     return assertNotNull(actual = findDraft(id = draftId), message = "下書きが読めない")
 }
 
 // The confirmed transaction: 1,200円 on 2026-02-14 at the corrected store, two items, linked to the photo.
-private suspend fun assertConfirmed(
+internal suspend fun assertConfirmed(
     scope: LedgerScope,
     transaction: Transaction,
     photoId: Uuid,
@@ -88,7 +88,7 @@ private suspend fun assertConfirmed(
 }
 
 // A second draft of the same photo, discarded: gone, nothing waits, February holds the one transaction.
-private suspend fun assertDiscardKeepsOneTransaction(
+internal suspend fun assertDiscardedDraftIsGone(
     scope: LedgerScope,
     photo: Photo,
 ) {
@@ -104,7 +104,7 @@ private suspend fun assertDiscardKeepsOneTransaction(
 }
 
 // Correcting the store alone: it changes, and the date, total and items read back as they were.
-private suspend fun LedgerScope.correctStoreAlone(original: Draft): Draft {
+internal suspend fun LedgerScope.correctStoreAlone(original: Draft): Draft {
     updateDraft(draftId = original.id, correction = DraftCorrection(store = CORRECTED_STORE))
     val storeCorrected = draftOf(original.id)
     assertEquals(expected = CORRECTED_STORE, actual = storeCorrected.store.value, message = "店名だけを直しても店名が変わらない")
@@ -115,7 +115,7 @@ private suspend fun LedgerScope.correctStoreAlone(original: Draft): Draft {
 }
 
 // Correcting the second item to 820 with the total 1,200: the draft reads back with them.
-private suspend fun LedgerScope.correctBentoAndTotal(storeCorrected: Draft) {
+internal suspend fun LedgerScope.correctBentoAndTotal(storeCorrected: Draft) {
     val bento = storeCorrected.items[1].copy(amount = CORRECTED_BENTO)
     updateDraft(
         draftId = storeCorrected.id,

@@ -27,7 +27,7 @@ private const val GREEN_TEA = 150L
 class TestRuleBasedReceiptParser {
     /** Each recorded text parses into the draft recorded beside it, and parses again into the same. */
     @Test
-    fun recordedTextsParseIntoTheRecordedDrafts() {
+    fun recordedTextsParseIntoDrafts() {
         val parser = RuleBasedReceiptParser()
         val sevenEleven = parser.parse(text = recordedText(name = SEVEN_ELEVEN))
         val cornerDeli = parser.parse(text = recordedText(name = CORNER_DELI))
@@ -74,7 +74,7 @@ class TestRuleBasedReceiptParser {
 }
 
 // Parsing the text of [name] once more gives [first] again.
-private fun assertParsesTheSameAgain(
+internal fun assertParsesTheSameAgain(
     parser: RuleBasedReceiptParser,
     name: String,
     first: ReceiptReading,

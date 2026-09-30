@@ -44,7 +44,7 @@ class TestScanProducesDraft {
             assertEquals(
                 expected = ScanState.SUCCEEDED,
                 actual = job.state,
-                message = "スキャンが succeeded にならない: ${job.failureReason}",
+                message = "スキャンが succeeded にならない: ${job.failureReason ?: "理由なし"}",
             )
             val draft = assertNotNull(actual = scope.findDraft(id = assertNotNull(job.draftId)), message = "下書きが読めない")
             assertEquals(expected = photo.id, actual = draft.photoId, message = "下書きが送った写真のものでない")
@@ -73,7 +73,7 @@ class TestScanProducesDraft {
 }
 
 // The ledger's waiting drafts are this one alone, with its store, date and total.
-private suspend fun assertWaiting(
+internal suspend fun assertWaiting(
     scope: LedgerScope,
     draft: Draft,
 ) {

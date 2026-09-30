@@ -89,7 +89,7 @@ class TestPhotoLifecycle {
 }
 
 // 12,288 bytes that look like a JPEG (start and end markers) and differ from each other.
-private fun twelveKibJpeg(): ByteArray =
+internal fun twelveKibJpeg(): ByteArray =
     ByteArray(size = PHOTO_SIZE) { index -> (index * PATTERN_STEP).toByte() }.also { bytes ->
         bytes[0] = MARKER_PREFIX
         bytes[1] = JPEG_START
@@ -98,7 +98,7 @@ private fun twelveKibJpeg(): ByteArray =
     }
 
 // The list holds this one photo, of 12,288 bytes and type image/jpeg, whose bytes read back identical.
-private suspend fun assertKept(
+internal suspend fun assertKept(
     scope: LedgerScope,
     kept: Photo,
     bytes: ByteArray,
@@ -117,7 +117,7 @@ private suspend fun assertKept(
 }
 
 // A deleted photo is not listed, its bytes are not read and not in the storage.
-private suspend fun assertGone(
+internal suspend fun assertGone(
     ledger: ScanningLedger,
     id: Uuid,
 ) {

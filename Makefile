@@ -18,6 +18,9 @@ IOS_PROJ   := iosApp/iosApp.xcodeproj
 IOS_SCHEME := iosApp
 IOS_DERIVED := $(ROOT)/clients/kmp/build/DerivedData
 IOS_SRC    := $(KMP)/iosApp/iosApp
+# Every Swift target the app ships (the app and its widget extension); what
+# swift-format and swiftlint check. swiftlint analyze stays on IOS_SRC.
+IOS_SWIFT  := $(IOS_SRC) $(KMP)/iosApp/MonegingWidgets
 IOS_LOG    := $(KMP)/build/xcodebuild.log
 SWIFTLINT  := mise exec -- swiftlint
 SWIFT_FORMAT := xcrun swift-format
@@ -85,16 +88,16 @@ swiftlint-analyze: ios-build ## swiftlint analyze --strict over ios-build's comp
 ## ---------------------------------------------------------------- formatting & static analysis
 fmt: ## Reformat product code in place: ktlintFormat (Kotlin) + swift-format (Swift)
 	$(Q) fmt:kotlin sh -c "cd $(KMP) && $(GRADLEW) ktlintFormat"
-	$(Q) fmt:swift $(SWIFT_FORMAT) format --configuration quality/swift/swift-format.json --recursive --in-place $(IOS_SRC)
+	$(Q) fmt:swift $(SWIFT_FORMAT) format --configuration quality/swift/swift-format.json --recursive --in-place $(IOS_SWIFT)
 
 fmt-check: ## Check formatting without modifying: ktlintCheck (Kotlin) + swift-format lint --strict (Swift)
 	$(Q) fmt-check:kotlin sh -c "cd $(KMP) && $(GRADLEW) ktlintCheck"
-	$(Q) fmt-check:swift $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive $(IOS_SRC)
+	$(Q) fmt-check:swift $(SWIFT_FORMAT) lint --strict --configuration quality/swift/swift-format.json --recursive $(IOS_SWIFT)
 
 lint: guard-suppressions fmt-check ## Full static-analysis gate: formatting (fmt-check) + detekt + Android Lint + swiftlint --strict + guard-suppressions
 	$(Q) lint:detekt sh -c "cd $(KMP) && $(GRADLEW) detektAll"
 	$(Q) lint:android sh -c "cd $(KMP) && $(GRADLEW) lint"
-	$(Q) lint:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml $(IOS_SRC)
+	$(Q) lint:swiftlint $(SWIFTLINT) lint --strict --config quality/swift/swiftlint.yml $(IOS_SWIFT)
 
 ## ---------------------------------------------------------------- acceptance (PRODUCT.md §7)
 # Written before the implementation, so red until it exists; part of check,

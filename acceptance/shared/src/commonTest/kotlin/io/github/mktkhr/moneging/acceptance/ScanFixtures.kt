@@ -60,7 +60,7 @@ internal fun fixtureScanner(
     )
 
 /** A store on the fixtures' clock and device `D` reading with [scanner], the ledger `家計` and its scope. */
-internal class ScanningLedger(
+internal data class ScanningLedger(
     /** The store, whose photo storage the tests look into. */
     val store: LocalStore,
     /** The scope of the ledger `家計`. */

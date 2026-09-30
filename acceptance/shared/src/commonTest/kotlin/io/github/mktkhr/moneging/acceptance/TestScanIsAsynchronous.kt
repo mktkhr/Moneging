@@ -27,7 +27,7 @@ private val START_DEADLINE = 100.milliseconds
 class TestScanIsAsynchronous {
     /** The start returns at once with a queued job; the job then only moves on, to succeeded, with a draft. */
     @Test
-    fun startReturnsAtOnceAndJobCompletesLater(): TestResult =
+    fun scanStartsAtOnceAndCompletes(): TestResult =
         runTest {
             val scope = scanningLedger(scanner = fixtureScanner(duration = SCAN_DURATION)).scope
             val photo = scope.addReceiptPhoto(name = SEVEN_ELEVEN)
