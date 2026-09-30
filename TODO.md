@@ -5,8 +5,8 @@
 
 1. Foundation（完了: stage.txt = 1）
 2. Recording money（完了: stage.txt = 2）
-3. Reporting and calendar（実装済み。AC-B-301〜303・AC-F-301・302 のテストは pass。受け入れテスト `TestTwelveMonthTrend.kt` の detekt 違反2件（DocumentationOverPrivateProperty、FunctionNameMaxLength）で `make acceptance-shared` が赤: ハーネス側の修正待ち。その後 test-auditor で監査し stage.txt を 3 に）
-4. Budget and savings
+3. Reporting and calendar（完了: stage.txt = 3）
+4. Budget and savings（次: 未決事項を Claude Design で提示する）
 5. Photos and scanning
 6. Receipts that do not add up
 7. Needs-review records
@@ -19,3 +19,4 @@
 
 - 受け入れテストが遅い（AC-F-203 だけで約3分）。高速化する。
 - `make acceptance-ios` は、テストが 0 件しか実行されなくても ok になる（2つの make を同時に走らせると結果バンドルが壊れて起きた）。0 件を失敗として扱うようにする。
+- UI テスト用の入口（`sharedLogic/src/iosMain/.../di/UiTestSupport.kt`）は Release から除いてあるが、置き場所は製品のソースのまま（監査の指摘、重さ低）。Debug 専用のソースセットへ移すか検討する。
