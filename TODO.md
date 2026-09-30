@@ -29,6 +29,7 @@
 - 実機で、写真ライブラリのレシートが補正されて読めるか確かめる（シミュレーターの Vision は書類の領域を見つけないため確かめられていない）。書類スキャナーのページが補正されないことも。
 - 端末内 LLM の答えが明細の和と合計を合わせないことがある（数量・値引き・外税）。答えが合わないときにルールベース解析の結果と比べるかを決める（自動で切り替えないこと）。
 - AC-F-505 の受け入れテストの不具合: `ReadingMethodAcceptanceTests.swift` の `checkStoppingStartsNothing` が、`expect(!app.scanStatus.exists, "…\(app.scanStatus.label)")` のメッセージを先に評価するため、正しく「読み取りの表示が無い」ときに `scan-status` の label を取りに行って落ちる。メッセージから label を外す（acceptance-writer）。
+- AC-B-511 の受け入れテストの detekt 違反: `TestReceiptStructuringPath.kt:186` の `rules.date.value.toString()`・`rules.total.value.toString()` が NullableToStringCall（ReceiptReading の date・total は読めなければ null の型）。テストは緑だが `make acceptance-shared` の detekt で落ちる（acceptance-writer）。
 
 ## 画面
 
