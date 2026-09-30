@@ -89,6 +89,9 @@ internal struct ScansScreen: View {
                     .foregroundStyle(Theme.mutedText)
                     .accessibilityHidden(true)
             }
+            // The whole row answers a tap, the gap before the total too: a
+            // plain button hit-tests only what it draws.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .listRowBackground(Theme.surface)
