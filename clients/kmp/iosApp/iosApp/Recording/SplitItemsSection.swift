@@ -78,6 +78,12 @@ internal struct SplitItemsSection: View {
                     .font(.caption)
                     .foregroundStyle(Theme.mutedText)
             }
+            if item.wrappedValue.isDiscount {
+                // A discount is taken off: its digits read below zero.
+                Text("−")
+                    .foregroundStyle(Theme.text)
+                    .accessibilityHidden(true)
+            }
             AmountTextField(
                 placeholder: "0",
                 text: item.amountText,
