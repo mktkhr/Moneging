@@ -9,6 +9,9 @@ private const val DISCOUNT = -198L
 private const val LUNCH = 1_000L
 private const val LUNCH_ALONE = 800L
 private const val DISCOUNTED = 598L
+private const val THREE_BOTTLES = 477L
+private const val TWO_PACKS = 356L
+private const val STICKER = 198L
 
 /** The pieces of the rule-based parser the recorded receipts do not all show. */
 class RuleBasedReceiptParserTest {
@@ -52,4 +55,60 @@ class RuleBasedReceiptParserTest {
 
         assertEquals(expected = listOf("大盛ペペロンチーノ" to DISCOUNTED), actual = reading.items.map { it.name to it.amount })
     }
+
+    /** A quantity line is read whatever sign of multiplication, width or spacing the device recognised. */
+    @Test
+    fun quantityLinesOfEveryLook() {
+        val bottles =
+            listOf(
+                "@159x 3 *477",
+                "@159× 3 *477",
+                "@159×3 *477",
+                "@159 x 3 *477",
+                "@159✕ 3 *477",
+                "@159✖ 3 *477",
+                "@159*3 *477",
+                "@159＊3 ＊477",
+                "@159Ｘ3 *477",
+                "＠１５９× ３ ＊４７７",
+            )
+        bottles.forEach { quantity ->
+            assertEquals(
+                expected = listOf("キリンファイア600ml" to THREE_BOTTLES),
+                actual = itemsOf("キリンファイア600ml", quantity, "合計 ¥477"),
+                message = quantity,
+            )
+        }
+        listOf("2コ✕単178 ¥356", "2コ×単178 ￥356", "2コ x 単178 ¥356", "２コ×単１７８ ¥３５６").forEach { quantity ->
+            assertEquals(
+                expected = listOf("緑豆はるさめ100" to TWO_PACKS),
+                actual = itemsOf("＊緑豆はるさめ100", quantity, "合計 ¥356"),
+                message = quantity,
+            )
+        }
+    }
+
+    /** A discount, an amount and the end of the items are read in their full-width and look-alike forms. */
+    @Test
+    fun fullWidthFormsReadAsHalfWidth() {
+        assertEquals(
+            expected = listOf("白菜" to STICKER),
+            actual = itemsOf("*白菜", "2コ✕単198 ¥396", "シール割引 50％", "2コ×単－99 −198", "合計 ¥198"),
+        )
+        assertEquals(
+            expected = listOf("大盛ペペロンチーノ" to DISCOUNTED),
+            actual = itemsOf("大盛ペペロンチーノ ＊６４８", "値引額 －５０", "（商品代金 ￥６４８）", "合計 ￥５９８"),
+        )
+        assertEquals(
+            expected = listOf("アキタコマチ5" to THOUSANDS, "消費税" to 1L),
+            actual = itemsOf("６５１ アキタコマチ5 ３，２８０※", "小計 ¥3,280", "8％外税額 ¥1", "合計 ¥3,281"),
+        )
+    }
 }
+
+// The items, as names and amounts, of a receipt whose item lines are [lines] (the total last).
+internal fun itemsOf(vararg lines: String): List<Pair<String, Long>> =
+    RuleBasedReceiptParser()
+        .parse(text = (listOf("店", "2026／09／28") + lines).joinToString(separator = "\n"))
+        .items
+        .map { item -> item.name to item.amount }

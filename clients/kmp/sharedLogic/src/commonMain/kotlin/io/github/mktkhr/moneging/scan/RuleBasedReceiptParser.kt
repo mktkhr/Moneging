@@ -10,8 +10,8 @@ private const val NOT_READ = 0.0
 
 private val DATE = Regex("""(\d{4})(?:/(\d{2})/(\d{2})|年(\d{2})月(\d{2})日)""")
 private const val TOTAL_PREFIX = "合計"
-private val ITEMS_END_PREFIXES = listOf("小計", TOTAL_PREFIX, "（", "(")
-private val ADDED_TAX_MARKS = listOf("外税", "外8%", "外10%", "外8％", "外10％", "税抜")
+private val ITEMS_END_PREFIXES = listOf("小計", TOTAL_PREFIX, "(")
+private val ADDED_TAX_MARKS = listOf("外税", "外8%", "外10%", "税抜")
 private const val DELIVERY_FIRST_LINE = "Uber Eats"
 private const val ADDED_TAX_NAME = "消費税"
 
@@ -36,19 +36,21 @@ fun interface ReceiptTextParser {
 class RuleBasedReceiptParser : ReceiptTextParser {
     override fun parse(text: String): ReceiptReading {
         val lines = receiptRows(text)
-        val dateLine = lines.indexOfFirst { DATE.containsMatchIn(it) }
-        val date = if (dateLine >= 0) DATE.find(lines[dateLine])?.let(::toDate) else null
+        // Rules are matched on the lines with their look-alikes read as one; names keep them.
+        val readableLines = lines.map(::readable)
+        val dateLine = readableLines.indexOfFirst { DATE.containsMatchIn(it) }
+        val date = if (dateLine >= 0) DATE.find(readableLines[dateLine])?.let(::toDate) else null
         val total = lines.firstOrNull { it.startsWith(TOTAL_PREFIX) }?.let { ReceiptLine(it).amount }
         val itemsStart = minOf(a = if (dateLine >= 0) dateLine + 1 else 1, b = lines.size)
         val itemsEnd =
             (itemsStart until lines.size).firstOrNull { index ->
-                ITEMS_END_PREFIXES.any { prefix -> lines[index].startsWith(prefix) }
+                ITEMS_END_PREFIXES.any { prefix -> readableLines[index].startsWith(prefix) }
             } ?: lines.size
         val items =
-            ItemReader(isDelivery = lines.firstOrNull()?.startsWith(DELIVERY_FIRST_LINE) == true)
+            ItemReader(isDelivery = readableLines.firstOrNull()?.startsWith(DELIVERY_FIRST_LINE) == true)
                 .read(lines = lines.subList(fromIndex = itemsStart, toIndex = itemsEnd).map(::ReceiptLine))
-        val hasAddedTax = lines.any { line -> ADDED_TAX_MARKS.any { mark -> line.contains(mark) } }
-        val store = ReceiptChains.nameIn(lines) ?: lines.firstOrNull()
+        val hasAddedTax = readableLines.any { line -> ADDED_TAX_MARKS.any { mark -> line.contains(mark) } }
+        val store = ReceiptChains.nameIn(readableLines) ?: lines.firstOrNull()
         return ReceiptReading(
             store = ScannedValue(value = store.orEmpty(), confidence = confidenceOf(store)),
             date = ScannedValue(value = date, confidence = confidenceOf(date)),
