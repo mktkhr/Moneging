@@ -101,7 +101,7 @@ internal class SqlScans(
     ): Draft {
         correction.total?.let { require(it >= MIN_AMOUNT) { TOTAL_TOO_SMALL } }
         val items = correction.items.orEmpty()
-        require(items.all { it.amount >= MIN_AMOUNT }) { "明細の金額は1円以上にしてください" }
+        requireItemAmounts(items.map { it.amount })
         return withContext(rows.context) {
             rows.database.transactionWithResult {
                 val current = requireNotNull(rows.draft(draftId)) { DRAFT_NOT_FOUND }
@@ -254,11 +254,20 @@ internal fun Draft.toNewTransaction(
             photoId = photoId,
         )
     if (sum == null) return base.copy(categoryId = categoryId ?: other)
+    // A discount item without a category is in the other items' category when they all share one.
+    val sharedCategory =
+        items
+            .asSequence()
+            .filter { it.amount > 0L }
+            .map { it.categoryId }
+            .distinct()
+            .singleOrNull()
     val lineItems =
         items.map { item ->
+            val discountCategory = sharedCategory.takeIf { item.amount < 0L }
             NewLineItem(
                 amount = item.amount,
-                categoryId = item.categoryId ?: other,
+                categoryId = item.categoryId ?: discountCategory ?: other,
                 name = item.name.trim().ifEmpty { null },
             )
         }

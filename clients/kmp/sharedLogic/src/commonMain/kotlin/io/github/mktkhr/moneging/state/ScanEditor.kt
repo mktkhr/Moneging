@@ -220,7 +220,7 @@ internal fun DraftForm.toCorrection(): DraftCorrection =
             items.map { item ->
                 DraftItem(
                     name = item.name.trim(),
-                    amount = AmountText.parse(item.amountText),
+                    amount = AmountText.parseSigned(item.amountText),
                     categoryId = item.categoryId?.let { Uuid.parse(it) },
                     confidence = item.confidence,
                 )

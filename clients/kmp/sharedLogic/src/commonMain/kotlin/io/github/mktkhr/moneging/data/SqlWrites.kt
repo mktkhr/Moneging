@@ -110,7 +110,7 @@ internal class SqlTransactionWrites(
                     requireNotNull(transaction.categoryId) { "カテゴリを選んでください" }
                 } else {
                     require(transaction.categoryId == null) { "明細のある記録にはカテゴリを付けません" }
-                    require(transaction.items.all { it.amount >= MIN_AMOUNT }) { "明細の金額は1円以上にしてください" }
+                    requireItemAmounts(transaction.items.map { it.amount })
                     require(transaction.items.sumOf { it.amount } == transaction.amount) {
                         "明細の合計が金額と一致しません"
                     }
@@ -118,6 +118,16 @@ internal class SqlTransactionWrites(
             }
         }
     }
+}
+
+/**
+ * The items' amounts of PRODUCT.md §3, Line item: each at least 1 yen, except
+ * a discount item, below zero; at least one that is not a discount. (That they
+ * add up to at least 1 yen follows from the transaction's amount.)
+ */
+internal fun requireItemAmounts(amounts: List<Long>) {
+    require(amounts.none { it == 0L }) { "明細の金額は1円以上か、割引ならマイナスにしてください" }
+    require(amounts.isEmpty() || amounts.any { it >= MIN_AMOUNT }) { "割引だけの明細は記録できません" }
 }
 
 // Every category a transaction names: its own and its items'.

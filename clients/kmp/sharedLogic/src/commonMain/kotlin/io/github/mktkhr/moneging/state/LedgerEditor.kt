@@ -214,7 +214,7 @@ internal fun TransactionDraft.toNewTransaction(): NewTransaction {
     val lineItems =
         items.map { item ->
             NewLineItem(
-                amount = AmountText.parse(item.amountText),
+                amount = AmountText.parseSigned(item.amountText),
                 categoryId = Uuid.parse(requireNotNull(item.categoryId) { "明細の分類を選んでください" }),
                 name = item.name.orNullIfBlank(),
             )
