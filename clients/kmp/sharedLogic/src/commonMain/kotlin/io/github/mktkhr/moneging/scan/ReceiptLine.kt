@@ -88,7 +88,7 @@ internal fun hasOptionMark(
  * same length): `＠１５９× ３ ＊４７７` reads `@159x 3 *477`. A device's text
  * recognition picks among look-alikes differently from a Mac's.
  */
-internal fun readable(text: String): String = String(text.map(::readableChar).toCharArray())
+internal fun readable(text: String): String = text.map(::readableChar).toCharArray().concatToString()
 
 // [char] as the sign it is read as.
 private fun readableChar(char: Char): Char =
