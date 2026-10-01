@@ -38,7 +38,18 @@ private val LOOK_ALIKES: Map<Char, Char> =
         '\u2716' to 'x',
         '\u2A2F' to 'x',
     )
-private val DISCOUNT_MARKS = listOf("値引", "割引")
+private val DISCOUNT_MARKS = listOf("ディスカウント", "値引", "割引")
+
+/** A date: `yyyy/mm/dd`, or `yyyy年m月d日` with one or two digits for the month and the day. */
+internal val DATE = Regex("""(\d{4})(?:/(\d{2})/(\d{2})|年(\d{1,2})月(\d{1,2})日)""")
+
+// A register (`00レジNO 00`, `レジ #0`, `レジ0012`; not `レジ袋`) and a time (`19:00`).
+private val REGISTER = Regex("""レジ\s*(?:No|NO|#|\d)""")
+private val TIME = Regex("""(?<!\d)\d{1,2}:\d{2}(?!\d)""")
+
+// An item printed in parentheses (a set): its name is inside the first pair.
+private const val OPEN = '('
+private const val CLOSE = ')'
 private const val OPTION_PREFIX = "+"
 private const val OPTION_MARK = "※"
 
@@ -63,18 +74,46 @@ internal class ReceiptLine(
     /** Whether it starts with a quantity and a unit price (`2コ✕単178 ¥356`, `@159× 3 *477`). */
     val isQuantity: Boolean = QUANTITY.containsMatchIn(readableLine)
 
+    /** Whether its text names a discount (`ディスカウント`, `値引`, `割引`). */
+    val isNamedDiscount: Boolean = DISCOUNT_MARKS.any { mark -> text.contains(mark) }
+
     /**
      * Whether it is a discount (`値引額 -50`, `シール割引 50%`), or an amount
      * below zero whose label was not recognised (`-50`).
      */
-    val isDiscount: Boolean = DISCOUNT_MARKS.any { mark -> text.contains(mark) } || amount ?: 0L < 0L
+    val isDiscount: Boolean = isNamedDiscount || amount ?: 0L < 0L
 
     /** Whether it is an option of the item above (`+ LARGE RICE ¥150`, `氷Ice※通常 ¥120`). */
     val isOption: Boolean = readableLine.startsWith(OPTION_PREFIX) || hasOptionMark(amount = amount, text = text)
 
+    /** Whether it names the date, the register or the time, which is never an item. */
+    val isNeverItem: Boolean =
+        DATE.containsMatchIn(readableLine) || REGISTER.containsMatchIn(readableLine) ||
+            TIME.containsMatchIn(readableLine)
+
+    /** Whether it is an item, a quantity or an option line: a line that prices something, but not a discount. */
+    val isPricedLine: Boolean
+        get() = !isNeverItem && !isDiscount && (amount != null || isOption)
+
     /** Its amount as a discount: below zero whatever its sign. */
     val discount: Long?
         get() = amount?.let { -abs(it) }
+
+    /**
+     * The name of the item it is: for a line in parentheses (a set), the text
+     * inside the first pair; else [itemName] of its text before the amount.
+     */
+    fun itemName(isDelivery: Boolean): String {
+        if (readableLine.firstOrNull() != OPEN) return itemName(text = text, isDelivery = isDelivery)
+        val close = readableLine.indexOf(CLOSE)
+        return if (close >
+            0
+        ) {
+            text.substring(startIndex = 1, endIndex = minOf(a = close, b = text.length)).trim()
+        } else {
+            text
+        }
+    }
 }
 
 // Whether the text before an [amount] carries the option mark (`氷Ice※通常 ¥120`).

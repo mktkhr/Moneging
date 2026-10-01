@@ -8,9 +8,9 @@ import kotlin.math.abs
 private const val RULE_CONFIDENCE = 0.7
 private const val NOT_READ = 0.0
 
-private val DATE = Regex("""(\d{4})(?:/(\d{2})/(\d{2})|年(\d{2})月(\d{2})日)""")
 private const val TOTAL_PREFIX = "合計"
-private val ITEMS_END_PREFIXES = listOf("小計", TOTAL_PREFIX, "(")
+private val ITEMS_END_PREFIXES = listOf("小計", TOTAL_PREFIX)
+private const val OPEN_PARENTHESIS = "("
 private val ADDED_TAX_MARKS = listOf("外税", "外8%", "外10%", "税抜")
 private const val DELIVERY_FIRST_LINE = "Uber Eats"
 private const val ADDED_TAX_NAME = "消費税"
@@ -42,10 +42,7 @@ class RuleBasedReceiptParser : ReceiptTextParser {
         val date = if (dateLine >= 0) DATE.find(readableLines[dateLine])?.let(::toDate) else null
         val total = lines.firstOrNull { it.startsWith(TOTAL_PREFIX) }?.let { ReceiptLine(it).amount }
         val itemsStart = minOf(a = if (dateLine >= 0) dateLine + 1 else 1, b = lines.size)
-        val itemsEnd =
-            (itemsStart until lines.size).firstOrNull { index ->
-                ITEMS_END_PREFIXES.any { prefix -> readableLines[index].startsWith(prefix) }
-            } ?: lines.size
+        val itemsEnd = (itemsStart until lines.size).firstOrNull { index -> endsItems(lines[index]) } ?: lines.size
         val items =
             ItemReader(isDelivery = readableLines.firstOrNull()?.startsWith(DELIVERY_FIRST_LINE) == true)
                 .read(lines = lines.subList(fromIndex = itemsStart, toIndex = itemsEnd).map(::ReceiptLine))
@@ -60,17 +57,52 @@ class RuleBasedReceiptParser : ReceiptTextParser {
     }
 }
 
+// Whether [line] ends the item lines: `小計` or `合計`, or a summary in
+// parentheses that does not end with an amount (`（商品代金 ¥2,178）`).
+internal fun endsItems(line: String): Boolean {
+    val readableLine = readable(line)
+    val isSummary = readableLine.startsWith(OPEN_PARENTHESIS) && ReceiptLine(line).amount == null
+    return isSummary || ITEMS_END_PREFIXES.any { readableLine.startsWith(it) }
+}
+
 // Reads item lines, in order, into items (acceptance/fixtures/README.md, Items).
 private class ItemReader(
     private val isDelivery: Boolean,
 ) {
     private val names = mutableListOf<String>()
     private val amounts = mutableListOf<Long>()
+    private val receiptDiscounts = mutableListOf<ReceiptItem>()
 
     fun read(lines: List<ReceiptLine>): List<ReceiptItem> {
-        lines.forEachIndexed { index, line -> read(line = line, above = lines.getOrNull(index = index - 1)) }
-        return names.zip(amounts) { name, amount -> itemOf(name = name, amount = amount) }
+        lines.forEachIndexed { index, line ->
+            when {
+                line.isNeverItem -> Unit
+                isReceiptDiscount(lines = lines, index = index) -> receiptDiscounts += discountItem(line)
+                else -> read(line = line, above = lines.getOrNull(index = index - 1))
+            }
+        }
+        return names.zip(amounts) { name, amount -> itemOf(name = name, amount = amount) } + receiptDiscounts
     }
+
+    // Whether the line [index] is a discount on the whole receipt: a line
+    // naming a discount, with an amount, right below a line without one, with
+    // no item, quantity or option line after it.
+    private fun isReceiptDiscount(
+        lines: List<ReceiptLine>,
+        index: Int,
+    ): Boolean {
+        val line = lines[index]
+        val above = lines.getOrNull(index = index - 1)
+        return line.isNamedDiscount &&
+            !line.isQuantity &&
+            line.amount != null &&
+            above != null &&
+            above.amount == null &&
+            lines.drop(n = index + 1).none { it.isPricedLine }
+    }
+
+    private fun discountItem(line: ReceiptLine): ReceiptItem =
+        itemOf(name = line.text.trim(), amount = checkNotNull(line.discount))
 
     private fun read(
         line: ReceiptLine,
@@ -81,7 +113,7 @@ private class ItemReader(
             line.isQuantity -> if (amount != null) readQuantity(amount = amount, above = above)
             line.isDiscount -> line.discount?.let(::addToLast)
             line.isOption -> amount?.let(::addToLast)
-            amount != null -> add(text = line.text, amount = amount)
+            amount != null -> add(name = line.itemName(isDelivery = isDelivery), amount = amount)
         }
     }
 
@@ -92,17 +124,17 @@ private class ItemReader(
         above: ReceiptLine?,
     ) {
         when {
-            above == null || above.amount != null -> Unit
+            above == null || above.amount != null || above.isNeverItem -> Unit
             above.isDiscount -> addToLast(amount = -abs(amount))
-            else -> add(text = above.text, amount = amount)
+            else -> add(name = above.itemName(isDelivery = isDelivery), amount = amount)
         }
     }
 
     private fun add(
-        text: String,
+        name: String,
         amount: Long,
     ) {
-        names += itemName(text = text, isDelivery = isDelivery)
+        names += name
         amounts += amount
     }
 
