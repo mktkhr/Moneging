@@ -16,6 +16,10 @@ internal struct ScansScreen: View {
     @Environment(AppRouter.self)
     private var router: AppRouter
 
+    #if DEBUG
+        @State private var recognizedText: RecognizedTextSource?
+    #endif
+
     private var state: ScanUiState {
         self.scanStore.state
     }
@@ -55,6 +59,11 @@ internal struct ScansScreen: View {
         .navigationTitle("レシートの読み取り")
         .navigationBarTitleDisplayMode(.inline)
         .scanFailureAlert()
+        #if DEBUG
+            .sheet(item: self.$recognizedText) { source in
+                RecognizedTextSheet(source: source)
+            }
+        #endif
         .onChange(of: self.state.hasAny) { _, hasAny in
             if !hasAny, self.router.draftSheet == nil {
                 self.router.pop()
@@ -131,28 +140,39 @@ internal struct ScansScreen: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            HStack(spacing: Theme.Spacing.small) {
-                if row.isReadByDeviceAi {
-                    let identifier: String = "scan-without-ai-\(row.id)"
-                    self.failedAction(title: "AI を使わずに読む", identifier: identifier) {
-                        Task {
-                            _ = await self.scanStore.readWithoutAi(jobId: row.id)
-                        }
-                    }
+            self.failedActions(row)
+            #if DEBUG
+                let identifier: String = "scan-recognized-text-\(row.id)"
+                self.failedAction(title: "読み取った文字を見る", identifier: identifier) {
+                    self.recognizedText = .job(id: row.id)
                 }
-                self.failedAction(title: "手で入力する", identifier: "scan-manual-\(row.id)") {
-                    self.router.entrySheet = .new(photoId: row.photoId)
-                }
-                self.failedAction(title: "もう一度読む", identifier: "scan-retry-\(row.id)") {
-                    Task {
-                        _ = await self.scanStore.readAgain(jobId: row.id)
-                    }
-                }
-            }
+            #endif
         }
         .padding(.vertical, Theme.Spacing.extraSmall)
         .listRowBackground(Theme.surface)
         .accessibilityIdentifier("scan-failed-\(row.id)")
+    }
+
+    // もう一度読む, 手で入力する and, after the device's AI failed, AI を使わずに読む.
+    private func failedActions(_ row: ScanJobRow) -> some View {
+        HStack(spacing: Theme.Spacing.small) {
+            if row.isReadByDeviceAi {
+                let identifier: String = "scan-without-ai-\(row.id)"
+                self.failedAction(title: "AI を使わずに読む", identifier: identifier) {
+                    Task {
+                        _ = await self.scanStore.readWithoutAi(jobId: row.id)
+                    }
+                }
+            }
+            self.failedAction(title: "手で入力する", identifier: "scan-manual-\(row.id)") {
+                self.router.entrySheet = .new(photoId: row.photoId)
+            }
+            self.failedAction(title: "もう一度読む", identifier: "scan-retry-\(row.id)") {
+                Task {
+                    _ = await self.scanStore.readAgain(jobId: row.id)
+                }
+            }
+        }
     }
 
     private func failedAction(

@@ -23,6 +23,10 @@ internal struct DraftSheet: View {
     @State private var draft: DraftFormState?
     @State private var isWorking: Bool = false
 
+    #if DEBUG
+        @State private var isRecognizedTextShown: Bool = false
+    #endif
+
     internal var body: some View {
         NavigationStack {
             self.content
@@ -39,6 +43,11 @@ internal struct DraftSheet: View {
         .task(id: self.draftId) {
             await self.open()
         }
+        #if DEBUG
+            .sheet(isPresented: self.$isRecognizedTextShown) {
+                RecognizedTextSheet(source: .draft(id: self.draftId))
+            }
+        #endif
     }
 
     @ViewBuilder private var content: some View {
@@ -70,6 +79,15 @@ internal struct DraftSheet: View {
                 .disabled(!(self.draft?.canConfirm ?? false) || self.isWorking)
                 .accessibilityIdentifier("draft-confirm")
         }
+        #if DEBUG
+            ToolbarItem(placement: .bottomBar) {
+                Button("読み取った文字を見る", systemImage: "text.viewfinder") {
+                    self.isRecognizedTextShown = true
+                }
+                .labelStyle(.titleAndIcon)
+                .accessibilityIdentifier("draft-recognized-text")
+            }
+        #endif
     }
 
     private func open() async {

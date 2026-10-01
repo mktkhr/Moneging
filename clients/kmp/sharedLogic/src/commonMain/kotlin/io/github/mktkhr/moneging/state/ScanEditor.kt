@@ -155,6 +155,13 @@ class ScanEditor internal constructor(
             startScan(photoId = job.photoId, method = ReadingMethod.NO_AI)
         }
 
+    /**
+     * The text recognised for the scan job or draft [scanId] of the ledger
+     * in view, or `null` when none was kept.
+     */
+    @Throws(Exception::class)
+    suspend fun recognizedText(scanId: String): String? = scopeInView()?.recognizedText(scanId = Uuid.parse(scanId))
+
     /** The bytes of the photo [photoId] of the ledger in view, or `null`. */
     @Throws(Exception::class)
     suspend fun photoBytes(photoId: String): ByteArray? = scopeInView()?.photoBytes(Uuid.parse(photoId))

@@ -41,7 +41,8 @@ interface LedgerScope :
     LedgerPlans,
     LedgerMonthCloses,
     LedgerRecurringRules,
-    LedgerScans {
+    LedgerScans,
+    LedgerRecognizedTexts {
     /** The ledger these operations act within. */
     val ledgerId: Uuid
 }
@@ -146,6 +147,15 @@ interface LedgerScans {
 
     /** Discards the draft [draftId]. */
     suspend fun discardDraft(draftId: Uuid)
+}
+
+/** The text a ledger's scans recognised from their photos, kept on the device. */
+interface LedgerRecognizedTexts {
+    /**
+     * The text recognised for this ledger's scan job or draft [scanId], as
+     * given to the structuring, or `null` when none was kept.
+     */
+    suspend fun recognizedText(scanId: Uuid): String?
 }
 
 /** Reading a ledger's transactions; deleted ones are never found, listed or counted. */

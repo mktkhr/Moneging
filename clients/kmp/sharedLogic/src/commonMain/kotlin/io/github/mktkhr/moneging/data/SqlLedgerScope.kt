@@ -33,7 +33,8 @@ internal class SqlLedgerScope(
     LedgerPlans by SqlPlans(rows),
     LedgerMonthCloses by SqlMonthCloses(rows),
     LedgerRecurringRules by SqlRecurringRules(rows, deviceId),
-    LedgerScans by SqlScans(rows, scanRunner, deviceId) {
+    LedgerScans by SqlScans(rows, scanRunner, deviceId),
+    LedgerRecognizedTexts by SqlRecognizedTexts(rows) {
     override val ledgerId: Uuid = rows.ledgerId
 }
 

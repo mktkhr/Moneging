@@ -1,0 +1,5 @@
+-- Version 6 to 7: the text a scan recognised (Vision's lines on iOS), as
+-- given to the structuring, kept on its job so the development build can
+-- show it. It stays on the device; jobs from before this version have none.
+
+ALTER TABLE scan_jobs ADD COLUMN recognized_text TEXT;

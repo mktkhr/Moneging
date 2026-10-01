@@ -157,6 +157,19 @@ internal class SqlScans(
     }
 }
 
+/** [LedgerRecognizedTexts] over the database. */
+internal class SqlRecognizedTexts(
+    private val rows: LedgerRows,
+) : LedgerRecognizedTexts {
+    override suspend fun recognizedText(scanId: Uuid): String? =
+        withContext(rows.context) {
+            rows.database.scansQueries
+                .recognizedTextOf(ledgerId = rows.ledgerKey, id = scanId.toString())
+                .executeAsList()
+                .firstNotNullOfOrNull { it.recognized_text }
+        }
+}
+
 internal fun LedgerRows.scanJob(id: Uuid): ScanJob? =
     database.scansQueries
         .liveScanJob(ledger_id = ledgerKey, id = id.toString())

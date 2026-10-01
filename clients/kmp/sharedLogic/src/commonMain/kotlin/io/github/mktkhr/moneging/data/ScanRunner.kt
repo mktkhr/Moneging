@@ -67,7 +67,7 @@ internal class ScanRunner(
         scope.launch {
             scanning.pacer.awaitMove()
             move(jobId = jobId, state = ScanState.RUNNING, failureReason = null)
-            val reading = read(photoId = photoId, method = method)
+            val reading = read(jobId = jobId, photoId = photoId, method = method)
             scanning.pacer.awaitMove()
             reading.fold(
                 onSuccess = { read ->
@@ -82,14 +82,24 @@ internal class ScanRunner(
         }
     }
 
-    // What the scanner reads from the photo, or why it could not.
+    // What the scanner reads from the photo, or why it could not; the text it
+    // recognised is kept on the job [jobId], whether or not it is read.
     private suspend fun read(
+        jobId: Uuid,
         photoId: Uuid,
         method: ReadingMethod,
     ): Result<ReceiptReading> {
         val bytes = withContext(context) { photoFiles.read(photoId) } ?: return unread(PHOTO_GONE)
         return try {
-            withTimeout(SCAN_DEADLINE) { Result.success(scanning.scanner.read(image = bytes, method = method)) }
+            withTimeout(SCAN_DEADLINE) {
+                Result.success(
+                    scanning.scanner.read(image = bytes, method = method) { text ->
+                        withContext(
+                            context,
+                        ) { database.scansQueries.keepRecognizedText(text = text, id = jobId.toString()) }
+                    },
+                )
+            }
         } catch (late: TimeoutCancellationException) {
             unread(DEADLINE_PASSED, cause = late)
         } catch (cancelled: CancellationException) {

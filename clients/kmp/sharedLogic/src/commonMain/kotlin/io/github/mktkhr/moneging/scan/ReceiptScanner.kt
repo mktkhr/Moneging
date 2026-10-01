@@ -15,6 +15,17 @@ interface ReceiptScanner {
         image: ByteArray,
         method: ReadingMethod,
     ): ReceiptReading
+
+    /**
+     * The reading of the photo [image], structured by [method]; the text it
+     * recognised is given to [onText] first, as it is given to the
+     * structuring. A scanner that recognises no text gives nothing.
+     */
+    suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+        onText: suspend (String) -> Unit,
+    ): ReceiptReading = read(image = image, method = method)
 }
 
 /**
@@ -82,8 +93,15 @@ class TextRecognizingReceiptScanner(
     override suspend fun read(
         image: ByteArray,
         method: ReadingMethod,
+    ): ReceiptReading = read(image = image, method = method, onText = {})
+
+    override suspend fun read(
+        image: ByteArray,
+        method: ReadingMethod,
+        onText: suspend (String) -> Unit,
     ): ReceiptReading {
         val text = recognizer.recognize(image = image)
+        onText(text)
         check(text.isNotBlank()) { "文字が見つかりませんでした" }
         return structuring.structure(text = text, method = method)
     }

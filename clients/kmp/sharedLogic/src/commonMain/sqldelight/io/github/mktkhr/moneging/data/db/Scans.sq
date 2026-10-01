@@ -1,7 +1,9 @@
 -- The reading of one photo in the background (PRODUCT.md §3, Scan job): its
 -- state is a ScanState name and only moves forward; a succeeded job names
 -- its draft, a failed one says why. method is the ReadingMethod name it
--- reads by (none for a job from before the reading method).
+-- reads by (none for a job from before the reading method). recognized_text
+-- is the text recognised from the photo, as given to the structuring (none
+-- before it is recognised, or for a job from before it was kept).
 CREATE TABLE scan_jobs (
     id TEXT NOT NULL PRIMARY KEY,
     ledger_id TEXT NOT NULL REFERENCES ledgers(id),
@@ -12,7 +14,8 @@ CREATE TABLE scan_jobs (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,
-    method TEXT
+    method TEXT,
+    recognized_text TEXT
 );
 
 CREATE INDEX scan_job_ledger ON scan_jobs(ledger_id);
@@ -79,6 +82,13 @@ SELECT * FROM scan_jobs WHERE ledger_id = ? AND deleted_at IS NULL ORDER BY crea
 markScanJobsOfPhotoDeleted:
 UPDATE scan_jobs SET deleted_at = :deletedAt, updated_at = :deletedAt
 WHERE ledger_id = :ledgerId AND photo_id = :photoId AND deleted_at IS NULL;
+
+keepRecognizedText:
+UPDATE scan_jobs SET recognized_text = :text WHERE id = :id;
+
+-- The text recognised for this ledger's job :id, or for the job that made its draft :id.
+recognizedTextOf:
+SELECT recognized_text FROM scan_jobs WHERE ledger_id = :ledgerId AND (id = :id OR draft_id = :id);
 
 allScanJobs:
 SELECT * FROM scan_jobs ORDER BY rowid;

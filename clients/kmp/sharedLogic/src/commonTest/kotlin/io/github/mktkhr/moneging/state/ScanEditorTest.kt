@@ -4,11 +4,15 @@ import io.github.mktkhr.moneging.data.InMemoryPreferences
 import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.scan.FixtureReceipt
 import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
+import io.github.mktkhr.moneging.scan.OnDeviceLlm
 import io.github.mktkhr.moneging.scan.ReadingMethod
 import io.github.mktkhr.moneging.scan.ReceiptItem
 import io.github.mktkhr.moneging.scan.ReceiptReading
 import io.github.mktkhr.moneging.scan.ReceiptScanner
+import io.github.mktkhr.moneging.scan.ReceiptStructuring
+import io.github.mktkhr.moneging.scan.RuleBasedReceiptParser
 import io.github.mktkhr.moneging.scan.ScannedValue
+import io.github.mktkhr.moneging.scan.TextRecognizingReceiptScanner
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
@@ -162,6 +166,42 @@ class ScanEditorTest {
             aiState.close()
         }
 
+    /** The text recognised from a photo is kept for its draft, and for a scan that then failed. */
+    @Test
+    fun recognizedTextIsKept(): TestResult =
+        runTest {
+            val textStore =
+                LocalStore.inMemory(
+                    clock = NoonClock,
+                    deviceId = TEXT_DEVICE,
+                    scanner = recognizingScanner(),
+                )
+            val textState = AppState(store = textStore, preferences = InMemoryPreferences(), clock = NoonClock)
+            val textData = ScanData(store = textStore, appState = textState)
+            val textEditor = ScanEditor(store = textStore, appState = textState, clock = NoonClock)
+            val ledger = textStore.createLedger("家計")
+            textState.uiState.first { state -> state.ledgers.any { it.id == ledger.id } }
+            textState.onIntent(AppIntent.SelectLedger(ledgerId = ledger.id.toString()))
+
+            textEditor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG, method = ReadingMethod.NO_AI)
+            val draft =
+                textData.uiState
+                    .first { it.waiting.isNotEmpty() }
+                    .waiting
+                    .single()
+            assertEquals(expected = RECOGNIZED, actual = textEditor.recognizedText(scanId = draft.id))
+
+            textEditor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG, method = ReadingMethod.DEVICE_AI)
+            val failed =
+                textData.uiState
+                    .first { it.failed.isNotEmpty() }
+                    .failed
+                    .single()
+            assertEquals(expected = RECOGNIZED, actual = textEditor.recognizedText(scanId = failed.id))
+            textData.close()
+            textState.close()
+        }
+
     /** The progress outside the app counts every ledger's scans, whatever ledger is in view. */
     @Test
     fun progressCountsEveryLedger(): TestResult =
@@ -199,6 +239,23 @@ internal fun sevenElevenReading(): ReceiptReading =
         total = ScannedValue(value = TOTAL, confidence = UNSURE),
         items = listOf(ReceiptItem(name = "おにぎり", amount = RICE_BALL, category = "食費", confidence = SURE)),
     )
+
+private const val TEXT_DEVICE = "text-device"
+private val RECOGNIZED =
+    listOf("セブン-イレブン", "2026年2月14日", "おにぎり ¥380", "合計 ¥380").joinToString(separator = "\n")
+
+// Recognises [RECOGNIZED] from any photo; the device has no AI.
+internal fun recognizingScanner(): ReceiptScanner =
+    TextRecognizingReceiptScanner(
+        recognizer = { RECOGNIZED },
+        structuring = ReceiptStructuring(llm = NoAi, ruleBased = RuleBasedReceiptParser()),
+    )
+
+private object NoAi : OnDeviceLlm {
+    override val isAvailable: Boolean = false
+
+    override suspend fun structure(text: String): ReceiptReading = error("この端末の AI が使えません")
+}
 
 // Fails every scan by the device's AI; reads the fixture receipt without AI.
 private object FailingAiScanner : ReceiptScanner {

@@ -120,6 +120,13 @@ internal final class ScanStore {
         await self.write { try await self.editor.readWithoutAi(jobId: jobId) }
     }
 
+    #if DEBUG
+        /// The text recognised for the scan job or draft `scanId`, or `nil` when none was kept.
+        internal func recognizedText(scanId: String) async -> String? {
+            try? await self.editor.recognizedText(scanId: scanId)
+        }
+    #endif
+
     /// The photo `photoId` of the ledger in view, or `nil`.
     internal func photo(id photoId: String) async -> UIImage? {
         guard let bytes = try? await self.editor.photoBytes(photoId: photoId) else {
