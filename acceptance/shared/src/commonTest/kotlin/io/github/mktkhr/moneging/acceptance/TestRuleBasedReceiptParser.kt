@@ -14,25 +14,28 @@ private const val MARUETSU_PETIT = "maruetsu-petit"
 private const val SEVEN_ELEVEN_SHIBA = "seven-eleven-shiba"
 private const val LIFE = "life"
 private const val UBEREATS_GONGCHA = "ubereats-gongcha"
+private const val MCDONALDS = "mcdonalds"
 
 private const val MARUETSU_PETIT_TOTAL = 5_653L
 private const val SEVEN_ELEVEN_SHIBA_TOTAL = 2_309L
 private const val LIFE_TOTAL = 5_315L
 private const val UBEREATS_GONGCHA_TOTAL = 2_330L
+private const val MCDONALDS_TOTAL = 2_420L
 
 /**
  * AC-B-510 — The rule-based parser reads recorded receipt text into drafts,
  * deterministically.
  *
- * Given the recorded texts `seven-eleven.txt` and `corner-deli.txt`, and four
+ * Given the recorded texts `seven-eleven.txt` and `corner-deli.txt`, and those
  * recorded from real receipts with what identifies a person or a payment
  * masked (`maruetsu-petit.txt`, `seven-eleven-shiba.txt`, `life.txt`,
- * `ubereats-gongcha.txt`). When each is parsed by the rule-based parser, then
- * the draft equals the one recorded beside it, every field, item and
- * confidence included, and each real receipt's items add up to its total; for
- * `seven-eleven.txt` that draft has store `セブン-イレブン`, date 2026-02-14,
- * total 1,180 and the items おにぎり 380 and 弁当 800. When each is parsed
- * again, then the draft is identical to the first.
+ * `ubereats-gongcha.txt`, and a fast-food order of sets with a discount on the
+ * whole receipt, `mcdonalds.txt`). When each is parsed by the rule-based
+ * parser, then the draft equals the one recorded beside it, every field, item
+ * and confidence included, and each real receipt's items add up to its total;
+ * for `seven-eleven.txt` that draft has store `セブン-イレブン`, date
+ * 2026-02-14, total 1,180 and the items おにぎり 380 and 弁当 800. When each is
+ * parsed again, then the draft is identical to the first.
  */
 class TestRuleBasedReceiptParser {
     private val parser = RuleBasedReceiptParser()
@@ -56,10 +59,11 @@ class TestRuleBasedReceiptParser {
         )
     }
 
-    /** Each of the six recorded texts parses into the draft recorded beside it, and parses again into the same. */
+    /** Each of the seven recorded texts parses into the draft recorded beside it, and parses again into the same. */
     @Test
     fun eachTextParsesIntoItsDraft() {
-        val names = listOf(SEVEN_ELEVEN, CORNER_DELI, MARUETSU_PETIT, SEVEN_ELEVEN_SHIBA, LIFE, UBEREATS_GONGCHA)
+        val names =
+            listOf(SEVEN_ELEVEN, CORNER_DELI, MARUETSU_PETIT, SEVEN_ELEVEN_SHIBA, LIFE, UBEREATS_GONGCHA, MCDONALDS)
         for (name in names) {
             val first = parser.parse(text = recordedText(name = name))
             assertEquals(
@@ -71,7 +75,7 @@ class TestRuleBasedReceiptParser {
         }
     }
 
-    /** Each real receipt reads its total, and its items add up to it. */
+    /** Each real receipt reads its total, and its items, a discount item below zero included, add up to it. */
     @Test
     fun realReceiptsAddUp() {
         val totals =
@@ -80,6 +84,7 @@ class TestRuleBasedReceiptParser {
                 SEVEN_ELEVEN_SHIBA to SEVEN_ELEVEN_SHIBA_TOTAL,
                 LIFE to LIFE_TOTAL,
                 UBEREATS_GONGCHA to UBEREATS_GONGCHA_TOTAL,
+                MCDONALDS to MCDONALDS_TOTAL,
             )
         for ((name, total) in totals) {
             val draft = parser.parse(text = recordedText(name = name))
