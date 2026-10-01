@@ -183,7 +183,11 @@ class TestReceiptStructuringPath {
         val rules = ruleBasedDraft(name = SEVEN_ELEVEN)
         assertEquals(
             expected =
-                listOf(rules.store.value, rules.date.value.toString(), rules.total.value.toString()) +
+                listOf(
+                    rules.store.value,
+                    requireNotNull(rules.date.value).toString(),
+                    requireNotNull(rules.total.value).toString(),
+                ) +
                     rules.items.map { item -> "${item.name}:${item.amount}" },
             actual = shapeOf(draft = draft),
             message = "下書きが seven-eleven.rule.json と違う",

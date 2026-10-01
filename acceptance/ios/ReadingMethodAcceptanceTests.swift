@@ -51,7 +51,7 @@ internal final class ReadingMethodAcceptanceTests: XCTestCase {
     private static func checkStoppingStartsNothing(_ app: XCUIApplication) {
         app.cancelReadingButton.tap()
         expect(app.disappears(app.readingUnavailableNotice), "やめる を押しても知らせが閉じない")
-        expect(!app.scanStatus.exists, "やめたのに読み取りの表示がある: \(app.scanStatus.label)")
+        expect(!app.scanStatus.exists, "やめたのに読み取りの表示がある")
         expect(!app.scanAcceptedNotice.exists, "やめたのに読み取りを受け付けた")
         expect(!app.progressSurface.exists, "やめたのに読み取り中の表示がある")
     }
