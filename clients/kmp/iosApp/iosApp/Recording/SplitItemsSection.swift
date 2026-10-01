@@ -4,7 +4,8 @@ import UIKit
 
 /// The line items of a split expense (`Split2.dc.html`).
 ///
-/// Each item has its category, item name and amount, and can be removed;
+/// Each item has its category, item name and amount, may be marked 割引 (a
+/// discount item, taken off: `−250円`), and can be removed;
 /// 明細を追加 adds one, and 分けるのをやめる returns to one amount and
 /// category.
 internal struct SplitItemsSection: View {
@@ -88,6 +89,7 @@ internal struct SplitItemsSection: View {
             .fixedSize(horizontal: false, vertical: true)
             Text("円")
                 .foregroundStyle(Theme.text)
+            self.discountButton(item: item)
             if self.items.wrappedValue.count > 1 {
                 self.removeButton(item: item)
             }
@@ -110,6 +112,26 @@ internal struct SplitItemsSection: View {
             CategoryIcon(defaultIndex: category?.defaultIndex.map { Int(truncating: $0) })
         }
         .accessibilityLabel("分類 \(category?.name ?? String(localized: "未選択"))")
+    }
+
+    // 割引: turns the item into a discount taken off (`−250円`), or back.
+    private func discountButton(item: Binding<EntryItem>) -> some View {
+        let isDiscount: Bool = item.wrappedValue.isDiscount
+        return Button {
+            item.wrappedValue.isDiscount.toggle()
+        } label: {
+            Text("割引")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(isDiscount ? Theme.onAccent : Theme.mutedText)
+                .padding(.horizontal, Theme.Spacing.small)
+                .padding(.vertical, Theme.Spacing.extraSmall)
+                .background(isDiscount ? Theme.accent : Theme.background, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("割引")
+        .accessibilityValue(isDiscount ? "1" : "0")
+        .accessibilityAddTraits(isDiscount ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier("entry-item-discount")
     }
 
     private func removeButton(item: Binding<EntryItem>) -> some View {

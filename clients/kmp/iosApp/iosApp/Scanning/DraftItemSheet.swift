@@ -22,13 +22,14 @@ internal struct DraftItemSheet: View {
 
     @State private var name: String = ""
     @State private var amountText: String = ""
+    @State private var isDiscount: Bool = false
     @State private var categoryId: String?
     @State private var isPrepared: Bool = false
 
     private var isChanged: Bool {
         let item: DraftItemState = self.editing.item
         return self.name != item.name || self.amountText != item.amountText
-            || self.categoryId != item.categoryId
+            || self.categoryId != item.categoryId || self.isDiscount != item.isDiscount
     }
 
     internal var body: some View {
@@ -90,9 +91,27 @@ internal struct DraftItemSheet: View {
                 splitTotal: nil,
                 identifier: "draft-item-amount",
             )
+            self.discountToggle
             self.categorySection
             self.deleteButton
         }
+    }
+
+    // Whether the item is a discount taken off the total (`−250円`).
+    private var discountToggle: some View {
+        Toggle(isOn: self.$isDiscount) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
+                Text("割引の明細")
+                    .foregroundStyle(Theme.text)
+                Text("合計から引く金額です（例: ディスカウント −250円）")
+                    .font(.caption)
+                    .foregroundStyle(Theme.mutedText)
+            }
+        }
+        .tint(Theme.accent)
+        .padding(Theme.Spacing.medium)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Scanning.cardRadius))
+        .accessibilityIdentifier("draft-item-discount")
     }
 
     // この明細を消す, for an item of the draft (a new one has nothing to remove).
@@ -140,6 +159,7 @@ internal struct DraftItemSheet: View {
         self.isPrepared = true
         self.name = self.editing.item.name
         self.amountText = self.editing.item.amountText
+        self.isDiscount = self.editing.item.isDiscount
         self.categoryId = self.editing.item.categoryId
     }
 
@@ -148,6 +168,7 @@ internal struct DraftItemSheet: View {
         if self.isChanged {
             item.name = self.name
             item.amountText = self.amountText
+            item.isDiscount = self.isDiscount
             item.categoryId = self.categoryId
             item.confidence = Theme.Scanning.certain
         }

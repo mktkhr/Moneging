@@ -55,7 +55,10 @@ internal struct EntrySheet: View {
             return (Int64(self.amountText) ?? 0) > 0
         }
         if self.isSplit {
-            return self.items.allSatisfy { $0.amount > 0 && $0.categoryId != nil }
+            // Every item has an amount and a category; a discount item takes
+            // off, so at least one is not a discount and the total stays above 0.
+            return self.items.allSatisfy { $0.hasAmount && $0.categoryId != nil }
+                && self.items.contains { !$0.isDiscount } && self.itemsTotal > 0
         }
         return (Int64(self.amountText) ?? 0) > 0 && self.categoryId != nil
     }
@@ -218,7 +221,8 @@ internal struct EntrySheet: View {
             EntryItem(
                 name: item.name ?? "",
                 categoryId: item.categoryId.description,
-                amountText: String(item.amount),
+                amountText: String(abs(item.amount)),
+                isDiscount: item.amount < 0,
             )
         }
     }
@@ -241,7 +245,11 @@ internal struct EntrySheet: View {
     private func draft() -> TransactionDraft {
         let isSplitExpense: Bool = self.isSplit && !self.isIncome
         let itemDrafts: [LineItemDraft] = self.items.map { item in
-            LineItemDraft(name: item.name, categoryId: item.categoryId, amountText: item.amountText)
+            LineItemDraft(
+                name: item.name,
+                categoryId: item.categoryId,
+                amountText: item.signedAmountText,
+            )
         }
         return TransactionDraft(
             date: IsoDate.iso(from: self.date),

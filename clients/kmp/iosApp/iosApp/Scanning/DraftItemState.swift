@@ -9,6 +9,8 @@ internal struct DraftItemState: Identifiable, Equatable {
     internal var name: String
     /// Its amount as typed, digits only (金額).
     internal var amountText: String
+    /// Whether it is a discount item: its amount is taken off (below zero).
+    internal var isDiscount: Bool = false
     /// Its category (`Category.id` as text), `nil` for none (その他).
     internal var categoryId: String?
     /// How sure the scanner was of it; 1 once the user changed it.
@@ -19,16 +21,21 @@ internal struct DraftItemState: Identifiable, Equatable {
         SharedLogic.needsReview(confidence: self.confidence)
     }
 
-    /// Its amount in yen, 0 while nothing valid is typed.
+    /// Its amount in yen, below zero for a discount, 0 while nothing valid is typed.
     internal var amount: Int64 {
-        Int64(self.amountText) ?? 0
+        (Int64(self.amountText) ?? 0) * (self.isDiscount ? -1 : 1)
+    }
+
+    /// Whether a positive amount is typed (a discount's too, before its sign).
+    internal var hasAmount: Bool {
+        (Int64(self.amountText) ?? 0) > 0
     }
 
     /// The item as the shared logic's form holds it.
     internal var form: DraftItemForm {
         DraftItemForm(
             name: self.name,
-            amountText: self.amountText,
+            amountText: self.isDiscount ? "-" + self.amountText : self.amountText,
             categoryId: self.categoryId,
             confidence: self.confidence,
         )
@@ -44,6 +51,7 @@ internal struct DraftItemState: Identifiable, Equatable {
         Self(
             name: item.name,
             amountText: item.amountText.filter(\.isNumber),
+            isDiscount: item.amountText.hasPrefix("-"),
             categoryId: item.categoryId,
             confidence: item.confidence,
         )

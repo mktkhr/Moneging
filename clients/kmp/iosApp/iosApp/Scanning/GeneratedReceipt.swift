@@ -12,7 +12,7 @@ internal struct GeneratedReceipt {
         internal var name: String
 
         /// Its amount in whole yen.
-        @Guide(description: "金額（円、整数）。値引き・オプションを反映した額")
+        @Guide(description: "金額（円、整数）。値引き・オプションを反映した額。会計全体の割引の品目はマイナス")
         internal var amount: Int
 
         /// A default category's name, or empty for none.

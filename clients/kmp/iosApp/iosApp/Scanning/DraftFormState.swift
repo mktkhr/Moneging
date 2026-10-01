@@ -27,9 +27,11 @@ internal struct DraftFormState: Equatable {
         self.items.reduce(0) { $0 + $1.amount }
     }
 
-    /// Whether it can be confirmed: a total, and every item with an amount.
+    /// Whether it can be confirmed: a total, every item with an amount, and
+    /// at least one item that is not a discount when it has items.
     internal var canConfirm: Bool {
-        (Int64(self.totalText) ?? 0) > 0 && self.items.allSatisfy { $0.amount > 0 }
+        (Int64(self.totalText) ?? 0) > 0 && self.items.allSatisfy(\.hasAmount)
+            && (self.items.isEmpty || self.items.contains { !$0.isDiscount })
     }
 
     /// The draft as the shared logic's form holds it.
