@@ -15,6 +15,8 @@ private const val SEVEN_ELEVEN_SHIBA = "seven-eleven-shiba"
 private const val LIFE = "life"
 private const val UBEREATS_GONGCHA = "ubereats-gongcha"
 private const val MCDONALDS = "mcdonalds"
+private const val MCDONALDS_DEVICE = "mcdonalds-device"
+private const val SEVEN_ELEVEN_SHIBA_DEVICE = "seven-eleven-shiba-device"
 
 private const val MARUETSU_PETIT_TOTAL = 5_653L
 private const val SEVEN_ELEVEN_SHIBA_TOTAL = 2_309L
@@ -29,8 +31,10 @@ private const val MCDONALDS_TOTAL = 2_420L
  * Given the recorded texts `seven-eleven.txt` and `corner-deli.txt`, and those
  * recorded from real receipts with what identifies a person or a payment
  * masked (`maruetsu-petit.txt`, `seven-eleven-shiba.txt`, `life.txt`,
- * `ubereats-gongcha.txt`, and a fast-food order of sets with a discount on the
- * whole receipt, `mcdonalds.txt`). When each is parsed by the rule-based
+ * `ubereats-gongcha.txt`, a fast-food order of sets with a discount on the
+ * whole receipt, `mcdonalds.txt`, and the same convenience-store and fast-food
+ * receipts read by Vision on the device, `seven-eleven-shiba-device.txt` and
+ * `mcdonalds-device.txt`). When each is parsed by the rule-based
  * parser, then the draft equals the one recorded beside it, every field, item
  * and confidence included, and each real receipt's items add up to its total;
  * for `seven-eleven.txt` that draft has store `セブン-イレブン`, date
@@ -59,11 +63,21 @@ class TestRuleBasedReceiptParser {
         )
     }
 
-    /** Each of the seven recorded texts parses into the draft recorded beside it, and parses again into the same. */
+    /** Each of the nine recorded texts parses into the draft recorded beside it, and parses again into the same. */
     @Test
     fun eachTextParsesIntoItsDraft() {
         val names =
-            listOf(SEVEN_ELEVEN, CORNER_DELI, MARUETSU_PETIT, SEVEN_ELEVEN_SHIBA, LIFE, UBEREATS_GONGCHA, MCDONALDS)
+            listOf(
+                SEVEN_ELEVEN,
+                CORNER_DELI,
+                MARUETSU_PETIT,
+                SEVEN_ELEVEN_SHIBA,
+                LIFE,
+                UBEREATS_GONGCHA,
+                MCDONALDS,
+                SEVEN_ELEVEN_SHIBA_DEVICE,
+                MCDONALDS_DEVICE,
+            )
         for (name in names) {
             val first = parser.parse(text = recordedText(name = name))
             assertEquals(
@@ -85,6 +99,8 @@ class TestRuleBasedReceiptParser {
                 LIFE to LIFE_TOTAL,
                 UBEREATS_GONGCHA to UBEREATS_GONGCHA_TOTAL,
                 MCDONALDS to MCDONALDS_TOTAL,
+                SEVEN_ELEVEN_SHIBA_DEVICE to SEVEN_ELEVEN_SHIBA_TOTAL,
+                MCDONALDS_DEVICE to MCDONALDS_TOTAL,
             )
         for ((name, total) in totals) {
             val draft = parser.parse(text = recordedText(name = name))

@@ -756,13 +756,15 @@ still listed, and a transaction may still be created by hand linking to that
 photo.
 
 **AC-B-510** — Given the recorded texts `seven-eleven.txt` and
-`corner-deli.txt`, and five recorded from real receipts with what identifies a
+`corner-deli.txt`, and seven recorded from real receipts with what identifies a
 person or a payment masked — a supermarket that adds tax and marks a discount
 (`maruetsu-petit.txt`), a convenience store with a discount and a quantity
 (`seven-eleven-shiba.txt`), a supermarket with quantities, a sticker discount
-and added tax (`life.txt`) and a delivery order with options
-(`ubereats-gongcha.txt`), and a fast-food order of sets with a discount on
-the whole receipt (`mcdonalds.txt`). When each is parsed by the rule-based
+and added tax (`life.txt`), a delivery order with options
+(`ubereats-gongcha.txt`), a fast-food order of sets with a discount on
+the whole receipt (`mcdonalds.txt`), and the same convenience-store and
+fast-food receipts read by Vision on the device (`seven-eleven-shiba-device.txt`,
+`mcdonalds-device.txt`). When each is parsed by the rule-based
 parser, then
 the draft equals the one recorded beside it, every field, item and confidence
 included, and each real receipt's items add up to its total;
