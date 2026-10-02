@@ -8,9 +8,14 @@ import kotlin.math.abs
 // The patterns below read a line's look-alikes as one (`readable`): a
 // full-width letter, digit or sign as its half-width form, every sign of
 // multiplication as `x`.
-private val AMOUNT = Regex("""^\*?¥?(-?)(\d{1,3}(?:,\d{3})*)※?$""")
+private val AMOUNT = Regex("""^\*?(¥?)(-?)(\d{1,3}(?:,\d{3})*)※?$""")
 private val TOKEN_SEPARATOR = Regex("""[ \t]+""")
 private const val YEN = "¥"
+private const val REDUCED_TAX_SIGN = '*'
+
+// The groups of an amount token's yen sign and minus sign.
+private const val YEN_GROUP = 1
+private const val MINUS_GROUP = 2
 
 // A quantity and a unit price at the start of a line: `2コ✕単178`,
 // `2コX単-99`, `@159x 3`, `@159*3`.
@@ -58,15 +63,31 @@ private val CHECK_BOX = Regex("""^[ロ■□]\s?""")
 private val REDUCED_TAX_MARK = Regex("""^\*""")
 private val ITEM_CODE = Regex("""^\d{3}(?!\d)\s?""")
 
-/** One row of a receipt: its [text] before the amount, and the [amount] it ends with, if any. */
+/**
+ * One row of a receipt: its [text] before the amount, and the [amount] it
+ * ends with, if any. In a receipt that prints its prices with `¥`
+ * ([isYenPrinted]), a price printed with neither `¥` nor `-` is not an amount.
+ */
 internal class ReceiptLine(
     line: String,
+    isYenPrinted: Boolean = false,
 ) {
     private val readableLine = readable(line)
     private val tokens = readableLine.split(TOKEN_SEPARATOR)
+    private val price = AMOUNT.find(tokens.last())
+
+    /** Whether it ends with a price, whether or not that is an amount. */
+    val hasPrice: Boolean = price != null
+
+    /** Whether the price it ends with is printed with `¥` or `￥`. */
+    val isPricedWithYen: Boolean = hasGroup(match = price, group = YEN_GROUP)
+
+    /** Whether the price it ends with is printed with `-`. */
+    val isPricedWithMinus: Boolean = hasGroup(match = price, group = MINUS_GROUP)
 
     /** The yen amount of its last token, or `null` when that is not an amount. */
-    val amount: Long? = amountOf(tokens.last())
+    val amount: Long? =
+        price?.takeIf { !isYenPrinted || isPricedWithYen || isPricedWithMinus }?.let { amountOf(tokens.last()) }
 
     /** Its text before the amount, as recognised; the whole line when it has none. */
     val text: String = if (amount != null) line.dropLast(n = tokens.last().length).trimEnd() else line
@@ -76,6 +97,9 @@ internal class ReceiptLine(
 
     /** Whether its text names a discount (`ディスカウント`, `値引`, `割引`). */
     val isNamedDiscount: Boolean = DISCOUNT_MARKS.any { mark -> text.contains(mark) }
+
+    /** Whether it is a discount on the whole receipt: one named, its amount printed without `-` (`ディスカウント ¥250`). */
+    val isReceiptDiscount: Boolean = isNamedDiscount && amount != null && !isPricedWithMinus
 
     /**
      * Whether it is a discount (`値引額 -50`, `シール割引 50%`), or an amount
@@ -90,10 +114,6 @@ internal class ReceiptLine(
     val isNeverItem: Boolean =
         DATE.containsMatchIn(readableLine) || REGISTER.containsMatchIn(readableLine) ||
             TIME.containsMatchIn(readableLine)
-
-    /** Whether it is an item, a quantity or an option line: a line that prices something, but not a discount. */
-    val isPricedLine: Boolean
-        get() = !isNeverItem && !isDiscount && (amount != null || isOption)
 
     /** Its amount as a discount: below zero whatever its sign. */
     val discount: Long?
@@ -116,6 +136,12 @@ internal class ReceiptLine(
     }
 }
 
+// Whether [group] of [match] matched something (a price's `¥` or `-`).
+internal fun hasGroup(
+    match: MatchResult?,
+    group: Int,
+): Boolean = match != null && match.groupValues[group].isNotEmpty()
+
 // Whether the text before an [amount] carries the option mark (`氷Ice※通常 ¥120`).
 internal fun hasOptionMark(
     amount: Long?,
@@ -136,27 +162,40 @@ private fun readableChar(char: Char): Char =
 /** The yen amount of [token] (`*¥-1,234※`, `＊￥１，２３４`), or `null` when it is not one. */
 internal fun amountOf(token: String): Long? {
     val match = AMOUNT.find(readable(token)) ?: return null
-    val (minus, digits) = match.destructured
+    val (_, minus, digits) = match.destructured
     val yen = digits.replace(oldValue = ",", newValue = "").toLongOrNull()
     return if (minus.isEmpty()) yen else yen?.let { -it }
 }
 
 /**
  * The trimmed, non-empty rows of [text], a row that ends with a lone yen
- * sign joined to the next by a space, the sign dropped
- * (`■ JUICY巨峰ミルクティー JUICY ¥` and `Kyoho Grape Milk Tea 1,010`).
+ * sign joined to the next by a space, the sign moved to the price the
+ * joined row ends with (`■ JUICY巨峰ミルクティー JUICY ¥` and
+ * `Kyoho Grape Milk Tea 1,010` read `… Kyoho Grape Milk Tea ¥1,010`), so
+ * that price counts as printed with `¥`.
  */
 internal fun receiptRows(text: String): List<String> {
     val rows = mutableListOf<String>()
     var pending: String? = null
     for (line in text.lines().map { it.trim() }.filter { it.isNotEmpty() }) {
-        val row = pending?.let { "$it $line" } ?: line
+        val row = pending?.let { "$it ${withYen(line)}" } ?: line
         val tokens = readable(row).split(TOKEN_SEPARATOR)
         pending = if (tokens.size > 1 && tokens.last() == YEN) row.dropLast(n = 1).trimEnd() else null
         if (pending == null) rows += row
     }
     pending?.let { rows += it }
     return rows
+}
+
+// [line] with a yen sign before the price it ends with, when it ends with
+// one printed without (`Kyoho Grape Milk Tea 1,010` reads `… ¥1,010`).
+private fun withYen(line: String): String {
+    val last = readable(line).split(TOKEN_SEPARATOR).last()
+    val price = AMOUNT.find(last)
+    if (price == null || hasGroup(match = price, group = YEN_GROUP)) return line
+    // After the reduced-tax mark, if any; the readable text has the length of the line.
+    val at = line.length - last.length + if (last.startsWith(REDUCED_TAX_SIGN)) 1 else 0
+    return line.substring(startIndex = 0, endIndex = at) + YEN + line.substring(startIndex = at)
 }
 
 /**

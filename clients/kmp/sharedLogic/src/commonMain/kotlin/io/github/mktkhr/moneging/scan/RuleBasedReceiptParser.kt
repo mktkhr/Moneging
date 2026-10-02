@@ -9,7 +9,7 @@ private const val RULE_CONFIDENCE = 0.7
 private const val NOT_READ = 0.0
 
 private const val TOTAL_PREFIX = "合計"
-private val ITEMS_END_PREFIXES = listOf("小計", TOTAL_PREFIX)
+private val ITEMS_END_PREFIXES = listOf("小計", TOTAL_PREFIX, "商品代金", "値引合計")
 private const val OPEN_PARENTHESIS = "("
 private val ADDED_TAX_MARKS = listOf("外税", "外8%", "外10%", "税抜")
 private const val DELIVERY_FIRST_LINE = "Uber Eats"
@@ -28,9 +28,11 @@ fun interface ReceiptTextParser {
  * ([ReceiptChains]) the text names first, else the first line; the date the
  * first `yyyy/mm/dd` or `yyyy年mm月dd日`; the total the amount on the first
  * line starting with `合計`; the items the lines between the date and the
- * first `小計`, `合計`, `（` or `(`, reading quantity, discount and option
- * lines into the item they belong to, and an added `消費税` when the prices
- * exclude tax. It does not classify: every item has no category. Everything
+ * first word of the summary (`小計`, `合計`, `商品代金`, `値引合計`) or summary
+ * in parentheses, reading quantity, discount and option lines into the item
+ * they belong to, and an added `消費税` when the prices exclude tax. In a
+ * receipt that prints its prices with `¥`, a price with neither `¥` nor `-`
+ * is not an amount (a count misread as `11`). It does not classify: every item has no category. Everything
  * it read has the confidence 0.7.
  */
 class RuleBasedReceiptParser : ReceiptTextParser {
@@ -43,9 +45,11 @@ class RuleBasedReceiptParser : ReceiptTextParser {
         val total = lines.firstOrNull { it.startsWith(TOTAL_PREFIX) }?.let { ReceiptLine(it).amount }
         val itemsStart = minOf(a = if (dateLine >= 0) dateLine + 1 else 1, b = lines.size)
         val itemsEnd = (itemsStart until lines.size).firstOrNull { index -> endsItems(lines[index]) } ?: lines.size
+        val itemLines = lines.subList(fromIndex = itemsStart, toIndex = itemsEnd)
+        val isYenPrinted = printsYen(itemLines.map(::ReceiptLine))
         val items =
             ItemReader(isDelivery = readableLines.firstOrNull()?.startsWith(DELIVERY_FIRST_LINE) == true)
-                .read(lines = lines.subList(fromIndex = itemsStart, toIndex = itemsEnd).map(::ReceiptLine))
+                .read(lines = itemLines.map { ReceiptLine(line = it, isYenPrinted = isYenPrinted) })
         val hasAddedTax = readableLines.any { line -> ADDED_TAX_MARKS.any { mark -> line.contains(mark) } }
         val store = ReceiptChains.nameIn(readableLines) ?: lines.firstOrNull()
         return ReceiptReading(
@@ -57,12 +61,24 @@ class RuleBasedReceiptParser : ReceiptTextParser {
     }
 }
 
-// Whether [line] ends the item lines: `小計` or `合計`, or a summary in
-// parentheses that does not end with an amount (`（商品代金 ¥2,178）`).
+// Whether [line] ends the item lines: one starting, after an optional
+// opening parenthesis, with a word of the summary (`小計 ¥4,922`,
+// `（商品代金 ¥2,178）`, `商品代金 ¥2,178）`), or a summary in parentheses that
+// does not end with an amount (`（ 8%外税対象額 ¥5,235）`).
 internal fun endsItems(line: String): Boolean {
     val readableLine = readable(line)
     val isSummary = readableLine.startsWith(OPEN_PARENTHESIS) && ReceiptLine(line).amount == null
-    return isSummary || ITEMS_END_PREFIXES.any { readableLine.startsWith(it) }
+    val words = readableLine.removePrefix(OPEN_PARENTHESIS)
+    return isSummary || ITEMS_END_PREFIXES.any { words.startsWith(it) }
+}
+
+// Whether a receipt prints its prices with `¥`: of its item [lines] that end
+// with a price (the date, register and time lines left out), more end with
+// one printed with `¥` than without; a tie is not.
+internal fun printsYen(lines: List<ReceiptLine>): Boolean {
+    val priced = lines.filter { it.hasPrice && !it.isNeverItem }
+    val withYen = priced.count { it.isPricedWithYen }
+    return withYen > priced.size - withYen
 }
 
 // Reads item lines, in order, into items (acceptance/fixtures/README.md, Items).
@@ -77,28 +93,14 @@ private class ItemReader(
         lines.forEachIndexed { index, line ->
             when {
                 line.isNeverItem -> Unit
-                isReceiptDiscount(lines = lines, index = index) -> receiptDiscounts += discountItem(line)
+
+                // A discount on the whole receipt, wherever it stands.
+                line.isReceiptDiscount && !line.isQuantity -> receiptDiscounts += discountItem(line)
+
                 else -> read(line = line, above = lines.getOrNull(index = index - 1))
             }
         }
         return names.zip(amounts) { name, amount -> itemOf(name = name, amount = amount) } + receiptDiscounts
-    }
-
-    // Whether the line [index] is a discount on the whole receipt: a line
-    // naming a discount, with an amount, right below a line without one, with
-    // no item, quantity or option line after it.
-    private fun isReceiptDiscount(
-        lines: List<ReceiptLine>,
-        index: Int,
-    ): Boolean {
-        val line = lines[index]
-        val above = lines.getOrNull(index = index - 1)
-        return line.isNamedDiscount &&
-            !line.isQuantity &&
-            line.amount != null &&
-            above != null &&
-            above.amount == null &&
-            lines.drop(n = index + 1).none { it.isPricedLine }
     }
 
     private fun discountItem(line: ReceiptLine): ReceiptItem =

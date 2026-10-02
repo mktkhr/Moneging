@@ -16,6 +16,11 @@ private const val RECEIPT_DISCOUNT = 250L
 private const val THREE_BOTTLES = 477L
 private const val TWO_PACKS = 356L
 private const val STICKER = 198L
+private const val TEA = 1_010L
+private const val SALAD = 300L
+private const val RICE_BALL = 380L
+private const val BREAD = 120L
+private const val TAKEN_OFF = 30L
 
 /** The pieces of the rule-based parser the recorded receipts do not all show. */
 class RuleBasedReceiptParserTest {
@@ -130,6 +135,49 @@ class RuleBasedReceiptParserTest {
         assertEquals(
             expected = listOf("ジャガペッパーツキミLセット" to SET, "ディスカウント" to -RECEIPT_DISCOUNT),
             actual = reading.items.map { item -> item.name to item.amount },
+        )
+    }
+
+    /**
+     * In a receipt that prints most prices with `¥` (a row joined at a lone
+     * `¥` counts as one), a number with neither `¥` nor `-` is no amount; on a
+     * tie every price is one.
+     */
+    @Test
+    fun countsAreNoAmountsBesideYen() {
+        assertEquals(
+            expected = listOf("Milk JUICY Kyoho Tea" to TEA, "サラダ" to SALAD),
+            actual = itemsOf("Milk JUICY ¥", "Kyoho Tea 1,010", "ポテト 11", "サラダ ¥300", "合計 ¥1,310"),
+        )
+        assertEquals(
+            expected = listOf("おにぎり" to RICE_BALL, "パン" to BREAD),
+            actual = itemsOf("おにぎり ¥380", "パン 120", "合計 ¥500"),
+        )
+    }
+
+    /**
+     * A discount's printed sign tells what it takes off: without `-` the whole
+     * receipt, wherever it stands; with `-` the item above. A word of the
+     * summary ends the items, with or without its opening parenthesis.
+     */
+    @Test
+    fun discountSignAndSummaryWords() {
+        assertEquals(
+            expected = listOf("おにぎり" to RICE_BALL - TAKEN_OFF, "パン" to BREAD, "ディスカウント" to -RECEIPT_DISCOUNT),
+            actual =
+                itemsOf(
+                    "おにぎり ¥380",
+                    "割引 -30",
+                    "ディスカウント ¥250",
+                    "パン ¥120",
+                    "商品代金 ¥250）",
+                    "おまけ ¥50",
+                    "合計 ¥250",
+                ),
+        )
+        assertEquals(
+            expected = listOf("パン" to BREAD),
+            actual = itemsOf("パン ¥120", "（値引合計 -50）", "おまけ ¥50", "合計 ¥120"),
         )
     }
 
