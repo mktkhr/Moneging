@@ -93,7 +93,7 @@ class ScanEditorTest {
                     .single()
 
             val editing = assertNotNull(editor.openDraft(draftId = row.id))
-            assertTrue(needsReview(editing.form.totalConfidence))
+            assertTrue(isReviewNeeded(editing.form.totalConfidence))
             assertEquals(
                 expected = "380",
                 actual =
@@ -131,7 +131,7 @@ class ScanEditorTest {
             val transaction = store.ledger(ledgerId).transactions(YearMonth(year = 2026, month = 2)).single()
             assertEquals(expected = 500L, actual = transaction.amount)
             assertEquals(expected = listOf("おにぎり", "差額"), actual = transaction.items.map { it.name })
-            assertTrue(transaction.needsReview)
+            assertTrue(transaction.isReviewNeeded)
             val row = LedgerUiState.EMPTY.transactionRow(transaction)
             assertTrue(row.isMarkedForReview)
             assertTrue(row.accessibilityLabel.endsWith("、要確認"), row.accessibilityLabel)

@@ -77,7 +77,7 @@ extension Theme {
         internal static let unusableNoticeInset: CGFloat = 40
         /// The least height of that notice's buttons.
         internal static let unusableNoticeButtonHeight: CGFloat = 46
-        /// How opaque the tint of `review` behind the warning that a draft's items do not add up is.
+        /// How opaque the tint of `review` is behind the warning of items that do not add up.
         internal static let mismatchTintOpacity: CGFloat = 0.08
         /// How opaque that warning's border of `review` is.
         internal static let mismatchBorderOpacity: CGFloat = 0.35

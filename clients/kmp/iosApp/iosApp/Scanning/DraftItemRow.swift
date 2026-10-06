@@ -40,7 +40,7 @@ internal struct DraftItemRow: View {
                         .foregroundStyle(Theme.mutedText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                if self.item.needsReview {
+                if self.item.isReviewNeeded {
                     ReviewMark(field: "item-\(self.index)")
                 }
                 Text(self.amountText)

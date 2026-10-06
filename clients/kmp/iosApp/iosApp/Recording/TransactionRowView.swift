@@ -44,7 +44,7 @@ internal struct TransactionRowView: View {
                         RecurringBadge()
                     }
                     if self.row.isMarkedForReview {
-                        NeedsReviewBadge()
+                        ReviewNeededBadge()
                     }
                 }
                 if let detail = self.detail {

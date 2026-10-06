@@ -25,8 +25,8 @@ internal struct DraftContent: View {
 
     @State private var editing: DraftItemEditing?
     @State private var isDiscardConfirmationShown: Bool = false
-    /// The items removed by recording the total alone, while they can be brought back.
-    @State private var removedItems: [DraftItemState]?
+    /// The items removed by recording the total alone, to bring back; empty when none.
+    @State private var removedItems: [DraftItemState] = []
 
     private var mismatch: DraftMismatch? {
         self.form.wrappedValue.form.mismatch()
@@ -36,8 +36,8 @@ internal struct DraftContent: View {
     private var itemsHeader: Text {
         let count: Int = self.form.wrappedValue.items.count
         let total: String = Formats.shared.yen(amount: self.form.wrappedValue.itemsTotal)
-        let sum: Text = Text(total).foregroundStyle(
-            self.mismatch == nil ? Theme.mutedText : Theme.Scanning.review)
+        let color: Color = self.mismatch == nil ? Theme.mutedText : Theme.Scanning.review
+        let sum: Text = Text(total).foregroundStyle(color)
         return Text("明細 \(count)件（合計 \(sum)）")
     }
 
@@ -111,7 +111,7 @@ internal struct DraftContent: View {
                 accessibilityName: String(localized: "カテゴリ（全体）"),
             )
             .listRowBackground(Theme.surface)
-            if self.removedItems != nil {
+            if !self.removedItems.isEmpty {
                 self.undoNotice
                     .listRowBackground(Theme.Scanning.undoBackground)
             }
@@ -230,9 +230,9 @@ internal struct DraftContent: View {
     // Removes every item at once, offering the whole expense's category: the
     // items' one category when they share it.
     private func recordTotalOnly() {
-        let items: [DraftItemState] = self.form.wrappedValue.items
-        self.removedItems = items
-        let shared: Set<String?> = Set(items.map(\.categoryId))
+        let removed: [DraftItemState] = self.form.wrappedValue.items
+        self.removedItems = removed
+        let shared: Set<String?> = Set(removed.map(\.categoryId))
         if self.form.wrappedValue.categoryId == nil, shared.count == 1, let only = shared.first {
             self.form.wrappedValue.categoryId = only
         }
@@ -240,11 +240,8 @@ internal struct DraftContent: View {
     }
 
     private func undoTotalOnly() {
-        guard let items = self.removedItems else {
-            return
-        }
-        self.form.wrappedValue.items = items
-        self.removedItems = nil
+        self.form.wrappedValue.items = self.removedItems
+        self.removedItems = []
     }
 
     private func save(_ item: DraftItemState, at index: Int?) {
@@ -252,7 +249,7 @@ internal struct DraftContent: View {
             self.form.wrappedValue.items[index] = item
         } else {
             self.form.wrappedValue.items.append(item)
-            self.removedItems = nil
+            self.removedItems = []
         }
     }
 

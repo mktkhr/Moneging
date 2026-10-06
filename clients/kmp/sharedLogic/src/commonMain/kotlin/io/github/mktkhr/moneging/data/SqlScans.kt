@@ -129,7 +129,7 @@ internal class SqlScans(
                 val transaction = insertTransaction(rows = rows, deviceId = deviceId, transaction = confirmed)
                 val sum = draft.itemsSum
                 if (sum != null && sum != draft.total.value) {
-                    rows.database.transactionsQueries.markNeedsReview(
+                    rows.database.transactionsQueries.markReviewNeeded(
                         ledger_id = rows.ledgerKey,
                         id = transaction.id.toString(),
                     )

@@ -139,5 +139,5 @@ allTransactions:
 SELECT * FROM transactions ORDER BY rowid;
 
 -- Marks a transaction needs-review: confirmed from a draft whose items did not add up.
-markNeedsReview:
+markReviewNeeded:
 UPDATE transactions SET needs_review = 1 WHERE ledger_id = ? AND id = ?;

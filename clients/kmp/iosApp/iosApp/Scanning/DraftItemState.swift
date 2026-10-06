@@ -17,8 +17,8 @@ internal struct DraftItemState: Identifiable, Equatable {
     internal var confidence: Double
 
     /// Whether it is marked 要確認.
-    internal var needsReview: Bool {
-        SharedLogic.needsReview(confidence: self.confidence)
+    internal var isReviewNeeded: Bool {
+        SharedLogic.isReviewNeeded(confidence: self.confidence)
     }
 
     /// Its amount in yen, below zero for a discount, 0 while nothing valid is typed.

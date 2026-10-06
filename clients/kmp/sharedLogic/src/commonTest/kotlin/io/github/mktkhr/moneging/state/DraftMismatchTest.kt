@@ -10,13 +10,13 @@ private const val DRINK = "drink"
 private const val BENTO = "唐揚げ弁当"
 private const val TEA = "緑茶"
 
-private fun item(
+internal fun mismatchItem(
     name: String,
     amount: String,
     categoryId: String? = FOOD,
 ): DraftItemForm = DraftItemForm(name = name, amountText = amount, categoryId = categoryId, confidence = 1.0)
 
-private fun form(
+internal fun mismatchForm(
     total: String,
     items: List<DraftItemForm>,
 ): DraftForm =
@@ -37,7 +37,16 @@ class DraftMismatchTest {
     @Test
     fun belowOffersTheDifference() {
         val mismatch =
-            assertNotNull(form(total = "980", items = listOf(item(BENTO, "680"), item(TEA, "150"))).mismatch())
+            assertNotNull(
+                mismatchForm(
+                    total = "980",
+                    items =
+                        listOf(
+                            mismatchItem(name = BENTO, amount = "680"),
+                            mismatchItem(name = TEA, amount = "150"),
+                        ),
+                ).mismatch(),
+            )
 
         assertEquals(expected = "明細の合計 830円 が合計 980円 と 150円 合いません。", actual = mismatch.warningText)
         assertEquals(expected = "830円", actual = mismatch.itemsSumText)
@@ -60,7 +69,14 @@ class DraftMismatchTest {
     fun mixedLeaveNoCategory() {
         val mismatch =
             assertNotNull(
-                form(total = "980", items = listOf(item(BENTO, "680"), item(TEA, "150", DRINK))).mismatch(),
+                mismatchForm(
+                    total = "980",
+                    items =
+                        listOf(
+                            mismatchItem(name = BENTO, amount = "680"),
+                            mismatchItem(name = TEA, amount = "150", categoryId = DRINK),
+                        ),
+                ).mismatch(),
             )
 
         assertNull(assertNotNull(mismatch.differenceItem).categoryId)
@@ -70,7 +86,16 @@ class DraftMismatchTest {
     @Test
     fun aboveOffersTotalOnly() {
         val mismatch =
-            assertNotNull(form(total = "800", items = listOf(item(BENTO, "680"), item(TEA, "150"))).mismatch())
+            assertNotNull(
+                mismatchForm(
+                    total = "800",
+                    items =
+                        listOf(
+                            mismatchItem(name = BENTO, amount = "680"),
+                            mismatchItem(name = TEA, amount = "150"),
+                        ),
+                ).mismatch(),
+            )
 
         assertEquals(expected = "明細の合計 830円 が合計 800円 と 30円 合いません。", actual = mismatch.warningText)
         assertNull(mismatch.addDifferenceText)
@@ -84,9 +109,18 @@ class DraftMismatchTest {
     /** Items that add up (a discount included), no items, or an amount not yet valid: no warning. */
     @Test
     fun noWarningOtherwise() {
-        assertNull(form(total = "830", items = listOf(item(BENTO, "1,080"), item("割引", "-250"))).mismatch())
-        assertNull(form(total = "980", items = emptyList()).mismatch())
-        assertNull(form(total = "980", items = listOf(item(BENTO, ""))).mismatch())
-        assertNull(form(total = "", items = listOf(item(BENTO, "680"))).mismatch())
+        assertNull(
+            mismatchForm(
+                total = "830",
+                items =
+                    listOf(
+                        mismatchItem(name = BENTO, amount = "1,080"),
+                        mismatchItem(name = "割引", amount = "-250"),
+                    ),
+            ).mismatch(),
+        )
+        assertNull(mismatchForm(total = "980", items = emptyList()).mismatch())
+        assertNull(mismatchForm(total = "980", items = listOf(mismatchItem(name = BENTO, amount = ""))).mismatch())
+        assertNull(mismatchForm(total = "", items = listOf(mismatchItem(name = BENTO, amount = "680"))).mismatch())
     }
 }

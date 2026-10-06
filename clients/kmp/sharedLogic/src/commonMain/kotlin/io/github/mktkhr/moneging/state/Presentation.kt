@@ -122,7 +122,7 @@ fun LedgerUiState.transactionRow(transaction: Transaction): TransactionRow {
         detail = detail,
         isIncome = isIncome,
         isRecurring = isRecurring,
-        isMarkedForReview = transaction.needsReview,
+        isMarkedForReview = transaction.isReviewNeeded,
         iconIndex = categories.singleOrNull()?.defaultIndex,
         accessibilityLabel =
             listOfNotNull(
@@ -131,7 +131,7 @@ fun LedgerUiState.transactionRow(transaction: Transaction): TransactionRow {
                 transaction.storeName,
                 transaction.memo,
                 RECURRING_MARK.takeIf { isRecurring },
-                NEEDS_REVIEW_MARK.takeIf { transaction.needsReview },
+                NEEDS_REVIEW_MARK.takeIf { transaction.isReviewNeeded },
             ).joinToString(separator = LABEL_SEPARATOR),
     )
 }

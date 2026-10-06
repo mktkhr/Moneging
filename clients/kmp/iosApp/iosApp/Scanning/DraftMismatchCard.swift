@@ -24,25 +24,30 @@ internal struct DraftMismatchCard: View {
         return text
     }
 
+    // The warning and `次のどちらかで直せます。`, read as one element.
+    private var warningHeader: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.small) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(Theme.Scanning.review)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
+                Text(self.warning)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.text)
+                Text(self.mismatch.invitationText)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.mutedText)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(self.mismatch.warningText + self.mismatch.invitationText)
+        .accessibilityIdentifier("draft-mismatch-warning")
+    }
+
     internal var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.small) {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundStyle(Theme.Scanning.review)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
-                    Text(self.warning)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.text)
-                    Text(self.mismatch.invitationText)
-                        .font(.footnote)
-                        .foregroundStyle(Theme.mutedText)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(self.mismatch.warningText + self.mismatch.invitationText)
-            .accessibilityIdentifier("draft-mismatch-warning")
+            self.warningHeader
             if let addDifference = self.mismatch.addDifferenceText {
                 self.fix(
                     addDifference,
@@ -87,8 +92,11 @@ internal struct DraftMismatchCard: View {
                 .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
                 .background(Theme.surface, in: Capsule())
                 .overlay {
-                    Capsule().strokeBorder(
-                        Theme.line, lineWidth: Theme.Scanning.mismatchBorderWidth)
+                    Capsule()
+                        .strokeBorder(
+                            Theme.line,
+                            lineWidth: Theme.Scanning.mismatchBorderWidth,
+                        )
                 }
                 .contentShape(Capsule())
         }

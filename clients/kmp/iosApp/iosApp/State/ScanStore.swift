@@ -105,7 +105,10 @@ internal final class ScanStore {
     internal func confirm(draftId: String, form: DraftForm, acceptMismatch: Bool) async -> Bool {
         await self.write {
             try await self.editor.confirmDraft(
-                draftId: draftId, form: form, acceptMismatch: acceptMismatch)
+                draftId: draftId,
+                form: form,
+                acceptMismatch: acceptMismatch,
+            )
         }
     }
 

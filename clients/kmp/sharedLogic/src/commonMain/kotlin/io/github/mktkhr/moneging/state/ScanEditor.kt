@@ -22,7 +22,7 @@ private const val JOB_NOT_FOUND = "読み取りが見つかりません"
 private const val REVIEW_THRESHOLD = 0.6
 
 /** Whether a field read with [confidence] is marked 要確認: below 0.6. */
-fun needsReview(confidence: Double): Boolean = confidence < REVIEW_THRESHOLD
+fun isReviewNeeded(confidence: Double): Boolean = confidence < REVIEW_THRESHOLD
 
 /** One item of a draft as its form holds it. */
 data class DraftItemForm(

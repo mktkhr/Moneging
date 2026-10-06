@@ -102,7 +102,7 @@ internal struct DraftFieldsCard: View {
                 .frame(minWidth: Theme.Scanning.fieldNameWidth, alignment: .leading)
                 .accessibilityHidden(true)
             value()
-            if needsReview(confidence: confidence) {
+            if isReviewNeeded(confidence: confidence) {
                 ReviewMark(field: field)
             }
         }

@@ -49,7 +49,7 @@ data class Transaction(
     /** Its line items, in order; empty when it is not split. */
     val items: List<LineItem>,
     /** Whether it is marked needs-review: confirmed from a draft whose items did not add up. */
-    val needsReview: Boolean,
+    val isReviewNeeded: Boolean,
     /** The identifier of the device it was recorded on. */
     val deviceId: String,
     override val createdAt: Instant,

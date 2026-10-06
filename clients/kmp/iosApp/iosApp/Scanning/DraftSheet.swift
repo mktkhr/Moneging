@@ -58,8 +58,10 @@ internal struct DraftSheet: View {
                 self.record(acceptMismatch: true)
             }
             .accessibilityIdentifier("draft-mismatch-accept")
-            Button("戻って直す", role: .cancel) {}
-                .accessibilityIdentifier("draft-mismatch-decline")
+            Button("戻って直す", role: .cancel) {
+                self.askedMismatch = nil
+            }
+            .accessibilityIdentifier("draft-mismatch-decline")
         } message: { mismatch in
             Text(mismatch.questionMessage)
         }
