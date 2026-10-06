@@ -5,7 +5,9 @@ import SwiftUI
 ///
 /// ✓ (`draft-confirm`) saves the corrections and confirms the draft into an
 /// expense; × closes it as it was; discarding it asks first. The form is
-/// `DraftContent`.
+/// `DraftContent`. While the items do not add up, ✓ first asks in the middle
+/// of the screen (`Draft6Confirm.dc.html`): `このまま記録する` confirms it
+/// accepting the mismatch, `戻って直す` returns to the draft.
 internal struct DraftSheet: View {
     internal let draftId: String
 
@@ -22,6 +24,8 @@ internal struct DraftSheet: View {
     @State private var readingMethodText: String?
     @State private var draft: DraftFormState?
     @State private var isWorking: Bool = false
+    /// The mismatch asked about before confirming, while the question shows.
+    @State private var askedMismatch: DraftMismatch?
 
     #if DEBUG
         @State private var isRecognizedTextShown: Bool = false
@@ -38,6 +42,27 @@ internal struct DraftSheet: View {
                 }
         }
         .tint(Theme.accent)
+        .alert(
+            self.askedMismatch?.questionTitle ?? "",
+            isPresented: Binding(
+                get: { self.askedMismatch != nil },
+                set: { isShown in
+                    if !isShown {
+                        self.askedMismatch = nil
+                    }
+                },
+            ),
+            presenting: self.askedMismatch,
+        ) { _ in
+            Button("このまま記録する") {
+                self.record(acceptMismatch: true)
+            }
+            .accessibilityIdentifier("draft-mismatch-accept")
+            Button("戻って直す", role: .cancel) {}
+                .accessibilityIdentifier("draft-mismatch-decline")
+        } message: { mismatch in
+            Text(mismatch.questionMessage)
+        }
         .presentationDetents([.large])
         .scanFailureAlert()
         .task(id: self.draftId) {
@@ -101,12 +126,24 @@ internal struct DraftSheet: View {
     }
 
     private func confirm() {
+        if let mismatch = self.draft?.form.mismatch() {
+            self.askedMismatch = mismatch
+            return
+        }
+        self.record(acceptMismatch: false)
+    }
+
+    private func record(acceptMismatch: Bool) {
         guard let form = self.draft?.form else {
             return
         }
         self.isWorking = true
         Task {
-            let isConfirmed: Bool = await self.scanStore.confirm(draftId: self.draftId, form: form)
+            let isConfirmed: Bool = await self.scanStore.confirm(
+                draftId: self.draftId,
+                form: form,
+                acceptMismatch: acceptMismatch,
+            )
             self.isWorking = false
             if isConfirmed {
                 self.dismiss()

@@ -83,6 +83,7 @@ internal fun Transactions.toDomain(items: List<LineItem>): Transaction =
         storeName = store_name,
         photoId = photo_id?.toUuid(),
         items = items,
+        needsReview = needs_review.toBoolean(),
         deviceId = device_id,
         createdAt = created_at.toInstant(),
         updatedAt = updated_at.toInstant(),

@@ -100,9 +100,13 @@ internal final class ScanStore {
         }
     }
 
-    /// Saves `form` into the draft `draftId` and confirms it; returns whether it was confirmed.
-    internal func confirm(draftId: String, form: DraftForm) async -> Bool {
-        await self.write { try await self.editor.confirmDraft(draftId: draftId, form: form) }
+    /// Saves `form` into the draft `draftId` and confirms it, accepting items
+    /// that do not add up only when `acceptMismatch`; returns whether it was confirmed.
+    internal func confirm(draftId: String, form: DraftForm, acceptMismatch: Bool) async -> Bool {
+        await self.write {
+            try await self.editor.confirmDraft(
+                draftId: draftId, form: form, acceptMismatch: acceptMismatch)
+        }
     }
 
     /// Discards the draft `draftId`; returns whether it was discarded.

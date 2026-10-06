@@ -123,16 +123,20 @@ class ScanEditor internal constructor(
     suspend fun openDraft(draftId: String): DraftEditing? =
         scopeInView()?.findDraft(Uuid.parse(draftId))?.toEditing(readingMethods = store.readingMethods)
 
-    /** Saves [form] into the draft [draftId] and confirms it into an expense. */
+    /**
+     * Saves [form] into the draft [draftId] and confirms it into an expense,
+     * accepting items that do not add up only when [acceptMismatch].
+     */
     @Throws(Exception::class)
     suspend fun confirmDraft(
         draftId: String,
         form: DraftForm,
+        acceptMismatch: Boolean,
     ): String? =
         attemptInView {
             val id = Uuid.parse(draftId)
             updateDraft(draftId = id, correction = form.toCorrection())
-            confirmDraft(draftId = id)
+            confirmDraft(draftId = id, acceptMismatch = acceptMismatch)
         }
 
     /** Discards the draft [draftId]. */

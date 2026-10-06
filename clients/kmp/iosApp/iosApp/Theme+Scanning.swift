@@ -77,6 +77,19 @@ extension Theme {
         internal static let unusableNoticeInset: CGFloat = 40
         /// The least height of that notice's buttons.
         internal static let unusableNoticeButtonHeight: CGFloat = 46
+        /// How opaque the tint of `review` behind the warning that a draft's items do not add up is.
+        internal static let mismatchTintOpacity: CGFloat = 0.08
+        /// How opaque that warning's border of `review` is.
+        internal static let mismatchBorderOpacity: CGFloat = 0.35
+        /// The width of that warning's border.
+        internal static let mismatchBorderWidth: CGFloat = 1
+        /// The corner radius of that warning.
+        internal static let mismatchRadius: CGFloat = 16
+        /// The background of the notice that the items were removed (`元に戻す`).
+        internal static let undoBackground: Color = Color(
+            light: "#1F1B180F",
+            dark: "#F7F3EE14",
+        )
         /// How faint an option that cannot be chosen is.
         internal static let unusableOpacity: CGFloat = 0.45
     }

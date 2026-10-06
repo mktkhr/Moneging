@@ -14,6 +14,7 @@ import kotlinx.datetime.LocalDate
 private const val LABEL_SEPARATOR = "、"
 private const val INCOME_NAME = "収入"
 private const val RECURRING_MARK = "定期"
+private const val NEEDS_REVIEW_MARK = "要確認"
 
 /** One transaction as a list shows it. */
 data class TransactionRow(
@@ -31,9 +32,11 @@ data class TransactionRow(
     val isIncome: Boolean,
     /** Whether a recurring rule recorded it (`定期`). */
     val isRecurring: Boolean,
+    /** Whether it is marked needs-review (`要確認`). */
+    val isMarkedForReview: Boolean,
     /** The default category it shows the icon of ([Category.defaultIndex]), or `null`. */
     val iconIndex: Int?,
-    /** Everything a screen reader says for it: amount, category or 収入, store, memo, 定期. */
+    /** Everything a screen reader says for it: amount, category or 収入, store, memo, 定期, 要確認. */
     val accessibilityLabel: String,
 )
 
@@ -119,6 +122,7 @@ fun LedgerUiState.transactionRow(transaction: Transaction): TransactionRow {
         detail = detail,
         isIncome = isIncome,
         isRecurring = isRecurring,
+        isMarkedForReview = transaction.needsReview,
         iconIndex = categories.singleOrNull()?.defaultIndex,
         accessibilityLabel =
             listOfNotNull(
@@ -127,6 +131,7 @@ fun LedgerUiState.transactionRow(transaction: Transaction): TransactionRow {
                 transaction.storeName,
                 transaction.memo,
                 RECURRING_MARK.takeIf { isRecurring },
+                NEEDS_REVIEW_MARK.takeIf { transaction.needsReview },
             ).joinToString(separator = LABEL_SEPARATOR),
     )
 }

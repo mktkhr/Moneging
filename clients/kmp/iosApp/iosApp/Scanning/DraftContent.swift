@@ -10,6 +10,11 @@ import SwiftUI
 /// (`DraftItemSheet`) and removable by swiping it left, with
 /// ＋ 明細を足す, or, without items, one カテゴリ for the whole expense; and
 /// discarding the draft, which asks first, from its own button.
+///
+/// While the items do not add up to 合計, a warning above them offers two
+/// fixes (`DraftMismatchCard`, `Draft6.dc.html`): adding the item `差額`, or
+/// recording the total alone, which removes the items at once and offers to
+/// bring them back (`元に戻す`, `Draft6TotalOnly.dc.html`).
 internal struct DraftContent: View {
     internal let form: Binding<DraftFormState>
     internal let photoId: String?
@@ -20,11 +25,20 @@ internal struct DraftContent: View {
 
     @State private var editing: DraftItemEditing?
     @State private var isDiscardConfirmationShown: Bool = false
+    /// The items removed by recording the total alone, while they can be brought back.
+    @State private var removedItems: [DraftItemState]?
 
-    private var itemsHeader: String {
+    private var mismatch: DraftMismatch? {
+        self.form.wrappedValue.form.mismatch()
+    }
+
+    // 明細 2件（合計 830円）, the sum in the warning colour while the items do not add up.
+    private var itemsHeader: Text {
         let count: Int = self.form.wrappedValue.items.count
         let total: String = Formats.shared.yen(amount: self.form.wrappedValue.itemsTotal)
-        return String(localized: "明細 \(count)件（合計 \(total)）")
+        let sum: Text = Text(total).foregroundStyle(
+            self.mismatch == nil ? Theme.mutedText : Theme.Scanning.review)
+        return Text("明細 \(count)件（合計 \(sum)）")
     }
 
     internal var body: some View {
@@ -34,15 +48,19 @@ internal struct DraftContent: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Theme.background)
             }
-            if self.form.wrappedValue.items.isEmpty {
+            if let mismatch = self.mismatch {
                 Section {
-                    DraftCategoryMenu(
-                        selection: self.form.categoryId,
-                        categories: self.categories,
-                        identifier: "draft-category",
+                    DraftMismatchCard(
+                        mismatch: mismatch,
+                        onAddDifference: { self.addDifference(mismatch) },
+                        onTotalOnly: self.recordTotalOnly,
                     )
-                    .listRowBackground(Theme.surface)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Theme.background)
                 }
+            }
+            if self.form.wrappedValue.items.isEmpty {
+                self.wholeCategory
             } else {
                 self.items
             }
@@ -83,6 +101,44 @@ internal struct DraftContent: View {
         }
     }
 
+    // カテゴリ（全体）, and 元に戻す while the items removed by recording the total alone can come back.
+    private var wholeCategory: some View {
+        Section {
+            DraftCategoryMenu(
+                selection: self.form.categoryId,
+                categories: self.categories,
+                identifier: "draft-whole-category",
+                accessibilityName: String(localized: "カテゴリ（全体）"),
+            )
+            .listRowBackground(Theme.surface)
+            if self.removedItems != nil {
+                self.undoNotice
+                    .listRowBackground(Theme.Scanning.undoBackground)
+            }
+        } header: {
+            Text("カテゴリ（全体）")
+        }
+    }
+
+    private var undoNotice: some View {
+        HStack {
+            Text("明細を消しました。")
+                .font(.subheadline)
+                .foregroundStyle(Theme.text)
+            Spacer()
+            Button("元に戻す", action: self.undoTotalOnly)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Theme.accent)
+                .buttonStyle(.borderless)
+                .frame(minHeight: Theme.minimumTapTarget)
+                .accessibilityIdentifier("draft-undo-total-only")
+        }
+    }
+
+    private var hasDifferenceItem: Bool {
+        self.form.wrappedValue.items.contains { $0.name == "差額" }
+    }
+
     private var numberedItems: [(offset: Int, element: DraftItemState)] {
         Array(self.form.wrappedValue.items.enumerated())
     }
@@ -105,9 +161,13 @@ internal struct DraftContent: View {
                 }
             }
         } header: {
-            Text(self.itemsHeader)
+            self.itemsHeader
         } footer: {
-            Text("押すと明細を直せます。左にすべらせると消せます。")
+            if self.hasDifferenceItem {
+                Text("押すと明細を直せます。左にすべらせると消せます。「差額」は、あとで写真を見て正しい品目に直せます。")
+            } else {
+                Text("押すと明細を直せます。左にすべらせると消せます。")
+            }
         }
     }
 
@@ -160,11 +220,39 @@ internal struct DraftContent: View {
         self.categories.first { $0.id.description == categoryId }?.name
     }
 
+    private func addDifference(_ mismatch: DraftMismatch) {
+        guard let item = mismatch.differenceItem else {
+            return
+        }
+        self.form.wrappedValue.items.append(DraftItemState.from(item))
+    }
+
+    // Removes every item at once, offering the whole expense's category: the
+    // items' one category when they share it.
+    private func recordTotalOnly() {
+        let items: [DraftItemState] = self.form.wrappedValue.items
+        self.removedItems = items
+        let shared: Set<String?> = Set(items.map(\.categoryId))
+        if self.form.wrappedValue.categoryId == nil, shared.count == 1, let only = shared.first {
+            self.form.wrappedValue.categoryId = only
+        }
+        self.form.wrappedValue.items = []
+    }
+
+    private func undoTotalOnly() {
+        guard let items = self.removedItems else {
+            return
+        }
+        self.form.wrappedValue.items = items
+        self.removedItems = nil
+    }
+
     private func save(_ item: DraftItemState, at index: Int?) {
         if let index, self.form.wrappedValue.items.indices.contains(index) {
             self.form.wrappedValue.items[index] = item
         } else {
             self.form.wrappedValue.items.append(item)
+            self.removedItems = nil
         }
     }
 

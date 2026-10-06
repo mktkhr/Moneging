@@ -103,12 +103,38 @@ class ScanEditorTest {
             )
 
             val confirmed = editing.form.copy(store = "セブンイレブン 新宿店", totalConfidence = 1.0)
-            assertNull(editor.confirmDraft(draftId = row.id, form = confirmed))
+            assertNull(editor.confirmDraft(draftId = row.id, form = confirmed, acceptMismatch = false))
 
             val transaction = store.ledger(ledgerId).transactions(YearMonth(year = 2026, month = 2)).single()
             assertEquals(expected = "セブンイレブン 新宿店", actual = transaction.storeName)
             assertEquals(expected = row.photoId, actual = transaction.photoId?.toString())
             assertEquals(expected = null, actual = scanData.uiState.first { it.waitingCount == 0 }.statusText)
+        }
+
+    /** A form whose items do not add up is refused, and recorded marked 要確認 only when the mismatch is accepted. */
+    @Test
+    fun mismatchNeedsAccepting(): TestResult =
+        runTest {
+            val ledgerId = ledgerInView()
+            editor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG)
+            val draftId =
+                scanData.uiState
+                    .first { it.waitingCount == 1 }
+                    .waiting
+                    .single()
+                    .id
+            val form = assertNotNull(editor.openDraft(draftId = draftId)).form.copy(totalText = "500")
+
+            assertNotNull(editor.confirmDraft(draftId = draftId, form = form, acceptMismatch = false))
+            assertNull(editor.confirmDraft(draftId = draftId, form = form, acceptMismatch = true))
+
+            val transaction = store.ledger(ledgerId).transactions(YearMonth(year = 2026, month = 2)).single()
+            assertEquals(expected = 500L, actual = transaction.amount)
+            assertEquals(expected = listOf("おにぎり", "差額"), actual = transaction.items.map { it.name })
+            assertTrue(transaction.needsReview)
+            val row = LedgerUiState.EMPTY.transactionRow(transaction)
+            assertTrue(row.isMarkedForReview)
+            assertTrue(row.accessibilityLabel.endsWith("、要確認"), row.accessibilityLabel)
         }
 
     /** A failed scan is listed with its reason until its photo is read again. */

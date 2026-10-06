@@ -2,8 +2,9 @@ import SharedLogic
 import SwiftUI
 
 /// One transaction in a list (`Home2.dc.html`): its category's icon, its
-/// category (or 収入) with a 定期 mark when a rule recorded it, its store
-/// and memo, and its amount, an income's in the income colour with +.
+/// category (or 収入) with a 定期 mark when a rule recorded it and a 要確認
+/// mark when it is marked needs-review, its store and memo, and its amount,
+/// an income's in the income colour with +.
 ///
 /// At accessibility text sizes the amount moves under the text, so
 /// nothing is squeezed.
@@ -41,6 +42,9 @@ internal struct TransactionRowView: View {
                         .foregroundStyle(Theme.text)
                     if self.row.isRecurring {
                         RecurringBadge()
+                    }
+                    if self.row.isMarkedForReview {
+                        NeedsReviewBadge()
                     }
                 }
                 if let detail = self.detail {

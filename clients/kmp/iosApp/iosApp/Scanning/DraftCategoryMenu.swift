@@ -9,6 +9,8 @@ internal struct DraftCategoryMenu: View {
     internal let selection: Binding<String?>
     internal let categories: [SharedLogic.Category]
     internal let identifier: String
+    /// Its accessible name.
+    internal var accessibilityName: String = String(localized: "カテゴリ")
 
     private var chosen: SharedLogic.Category? {
         self.categories.first { $0.id.description == self.selection.wrappedValue }
@@ -37,7 +39,7 @@ internal struct DraftCategoryMenu: View {
             .font(.caption)
             .frame(minHeight: Theme.minimumTapTarget)
         }
-        .accessibilityLabel("カテゴリ")
+        .accessibilityLabel(self.accessibilityName)
         .accessibilityValue(self.chosen?.name ?? "")
         .accessibilityIdentifier(self.identifier)
     }

@@ -139,7 +139,7 @@ internal class SqlScans(
                     ledgerId = rows.ledgerKey,
                     id = draftId.toString(),
                 )
-                transaction
+                checkNotNull(rows.transaction(transaction.id))
             }
         }
 
