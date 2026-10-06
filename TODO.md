@@ -8,7 +8,9 @@
 3. Reporting and calendar（完了: stage.txt = 3）
 4. Budget and savings（完了: stage.txt = 4）
 5. Photos and scanning（完了: stage.txt = 5。iOS と共有ロジックのみ。Android の画面（ML Kit の書類スキャナー・文字認識・Gemini Nano、進行中の通知、モジュール導入）は未着手）
-6. Receipts that do not add up（次: 未決事項を Claude Design で提示する）
+6. Receipts that do not add up（iOS と共有ロジックを実装済み。閉じるには下の2つのハーネス側の修正が要る。Android の画面は未着手）
+   - detekt の BooleanPropertyNaming が、受け入れテスト（AC-B-508）と §3 が名指しする `Transaction.needsReview` を拒否する（`^(is|has|are)` のみ許可）。`quality/kotlin/detekt.yml` で `needs` を許すか、suppressions.allow に登録する（apply.sh）。
+   - AC-F-502 の受け入れテストの不具合: iOS 26 のアラートはボタンが入れ子の2要素になり、両方に identifier が付く（SwiftUI の `.alert` でも UIAlertController でも同じ）。`buttons["draft-mismatch-accept"]`・`["draft-mismatch-decline"]` が「複数一致」で落ちる。`XCUIApplication+MismatchedDraft.swift` で `.firstMatch` を付ける（acceptance-writer）。
 7. Needs-review records
 8. Pace and notifications
 9. Theme
