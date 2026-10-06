@@ -250,17 +250,21 @@ the items' sum, the total and the difference
 in the warning colour, and two fixes are offered: adding an item `差額` of the
 difference, only when the sum is below the total, in the items' category when
 every item names the same one, else その他; and recording the total alone,
-which removes every item and offers the whole-expense `カテゴリ`. Confirming
+which removes every item and offers the whole-expense `カテゴリ`. The warning
+sits above the items, ending `次のどちらかで直せます。`, with the fixes right
+below it (`差額 150円 を明細に足す`, `明細を消して、合計 980円 だけで記録する`).
+Recording the total alone removes the items at once and offers to bring them
+back (`元に戻す`). Confirming
 saves the corrections and confirms the draft. While the items do not add up it
 first asks `合計額が合いませんがよろしいですか？`, naming the three amounts
 (`明細の合計 830円 と合計 980円 が 150円 違います。このまま記録すると、`) and
 then saying, when the sum is below the total,
 `差額 150円 を「差額」の明細として足し、要確認の印を付けます。あとで写真を見ながら直せます。`,
 or, when it is above, `明細の合計 1,030円 で記録し、要確認の印を付けます。`.
-Declining returns to the draft unconfirmed; accepting saves the corrections and
-confirms the draft accepting the mismatch. Discarding a draft asks first.
-OPEN: takamai's warning went on to point at buttons below it; its full wording
-is settled with the screen composition.
+The question is asked in the middle of the screen, with `このまま記録する` and
+`戻って直す`. Declining returns to the draft unconfirmed; accepting saves the
+corrections and confirms the draft accepting the mismatch. Discarding a draft
+asks first.
 
 **Needs-review.** A record confirmed with its mismatch accepted is marked
 `要確認` until a user resolves it. While any record of the ledger is marked,
@@ -955,8 +959,8 @@ draft of `corner-deli.jpg` (store `コーナーデリ`, date 2026-02-13, total 9
 items 唐揚げ弁当 680 and 緑茶 150, both 食費). When a receipt is scanned and
 its draft, waiting as `コーナーデリ` `980円`, is opened, then it shows the two
 items and the warning `明細の合計 830円 が合計 980円 と 150円 合いません。`,
-and offers both to add the difference as an item and to record the total
-alone. When the difference is added, then a third item `差額` 150 in 食費
+and offers both to add the difference as an item (`差額 150円 を明細に足す`)
+and to record the total alone (`明細を消して、合計 980円 だけで記録する`). When the difference is added, then a third item `差額` 150 in 食費
 follows the two and the warning goes; when the draft is confirmed, then it is
 saved with the three items and confirmed without a question and without
 `acceptMismatch`, `確認待ち` disappears and the month's transactions list
@@ -972,7 +976,8 @@ accepting saves the total 980 with the two items and confirms with
 `acceptMismatch` true, which records 980 split into the two items and `差額`
 150, marked needs-review, and the month's transactions list `980円` with
 `コーナーデリ`. Given a new draft of it, when the user records the total alone,
-then the items go and the whole-expense `カテゴリ` is offered, and confirming
+then the items go and the whole-expense `カテゴリ` is offered; `元に戻す` brings
+the two items back, and when the total alone is chosen again, confirming
 confirms without a question: the draft is saved with no items and records 980
 unsplit, not marked.
 
