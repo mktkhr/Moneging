@@ -8,6 +8,9 @@ import SwiftUI
 /// `DraftContent`. While the items do not add up, ✓ first asks in the middle
 /// of the screen (`Draft6Confirm.dc.html`): `このまま記録する` confirms it
 /// accepting the mismatch, `戻って直す` returns to the draft.
+///
+/// It does not close by being dragged down, so corrections are not lost by
+/// accident; × closes it.
 internal struct DraftSheet: View {
     internal let draftId: String
 
@@ -66,6 +69,7 @@ internal struct DraftSheet: View {
             Text(mismatch.questionMessage)
         }
         .presentationDetents([.large])
+        .interactiveDismissDisabled()
         .scanFailureAlert()
         .task(id: self.draftId) {
             await self.open()
