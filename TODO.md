@@ -8,10 +8,8 @@
 3. Reporting and calendar（完了: stage.txt = 3）
 4. Budget and savings（完了: stage.txt = 4）
 5. Photos and scanning（完了: stage.txt = 5。iOS と共有ロジックのみ。Android の画面（ML Kit の書類スキャナー・文字認識・Gemini Nano、進行中の通知、モジュール導入）は未着手）
-6. Receipts that do not add up（iOS と共有ロジックを実装済み。閉じるには下の2つのハーネス側の修正が要る。Android の画面は未着手）
-   - 要確認の印は製品コードで `Transaction.isReviewNeeded` にした（detekt の規則に合わせるユーザーの決定）。仕様と受け入れテスト（AC-B-508 の `needsReview`・関数名・private の補助関数）はメインが変更一式で直す。
-   - AC-F-502 の受け入れテストの不具合: iOS 26 のアラートはボタンが入れ子の2要素になり、両方に identifier が付く（SwiftUI の `.alert` でも UIAlertController でも同じ）。`buttons["draft-mismatch-accept"]`・`["draft-mismatch-decline"]` が「複数一致」で落ちる。`XCUIApplication+MismatchedDraft.swift` で `.firstMatch` を付ける（acceptance-writer）。
-7. Needs-review records
+6. Receipts that do not add up（完了: stage.txt = 6。iOS と共有ロジックのみ。Android の画面は未着手）
+7. Needs-review records（次: 未決事項を Claude Design で提示する）
 8. Pace and notifications
 9. Theme
 10. Widget
@@ -21,18 +19,25 @@
 
 - 受け入れテストが遅い（AC-F-203 だけで約3分）。高速化する。
 - `make acceptance-ios` は、テストが 0 件しか実行されなくても ok になる（2つの make を同時に走らせると結果バンドルが壊れて起きた）。0 件を失敗として扱うようにする。
-- テスト専用の仕組みが製品のソースにある（監査の指摘、重さ低）。UI テスト用の入口（`sharedLogic/src/iosMain/.../di/UiTestSupport.kt`）と、ジョブの1段送り（`sharedLogic/src/commonMain/.../scan/ScanPacer.kt` の `Stepped`）。どちらも Release からは届かない。Debug 専用のソースセットへ移すか検討する。
-- Stop フック: サブエージェントが自分の実行したテストの完了を待つ間は SubagentStop が発火して目印が外れ、作業途中の未追跡ファイルでメインが止められる（ステージ5で発生）。待機中も目印を残す方法を検討する。
-- 受け入れテストの確かめ漏れ（監査の指摘、重さ低）: AC-F-501 で `日付` と各品目の `カテゴリ` が編集できること、確定時に弁当が分類なしで保存されることを見ていない（`draft-date` は契約では text field だが実装は Button）。AC-E-501 で表示中の月 `2026年2月` を直接見ていない。
-- 不安定な UI テスト: `TabNavigationUITests.testHomeScrollPositionAndStateAreRetainedAcrossTabSwitch`、`RecordSheetAccessibilityUITests`（再実行では通る）。シミュレーターの状態が汚れると AC-F-203 が落ちる（erase で回復）。
+- テスト専用の仕組みが製品のソースにある（監査の指摘、重さ低）。どれも Release からは届かない。Debug 専用のソースセット・ターゲットへ移すか検討する。
+  - Kotlin: UI テスト用の入口（`sharedLogic/src/iosMain/.../di/UiTestSupport.kt`）、ジョブの1段送り（`sharedLogic/src/commonMain/.../scan/ScanPacer.kt` の `Stepped`）。
+  - Swift: モジュール導入と進み具合の表示の偽物（`iosApp/iosApp/State/UITestScanning.swift` の `UITestModuleInstaller`・`UITestProgressSurface` など。`#if DEBUG` の中）。
+- Stop フック: サブエージェントが自分の実行したテストの完了を待つ間は SubagentStop が発火して目印が外れ、作業途中の未追跡ファイルでメインが止められる。メインの Stop フックの make とサブエージェントの make が重なり、Gradle のテスト結果のファイルを取り合って落ちることもある。待機中も目印を残す方法を検討する。
+- 受け入れテストの確かめ漏れ（監査の指摘、重さ低）:
+  - AC-F-501: `日付` と各品目の `カテゴリ` が編集できること、確定時に弁当が分類なしで保存されることを見ていない（`draft-date` は契約では text field だが実装は Button）。
+  - AC-E-501: 表示中の月 `2026年2月` を直接見ていない。
+  - AC-F-502: 記録後の明細の中身（差額を足した3件、受け入れた 980 の 唐揚げ弁当・緑茶・差額 150、合計だけの分かれていない 980）を見ていない。画面が通る `ScanEditor.confirmDraft(form, acceptMismatch)` は単体テストだけが確かめている。
+  - `XCUIApplication+Scrolling.swift` の説明（シートの中では上方向へドラッグしない）と食い違い、AC-F-502 は下書きのシートを開いたまま `collectRows` を呼ぶ。今は下書きのシートがドラッグで閉じないので通る。
+- 不安定な UI テスト: `TabNavigationUITests.testHomeScrollPositionAndStateAreRetainedAcrossTabSwitch`、`RecordSheetAccessibilityUITests`、AC-F-301 の「Timed out while synthesizing event」（再実行では通る）。シミュレーターの状態が汚れると AC-F-203 が落ちる（erase で回復）。
 
 ## 読み取り
 
-- 実機で、写真ライブラリのレシートが補正されて読めるか確かめる（シミュレーターの Vision は書類の領域を見つけないため確かめられていない）。書類スキャナーのページが補正されないことも。
+- 精度の調整は受け身にする（2026-10-06 のユーザーの決定）。外れたレシートは開発用の版の「読み取った文字を見る」で文字を受け取り、何件かたまったらまとめて素材と規則に足す。本格的な改善は v2 のサーバー側の、写真を読む LLM で検討する。
+- 実機で、写真ライブラリのレシートが補正されて読めるか確かめる。書類スキャナーのページが補正されないことも。
 - 端末内 LLM の答えが明細の和と合計を合わせないことがある（数量・値引き・外税）。答えが合わないときにルールベース解析の結果と比べるかを決める（自動で切り替えないこと）。
-- AC-F-505 の受け入れテストの不具合: `ReadingMethodAcceptanceTests.swift` の `checkStoppingStartsNothing` が、`expect(!app.scanStatus.exists, "…\(app.scanStatus.label)")` のメッセージを先に評価するため、正しく「読み取りの表示が無い」ときに `scan-status` の label を取りに行って落ちる。メッセージから label を外す（acceptance-writer）。
-- AC-B-511 の受け入れテストの detekt 違反: `TestReceiptStructuringPath.kt:186` の `rules.date.value.toString()`・`rules.total.value.toString()` が NullableToStringCall（ReceiptReading の date・total は読めなければ null の型）。テストは緑だが `make acceptance-shared` の detekt で落ちる（acceptance-writer）。
 
 ## 画面
 
 - 右下の記録ボタン（＋）が、各タブの一覧の下端（予算タブの分類の行など）に重なる。スクロールすれば見えるが、一覧の下にボタンの分の余白を足す。
+- 下書きの破棄（discard）が断られると、理由が出ないまま下書きのシートごと閉じうる（`ScanStore.failureMessage` を下の画面のアラートが拾うため）。確定は直した。
+- 全体の分類がアーカイブ済みの下書きで、全体の `カテゴリ` のメニューが「未選択（その他）」と表示される（確定は断られ、選び直せば記録できる）。`その他` 自体がアーカイブされた場合の扱いは未確認。
