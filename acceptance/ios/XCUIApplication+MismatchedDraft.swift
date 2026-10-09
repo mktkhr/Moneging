@@ -76,13 +76,13 @@ extension XCUIApplication {
     /// The question's button that records the mismatch
     /// (`draft-mismatch-accept`).
     internal var acceptMismatchButton: XCUIElement {
-        self.buttons["draft-mismatch-accept"]
+        self.buttons["draft-mismatch-accept"].firstMatch
     }
 
     /// The question's button that returns to the draft
     /// (`draft-mismatch-decline`).
     internal var declineMismatchButton: XCUIElement {
-        self.buttons["draft-mismatch-decline"]
+        self.buttons["draft-mismatch-decline"].firstMatch
     }
 
     /// Launches freshly installed with today `2026-02-15`, reading from photos

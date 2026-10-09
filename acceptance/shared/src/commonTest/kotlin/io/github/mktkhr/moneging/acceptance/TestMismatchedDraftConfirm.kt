@@ -44,16 +44,16 @@ private const val DELI_MONTH = "2026-02"
  * draft is unchanged. When it is confirmed with `acceptMismatch` true, then
  * one expense of 980 yen exists on 2026-02-13 with store `コーナーデリ`, linked
  * to the photo, split into 唐揚げ弁当 680, 緑茶 150 and `差額` 150, all in 食費,
- * with `needsReview` true, and the draft is gone: reading or confirming it
+ * with `isReviewNeeded` true, and the draft is gone: reading or confirming it
  * again finds nothing. Given a second draft of the same photo whose items are
  * all removed (`items` empty), when it is confirmed, then a second expense of
  * 980 yen exists in その他, with no line items, linked to the photo, with
- * `needsReview` false, and no draft waits.
+ * `isReviewNeeded` false, and no draft waits.
  */
 class TestMismatchedDraftConfirm {
     /** The draft keeps its items; confirming needs the mismatch accepted; the total alone is confirmed unsplit. */
     @Test
-    fun mismatchedDraftIsConfirmedOnlyAccepted(): TestResult =
+    fun confirmedOnlyWhenAccepted(): TestResult =
         runTest {
             val scope = scanningLedger().scope
             val food = scope.categoryIdNamed(name = "食費")
@@ -71,7 +71,7 @@ class TestMismatchedDraftConfirm {
 }
 
 // The draft of corner-deli.jpg: the fixture's store, date, total, items and confidences, no draft-level category.
-private fun assertMismatchedDraftKept(
+internal fun assertMismatchedDraftKept(
     draft: Draft,
     food: Uuid,
 ) {
@@ -94,7 +94,7 @@ private fun assertMismatchedDraftKept(
 }
 
 // Confirmed as it is: refused as invalid, and the draft reads back as it was.
-private suspend fun assertConfirmRefusedUnchanged(
+internal suspend fun assertConfirmRefusedUnchanged(
     scope: LedgerScope,
     draft: Draft,
 ) {
@@ -109,7 +109,7 @@ private suspend fun assertConfirmRefusedUnchanged(
 }
 
 // The one expense: 980円 on 2026-02-13 at コーナーデリ, three items, linked to the photo, needs-review.
-private suspend fun assertAcceptedExpense(
+internal suspend fun assertAcceptedExpense(
     scope: LedgerScope,
     transaction: Transaction,
     photoId: Uuid,
@@ -132,11 +132,11 @@ private suspend fun assertAcceptedExpense(
         actual = read.items.map { item -> Triple(item.name, item.amount, item.categoryId) },
         message = "明細が 唐揚げ弁当 680円・緑茶 150円・差額 150円（すべて食費）でない",
     )
-    assertTrue(actual = read.needsReview, message = "合わないまま記録したのに要確認の印がない")
+    assertTrue(actual = read.isReviewNeeded, message = "合わないまま記録したのに要確認の印がない")
 }
 
 // Confirmed, the draft is gone: it is not read, not confirmed again, and no draft waits.
-private suspend fun assertDraftIsGone(
+internal suspend fun assertDraftIsGone(
     scope: LedgerScope,
     draftId: Uuid,
 ) {
@@ -148,7 +148,7 @@ private suspend fun assertDraftIsGone(
 }
 
 // A second draft of the photo with no items: one unsplit 980円 expense in その他, not marked, nothing waits.
-private suspend fun assertTotalAloneIsUnsplit(
+internal suspend fun assertTotalAloneIsUnsplit(
     scope: LedgerScope,
     photo: Photo,
     other: Uuid,
@@ -161,7 +161,7 @@ private suspend fun assertTotalAloneIsUnsplit(
     assertEquals(expected = other, actual = read.categoryId, message = "合計だけの取引が その他 でない")
     assertTrue(actual = read.items.isEmpty(), message = "合計だけの取引に明細がある")
     assertEquals(expected = photo.id, actual = read.photoId, message = "合計だけの取引が写真に結び付いていない")
-    assertFalse(actual = read.needsReview, message = "合計だけの取引に要確認の印がある")
+    assertFalse(actual = read.isReviewNeeded, message = "合計だけの取引に要確認の印がある")
     assertEquals(
         expected = 2,
         actual = scope.transactions(month = YearMonth.parse(DELI_MONTH)).size,

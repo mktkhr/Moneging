@@ -101,7 +101,7 @@ product, and no floating-point type may hold an amount.
 | **User** | The person using the app on a device. v1 has no accounts: nobody signs in and nothing identifies the user outside the device. The user carries their own look: a style, a theme colour, a brightness, an NMD badge and, on Android, whether the device's dynamic colour is used (see §5 Look). The look is kept on the device, identical in every ledger. A user who never chose has やさしい・あたたかい, テラコッタ, the device's brightness and にっこり硬貨. |
 | **Ledger** | A book of money on the device. Every transaction, budget, photo and category belongs to exactly one ledger. A device may hold several ledgers, and the user always acts within one of them. A ledger has a name, which the user may change: surrounding whitespace is removed, and what remains is 1 to 20 characters, counted as the user sees them (an emoji is one character). Names need not be unique. |
 | **Category** | A bucket for spending, scoped to a ledger. The default set is 食費, 日用品, 住居, 水道光熱費, 交通費, 通信費, 医療, 教育, 娯楽, 交際費, 衣服, その他. A ledger may add, rename and archive its own; an archived category keeps its history but takes no new transactions. |
-| **Transaction** | One movement of money on one date: a direction (expense or income), an amount, a category (an expense only: income has none), an optional memo, an optional store name and an optional link to a photo. The amount is at least 1 yen. The date is a calendar date, not an instant. Each transaction records the identifier of the device it was recorded on, so that v2 sharing can attribute it. The store name is filled from a confirmed draft and may be set or changed by hand. A transaction confirmed from a draft whose items did not add up is marked needs-review (`needsReview`); the mark is cleared when a user marks it reviewed, or by any change that leaves it with no item named exactly `差額`, and it is never set by hand. A transaction recorded by a recurring rule names that rule, and is otherwise an ordinary transaction: it may be changed or deleted like any other. |
+| **Transaction** | One movement of money on one date: a direction (expense or income), an amount, a category (an expense only: income has none), an optional memo, an optional store name and an optional link to a photo. The amount is at least 1 yen. The date is a calendar date, not an instant. Each transaction records the identifier of the device it was recorded on, so that v2 sharing can attribute it. The store name is filled from a confirmed draft and may be set or changed by hand. A transaction confirmed from a draft whose items did not add up is marked needs-review (`isReviewNeeded`); the mark is cleared when a user marks it reviewed, or by any change that leaves it with no item named exactly `差額`, and it is never set by hand. A transaction recorded by a recurring rule names that rule, and is otherwise an ordinary transaction: it may be changed or deleted like any other. |
 | **Line item** | A transaction may instead be split into several items, each with its own amount, category and optional item name. When a transaction has items, its amount equals the sum of its items, and each item is at least 1 yen, except a discount item: a discount on the whole receipt rather than on one item (`ディスカウント ¥250`) is an item of its own with a negative amount, never folded into the other items' prices. A discount item has a category like any other item and counts against it; the transaction's amount stays at least 1 yen. An item name is filled from a confirmed draft and may be set or changed by hand. |
 | **Recurring rule** | An expense or an income that repeats every month, from a start month to an optional end month, on a day of the month (1 to 31) or on the month's last day; a day the month does not have means its last day. When that date is not a business day, the rule keeps it, moves it to the next business day or moves it to the previous business day, as chosen (kept unless chosen). A business day is a weekday that is neither a Japanese public holiday nor 31 December to 3 January. Public holidays are computed on the device from the Public Holiday Act — the named days, the vernal and autumnal equinoxes, substitute holidays and citizens' holidays — since nothing is fetched. A month's transaction of a rule is recorded automatically once its date has come (Asia/Tokyo), whenever the app runs; months that passed while it did not run are recorded on the next run. Materialising a rule's month creates its transaction exactly once, whatever the number of attempts, and it remains that month's transaction even when moving the date puts it in another month. Changing or ending a rule affects only the months not yet recorded; recorded transactions stay. Ending a rule sets its end month to the last month it recorded, so nothing more is recorded. An ended rule is resumed by clearing its end month; the months whose date came while it was ended are not recorded. Deleting a rule removes it; the transactions it recorded stay, still marked as recorded by a rule. A recorded transaction the user deletes is not recorded again: the month counts as done. |
 | **Photo** | An image belonging to a ledger. Its bytes live in the app's private storage on the device; its record carries the content type, the size and the capture instant. Deleting a photo removes the stored bytes as well as the record. A photo referenced by a transaction cannot be deleted until the reference is removed. |
@@ -948,10 +948,10 @@ When it is confirmed as it is, then the confirmation is refused as invalid and
 the draft is unchanged. When it is confirmed with `acceptMismatch` true, then
 one expense of 980 yen exists on 2026-02-13 with store `コーナーデリ`, linked
 to the photo, split into 唐揚げ弁当 680, 緑茶 150 and `差額` 150, all in 食費,
-with `needsReview` true, and the draft is gone: reading or confirming it again
+with `isReviewNeeded` true, and the draft is gone: reading or confirming it again
 finds nothing. Given a second draft of the same photo whose items are all
 removed (`items` empty), when it is confirmed, then a second expense of 980 yen
-exists in その他, with no line items, linked to the photo, with `needsReview`
+exists in その他, with no line items, linked to the photo, with `isReviewNeeded`
 false, and no draft waits.
 
 **AC-F-502** — Given today 2026-02-15 and the fixture scanner answering the
@@ -995,12 +995,12 @@ one dated 2026-02-10, and one whose total is corrected to 800, which records
 expense of 800 is recorded by hand on 2026-02-14. In `実家`, one draft of it is
 confirmed with `acceptMismatch`. When `家計`'s needs-review transactions are
 listed, then they are the 830 of 2026-02-13, the 980 of 2026-02-10 and the 980
-of 2026-01-20, in that order, each with `needsReview` true; `実家`'s list holds
+of 2026-01-20, in that order, each with `isReviewNeeded` true; `実家`'s list holds
 only its own record. When the hand-recorded expense is updated with
-`needsReview` true, then the update is refused as invalid and it stays
+`isReviewNeeded` true, then the update is refused as invalid and it stays
 unmarked. When the 2026-02-10 record's memo alone is changed, then it stays
 marked, since its `差額` remains. When the 2026-01-20 record is updated with
-`needsReview` false, then it is unmarked and still 980 with its three items.
+`isReviewNeeded` false, then it is unmarked and still 980 with its three items.
 When the 2026-02-10 record's `差額` item is deleted with the transaction's new
 amount 830, then it reads 830 with the two items, unmarked. Afterwards `家計`'s
 list holds only the 830 of 2026-02-13, and `実家`'s still its own record.
@@ -1017,7 +1017,7 @@ carries the mark too. When the needs-review records are listed, then they are
 `980円` `コーナーデリ` and `2,640円` `ドラッグストア みどり`, in that order,
 each with the mark. When `コーナーデリ` is opened, then it explains
 `要確認：読み取った明細が合計と合わなかったため「差額 150円」を足してあります。写真を見て直してください。`,
-and when the user marks it reviewed as it is, then `needsReview` false is saved
+and when the user marks it reviewed as it is, then `isReviewNeeded` false is saved
 for it and the explanation goes; the count reads `要確認 1件` and
 `コーナーデリ` in the month's transactions has no mark. When the needs-review
 records are listed again, they are only `ドラッグストア みどり`, whose

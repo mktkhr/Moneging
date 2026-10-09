@@ -30,7 +30,7 @@ import XCTest
 /// not marked.
 ///
 /// What the interface does not show (the draft saved with three items, the
-/// `acceptMismatch` argument, the record's items and its `needsReview`) is
+/// `acceptMismatch` argument, the record's items and its `isReviewNeeded`) is
 /// the shared logic's (AC-B-508); what it shows of them is asserted here.
 internal final class MismatchedDraftAcceptanceTests: XCTestCase {
     /// The warning for the sum 830 against the total 980.
