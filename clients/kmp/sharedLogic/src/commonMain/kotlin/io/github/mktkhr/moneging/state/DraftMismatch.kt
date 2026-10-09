@@ -27,8 +27,8 @@ data class DraftMismatch(
     val invitationText: String,
     /**
      * The item `差額` of the difference, in the items' category when every
-     * item names the same one, else none (その他); `null` when the sum is
-     * above the total, where adding it is not offered.
+     * item names the same active one, else none (その他); `null` when the sum
+     * is above the total, where adding it is not offered.
      */
     val differenceItem: DraftItemForm?,
     /** The fix adding [differenceItem]: `差額 150円 を明細に足す`, or `null` when it is not offered. */
@@ -44,18 +44,24 @@ data class DraftMismatch(
 /**
  * How this form's items fail to add up to its total, or `null` when they
  * add up, when it has no items, or while its total or an item's amount is
- * not a valid amount.
+ * not a valid amount. [activeCategoryIds] are the ledger's active
+ * categories (`Category.id` as text), which the `差額` item may take.
  */
-fun DraftForm.mismatch(): DraftMismatch? {
+fun DraftForm.mismatch(activeCategoryIds: List<String>): DraftMismatch? {
     val total = runCatching { AmountText.parse(totalText) }.getOrNull()
     val amounts = items.map { item -> runCatching { AmountText.parseSigned(item.amountText) }.getOrNull() }
     val sum = amounts.takeIf { it.isNotEmpty() && null !in it }?.sumOf { it ?: 0L }
-    return if (total == null || sum == null || sum == total) null else mismatchOf(sum = sum, total = total)
+    return if (total == null || sum == null || sum == total) {
+        null
+    } else {
+        mismatchOf(sum = sum, total = total, activeCategoryIds = activeCategoryIds)
+    }
 }
 
 private fun DraftForm.mismatchOf(
     sum: Long,
     total: Long,
+    activeCategoryIds: List<String>,
 ): DraftMismatch {
     val isBelow = sum < total
     val difference = if (isBelow) total - sum else sum - total
@@ -66,7 +72,12 @@ private fun DraftForm.mismatchOf(
         DraftItemForm(
             name = DIFFERENCE_NAME,
             amountText = AmountText.grouped(difference.toString()),
-            categoryId = items.map { it.categoryId }.distinct().singleOrNull(),
+            categoryId =
+                items
+                    .map { it.categoryId }
+                    .distinct()
+                    .singleOrNull()
+                    ?.takeIf { it in activeCategoryIds },
             confidence = CERTAIN,
         ).takeIf { isBelow }
     val consequence =

@@ -101,14 +101,21 @@ internal final class ScanStore {
     }
 
     /// Saves `form` into the draft `draftId` and confirms it, accepting items
-    /// that do not add up only when `acceptMismatch`; returns whether it was confirmed.
-    internal func confirm(draftId: String, form: DraftForm, acceptMismatch: Bool) async -> Bool {
-        await self.write {
-            try await self.editor.confirmDraft(
+    /// that do not add up only when `acceptMismatch`; returns why it was
+    /// refused, or `nil` when it was confirmed.
+    ///
+    /// The refusal is returned rather than kept in `failureMessage`, so the
+    /// draft's sheet shows it over itself: an alert of the screens below it
+    /// would close the sheet and the corrections with it.
+    internal func confirm(draftId: String, form: DraftForm, acceptMismatch: Bool) async -> String? {
+        do {
+            return try await self.editor.confirmDraft(
                 draftId: draftId,
                 form: form,
                 acceptMismatch: acceptMismatch,
             )
+        } catch {
+            return String(localized: "保存できませんでした")
         }
     }
 

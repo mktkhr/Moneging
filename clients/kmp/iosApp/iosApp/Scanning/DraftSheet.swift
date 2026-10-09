@@ -29,6 +29,8 @@ internal struct DraftSheet: View {
     @State private var isWorking: Bool = false
     /// The mismatch asked about before confirming, while the question shows.
     @State private var askedMismatch: DraftMismatch?
+    /// Why confirming was refused, while it shows.
+    @State private var refusal: String?
 
     #if DEBUG
         @State private var isRecognizedTextShown: Bool = false
@@ -68,6 +70,24 @@ internal struct DraftSheet: View {
         } message: { mismatch in
             Text(mismatch.questionMessage)
         }
+        .alert(
+            "できませんでした",
+            isPresented: Binding(
+                get: { self.refusal != nil },
+                set: { isShown in
+                    if !isShown {
+                        self.refusal = nil
+                    }
+                },
+            ),
+            presenting: self.refusal,
+        ) { _ in
+            Button("OK") {
+                self.refusal = nil
+            }
+        } message: { refusal in
+            Text(refusal)
+        }
         .presentationDetents([.large])
         .interactiveDismissDisabled()
         .scanFailureAlert()
@@ -88,6 +108,7 @@ internal struct DraftSheet: View {
                 photoId: self.photoId,
                 readingMethodText: self.readingMethodText,
                 categories: self.ledgerStore.state.activeCategories,
+                archivedCategories: self.ledgerStore.state.categories.filter(\.isArchived),
                 onDiscard: self.discard,
             )
         } else {
@@ -132,7 +153,8 @@ internal struct DraftSheet: View {
     }
 
     private func confirm() {
-        if let mismatch = self.draft?.form.mismatch() {
+        let active: [String] = self.ledgerStore.state.activeCategories.map(\.id.description)
+        if let mismatch = self.draft?.form.mismatch(activeCategoryIds: active) {
             self.askedMismatch = mismatch
             return
         }
@@ -145,13 +167,15 @@ internal struct DraftSheet: View {
         }
         self.isWorking = true
         Task {
-            let isConfirmed: Bool = await self.scanStore.confirm(
+            let refused: String? = await self.scanStore.confirm(
                 draftId: self.draftId,
                 form: form,
                 acceptMismatch: acceptMismatch,
             )
             self.isWorking = false
-            if isConfirmed {
+            if let refused {
+                self.refusal = refused
+            } else {
                 self.dismiss()
             }
         }

@@ -137,6 +137,35 @@ class ScanEditorTest {
             assertTrue(row.accessibilityLabel.endsWith("、要確認"), row.accessibilityLabel)
         }
 
+    /** A draft whose item is in a category archived after the scan is refused until another is chosen. */
+    @Test
+    fun archivedCategoryIsRefused(): TestResult =
+        runTest {
+            val ledgerId = ledgerInView()
+            editor.acceptPhotos(images = listOf(RECEIPT), contentType = JPEG)
+            val draftId =
+                scanData.uiState
+                    .first { it.waitingCount == 1 }
+                    .waiting
+                    .single()
+                    .id
+            val scope = store.ledger(ledgerId)
+            scope.archiveCategory(categoryId = scope.categories().first { it.name == "食費" }.id)
+            val form = assertNotNull(editor.openDraft(draftId = draftId)).form
+
+            assertEquals(
+                expected = "アーカイブ済みのカテゴリには記録できません",
+                actual = editor.confirmDraft(draftId = draftId, form = form, acceptMismatch = false),
+            )
+            assertTrue(scope.transactions(YearMonth(year = 2026, month = 2)).isEmpty())
+
+            val chosen = form.copy(items = form.items.map { it.copy(categoryId = null) })
+            assertNull(editor.confirmDraft(draftId = draftId, form = chosen, acceptMismatch = false))
+            val transaction = scope.transactions(YearMonth(year = 2026, month = 2)).single()
+            val category = transaction.items.single().categoryId
+            assertEquals(expected = "その他", actual = scope.categories().single { it.id == category }.name)
+        }
+
     /** A failed scan is listed with its reason until its photo is read again. */
     @Test
     fun failedScanIsListed(): TestResult =

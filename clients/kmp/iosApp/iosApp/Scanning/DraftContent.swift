@@ -21,6 +21,8 @@ internal struct DraftContent: View {
     /// How the draft was read, or `nil` for a draft from before the reading method.
     internal let readingMethodText: String?
     internal let categories: [SharedLogic.Category]
+    /// The ledger's archived categories, named on an item that still points at one.
+    internal let archivedCategories: [SharedLogic.Category]
     internal let onDiscard: () -> Void
 
     @State private var editing: DraftItemEditing?
@@ -29,7 +31,8 @@ internal struct DraftContent: View {
     @State private var removedItems: [DraftItemState] = []
 
     private var mismatch: DraftMismatch? {
-        self.form.wrappedValue.form.mismatch()
+        let active: [String] = self.categories.map(\.id.description)
+        return self.form.wrappedValue.form.mismatch(activeCategoryIds: active)
     }
 
     // 明細 2件（合計 830円）, the sum in the warning colour while the items do not add up.
@@ -216,8 +219,13 @@ internal struct DraftContent: View {
         }
     }
 
+    // The category's name; an archived one's marked so, as it cannot be recorded into.
     private func categoryName(of categoryId: String?) -> String? {
-        self.categories.first { $0.id.description == categoryId }?.name
+        if let active = self.categories.first(where: { $0.id.description == categoryId }) {
+            return active.name
+        }
+        return self.archivedCategories.first { $0.id.description == categoryId }
+            .map { archived in String(localized: "\(archived.name)（アーカイブ済み）") }
     }
 
     private func addDifference(_ mismatch: DraftMismatch) {

@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 
 private const val FOOD = "food"
 private const val DRINK = "drink"
+private val ACTIVE = listOf(FOOD, DRINK)
 private const val BENTO = "唐揚げ弁当"
 private const val TEA = "緑茶"
 
@@ -45,7 +46,7 @@ class DraftMismatchTest {
                             mismatchItem(name = BENTO, amount = "680"),
                             mismatchItem(name = TEA, amount = "150"),
                         ),
-                ).mismatch(),
+                ).mismatch(activeCategoryIds = ACTIVE),
             )
 
         assertEquals(expected = "明細の合計 830円 が合計 980円 と 150円 合いません。", actual = mismatch.warningText)
@@ -76,7 +77,7 @@ class DraftMismatchTest {
                             mismatchItem(name = BENTO, amount = "680"),
                             mismatchItem(name = TEA, amount = "150", categoryId = DRINK),
                         ),
-                ).mismatch(),
+                ).mismatch(activeCategoryIds = ACTIVE),
             )
 
         assertNull(assertNotNull(mismatch.differenceItem).categoryId)
@@ -94,7 +95,7 @@ class DraftMismatchTest {
                             mismatchItem(name = BENTO, amount = "680"),
                             mismatchItem(name = TEA, amount = "150"),
                         ),
-                ).mismatch(),
+                ).mismatch(activeCategoryIds = ACTIVE),
             )
 
         assertEquals(expected = "明細の合計 830円 が合計 800円 と 30円 合いません。", actual = mismatch.warningText)
@@ -104,6 +105,24 @@ class DraftMismatchTest {
             expected = "明細の合計 830円 と合計 800円 が 30円 違います。このまま記録すると、明細の合計 830円 で記録し、要確認の印を付けます。",
             actual = mismatch.questionMessage,
         )
+    }
+
+    /** Items all in an archived category: the difference has none (その他). */
+    @Test
+    fun archivedLeaveNoCategory() {
+        val mismatch =
+            assertNotNull(
+                mismatchForm(
+                    total = "980",
+                    items =
+                        listOf(
+                            mismatchItem(name = BENTO, amount = "680"),
+                            mismatchItem(name = TEA, amount = "150"),
+                        ),
+                ).mismatch(activeCategoryIds = listOf(DRINK)),
+            )
+
+        assertNull(assertNotNull(mismatch.differenceItem).categoryId)
     }
 
     /** Items that add up (a discount included), no items, or an amount not yet valid: no warning. */
@@ -117,10 +136,20 @@ class DraftMismatchTest {
                         mismatchItem(name = BENTO, amount = "1,080"),
                         mismatchItem(name = "割引", amount = "-250"),
                     ),
-            ).mismatch(),
+            ).mismatch(activeCategoryIds = ACTIVE),
         )
-        assertNull(mismatchForm(total = "980", items = emptyList()).mismatch())
-        assertNull(mismatchForm(total = "980", items = listOf(mismatchItem(name = BENTO, amount = ""))).mismatch())
-        assertNull(mismatchForm(total = "", items = listOf(mismatchItem(name = BENTO, amount = "680"))).mismatch())
+        assertNull(mismatchForm(total = "980", items = emptyList()).mismatch(activeCategoryIds = ACTIVE))
+        assertNull(
+            mismatchForm(
+                total = "980",
+                items = listOf(mismatchItem(name = BENTO, amount = "")),
+            ).mismatch(activeCategoryIds = ACTIVE),
+        )
+        assertNull(
+            mismatchForm(
+                total = "",
+                items = listOf(mismatchItem(name = BENTO, amount = "680")),
+            ).mismatch(activeCategoryIds = ACTIVE),
+        )
     }
 }

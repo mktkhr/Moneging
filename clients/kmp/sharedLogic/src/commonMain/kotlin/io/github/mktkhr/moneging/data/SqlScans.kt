@@ -124,8 +124,14 @@ internal class SqlScans(
             rows.database.transactionWithResult {
                 val draft = requireNotNull(rows.draft(draftId)) { DRAFT_NOT_FOUND }
                 require(draft.total.value >= MIN_AMOUNT) { TOTAL_TOO_SMALL }
-                val confirmed = draft.toNewTransaction(other = rows.otherCategoryId(), acceptMismatch = acceptMismatch)
-                confirmed.categoryIds().forEach { rows.requireCategory(it) }
+                val confirmed =
+                    draft.toNewTransaction(
+                        other = rows.otherCategoryId(),
+                        acceptMismatch = acceptMismatch,
+                        isActive = { id -> rows.category(id)?.isArchived == false },
+                    )
+                // Like any new expense, none of its categories may be archived (PRODUCT.md §3, Category).
+                confirmed.categoryIds().forEach { rows.requireActiveCategory(it) }
                 val transaction = insertTransaction(rows = rows, deviceId = deviceId, transaction = confirmed)
                 val sum = draft.itemsSum
                 if (sum != null && sum != draft.total.value) {
@@ -251,10 +257,12 @@ internal val Draft.itemsSum: Long?
 // split it, each without a category in [other]; without items it is the
 // total in its category or [other]. Items that do not add up are refused
 // unless [acceptMismatch]: below the total a `差額` item makes up the
-// difference, above it the expense is the items' sum.
+// difference, in the items' category when they all name the same one and
+// it [isActive], else in [other]; above it the expense is the items' sum.
 internal fun Draft.toNewTransaction(
     other: Uuid,
     acceptMismatch: Boolean,
+    isActive: (Uuid) -> Boolean,
 ): NewTransaction {
     val sum = itemsSum
     val base =
@@ -291,7 +299,8 @@ internal fun Draft.toNewTransaction(
         }
 
         sum < total.value -> {
-            val sameCategory = lineItems.map { it.categoryId }.distinct().singleOrNull() ?: other
+            val shared = lineItems.map { it.categoryId }.distinct().singleOrNull()
+            val sameCategory = shared?.takeIf(isActive) ?: other
             val difference =
                 NewLineItem(amount = total.value - sum, categoryId = sameCategory, name = DIFFERENCE_ITEM_NAME)
             base.copy(items = lineItems + difference)
