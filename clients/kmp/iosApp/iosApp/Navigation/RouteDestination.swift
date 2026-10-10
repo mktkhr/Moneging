@@ -21,6 +21,9 @@ internal struct RouteDestination: View {
         case .recurringRules:
             RecurringRulesScreen()
 
+        case .reviewRecords:
+            ReviewRecordsScreen()
+
         case .scans:
             ScansScreen()
 

@@ -1,8 +1,10 @@
 import SharedLogic
 import SwiftUI
 
-/// ホーム tab root content (`Home2.dc.html`, `Home5.dc.html`): while any
-/// scan is in flight or any draft waits, how many (opening レシートの読み取り);
+/// ホーム tab root content (`Home2.dc.html`, `Home5.dc.html`,
+/// `Home7.dc.html`): while any scan is in flight or any draft waits, how many
+/// (opening レシートの読み取り); while any record is marked needs-review, how
+/// many (opening 要確認の記録);
 /// the month in view's 支出 / 収入 / 収支, then its transactions grouped by
 /// day, newest first.
 ///
@@ -38,15 +40,7 @@ internal struct HomeTabContent: View {
 
     internal var body: some View {
         List {
-            if let status = self.scanStore.state.statusText {
-                Section {
-                    ScanStatusBand(text: status) {
-                        self.router.push(.scans)
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Theme.background)
-                }
-            }
+            self.statusBands
             Section {
                 MonthTotalsCard(totals: self.ledgerStore.state.totals)
                     .listRowInsets(EdgeInsets())
@@ -65,6 +59,28 @@ internal struct HomeTabContent: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .tabRootLifecycleHook(screenID: "home", creationCount: self.lifecycle.creationCount)
+    }
+
+    // The scans' band, then the needs-review records' band, each only while it has any.
+    @ViewBuilder private var statusBands: some View {
+        if let status = self.scanStore.state.statusText {
+            Section {
+                ScanStatusBand(text: status) {
+                    self.router.push(.scans)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Theme.background)
+            }
+        }
+        if let review = self.ledgerStore.reviewStatus {
+            Section {
+                ReviewStatusBand(status: review) {
+                    self.router.push(.reviewRecords)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Theme.background)
+            }
+        }
     }
 
     // The month's days, or why there are none to show.

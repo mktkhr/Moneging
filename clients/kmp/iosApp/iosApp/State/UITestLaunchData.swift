@@ -19,6 +19,10 @@
     /// - `-UITestSeedTransactions YES` (with `-UITestSeedLedgers YES`): 家計
     ///   also holds 24 expenses of today, memos `記録01` to `記録24`, for the
     ///   product's UI tests that scroll ホーム.
+    /// - `-UITestSeedReviewRecords YES`: right after the onboarding creates
+    ///   the first ledger, it holds two records marked needs-review (980円
+    ///   コーナーデリ on 2026-02-13, 2,640円 ドラッグストア みどり on
+    ///   2026-01-20), for AC-F-503.
     ///
     /// Compiled in debug builds only: release builds never read the flags.
     @MainActor
@@ -27,6 +31,7 @@
         private static let seedKey: String = "UITestSeedLedgers"
         private static let seedTransactionsKey: String = "UITestSeedTransactions"
         private static let todayKey: String = "AcceptanceToday"
+        private static let seedReviewRecordsKey: String = "UITestSeedReviewRecords"
         private static let seededLedgerNames: [String] = ["家計", "サブ家計簿"]
 
         private static var isSeedAsked: Bool {
@@ -57,6 +62,9 @@
             )
             if UITestScanning.isPhotoReadingEnabled {
                 enablePhotoReadingForUiTests()
+            }
+            if UserDefaults.standard.bool(forKey: Self.seedReviewRecordsKey) {
+                seedReviewRecordsForUiTests()
             }
         }
 

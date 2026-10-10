@@ -9,7 +9,9 @@ import SwiftUI
 /// an income has none), the date (today unless changed), the store name
 /// and the memo; an expense may be split into line items, whose sum is its
 /// amount. The toolbar's × closes it and ✓ saves it. A record linked to a
-/// receipt's photo keeps it, and shows it (レシートの写真を見る).
+/// receipt's photo keeps it, and shows it (レシートの写真を見る). A record
+/// marked needs-review explains why, shows its `差額` item in the warning
+/// colour and can be marked reviewed as it is (`RecordReview7.dc.html`).
 internal struct EntrySheet: View {
     /// The transaction edited, or `nil` for a new record.
     internal let editing: SharedLogic.Transaction?
@@ -109,6 +111,7 @@ internal struct EntrySheet: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.large) {
+            ReviewExplanationCard(transaction: self.editing)
             Picker("支出か収入か", selection: self.$isIncome) {
                 Text("支出").tag(false)
                 Text("収入").tag(true)
@@ -122,6 +125,7 @@ internal struct EntrySheet: View {
                 identifier: "entry-amount",
             )
             self.categorySection
+            MarkReviewedSection(transaction: self.editing) { self.dismiss() }
             EntryDetailsCard(
                 date: self.$date,
                 storeName: self.$storeName,
@@ -186,6 +190,7 @@ internal struct EntrySheet: View {
                 items: self.$items,
                 categories: self.ledgerStore.state.activeCategories,
                 onStop: self.stopSplit,
+                isDifferenceMarked: self.editing?.isReviewNeeded == true,
             )
         } else {
             VStack(alignment: .leading, spacing: Theme.Spacing.small) {

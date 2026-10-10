@@ -11,6 +11,9 @@ internal enum Route: Hashable {
     /// The editor renaming the ledger with this `Ledger.id` (as text),
     /// opened from 設定.
     case renameLedger(String)
+    /// 要確認の記録: the needs-review records of the ledger in view, opened
+    /// from their count on ホーム.
+    case reviewRecords
     /// レシートの読み取り: the scans of the ledger in view, opened from the
     /// status band on ホーム.
     case scans

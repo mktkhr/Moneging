@@ -251,7 +251,7 @@ internal fun TransactionDraft.toNewTransaction(): NewTransaction {
 }
 
 // The transaction's content as it is, unmarked.
-private fun Transaction.asReviewed(): NewTransaction =
+internal fun Transaction.asReviewed(): NewTransaction =
     NewTransaction(
         date = date,
         direction = direction,

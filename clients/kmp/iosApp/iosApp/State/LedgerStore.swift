@@ -15,6 +15,10 @@ internal final class LedgerStore {
     internal private(set) var state: LedgerUiState
     /// The month's transactions grouped by day, newest first.
     internal private(set) var daySections: [DaySection]
+    /// The count of needs-review records on home, or `nil` while none is marked.
+    internal private(set) var reviewStatus: ReviewStatus?
+    /// The needs-review records grouped by day, newest first, whatever their month.
+    internal private(set) var reviewSections: [ReviewSection]
     /// Why the last write was refused, or `nil`.
     internal var failureMessage: String?
 
@@ -29,6 +33,8 @@ internal final class LedgerStore {
         let initial: LedgerUiState = ledgerData.uiState.value
         self.state = initial
         self.daySections = initial.daySections()
+        self.reviewStatus = initial.reviewStatus()
+        self.reviewSections = initial.reviewSections()
 
         let stateFlow: SkieSwiftStateFlow<LedgerUiState> = ledgerData.uiState
         let taskBox: ObservationTaskBox = self.observationTask
@@ -50,9 +56,20 @@ internal final class LedgerStore {
         return self.state.categories.first { $0.id.description == id }
     }
 
-    /// The transaction `id` of the month in view, or `nil`.
+    /// The transaction `id` of the month in view or marked needs-review, or `nil`.
     internal func transaction(id: String) -> Transaction? {
         self.state.transactions.first { $0.id.description == id }
+            ?? self.state.reviewNeededTransaction(id: id)
+    }
+
+    /// Why the transaction `id` is marked needs-review, or `nil` when it is not.
+    internal func reviewExplanation(id: String) -> ReviewExplanation? {
+        self.state.reviewExplanation(id: id)
+    }
+
+    /// Marks the transaction `id` reviewed as it is; returns whether it was saved.
+    internal func markReviewed(id: String) async -> Bool {
+        await self.write { try await self.editor.markReviewed(transactionId: id) }
     }
 
     /// Reads today again and records the recurring rules whose date has
@@ -189,6 +206,8 @@ internal final class LedgerStore {
     private func apply(_ state: LedgerUiState) {
         self.state = state
         self.daySections = state.daySections()
+        self.reviewStatus = state.reviewStatus()
+        self.reviewSections = state.reviewSections()
     }
 
     deinit {

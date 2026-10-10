@@ -140,7 +140,7 @@ internal fun requireItemAmounts(amounts: List<Long>) {
 }
 
 // Whether the items hold one named exactly `差額`, which keeps a needs-review mark.
-private fun List<NewLineItem>.hasDifference(): Boolean = any { it.name == DIFFERENCE_ITEM_NAME }
+internal fun List<NewLineItem>.hasDifference(): Boolean = any { it.name == DIFFERENCE_ITEM_NAME }
 
 // Every category a transaction names: its own and its items'.
 internal fun NewTransaction.categoryIds(): Set<Uuid> = (listOfNotNull(categoryId) + items.map { it.categoryId }).toSet()

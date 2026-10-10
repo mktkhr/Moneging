@@ -12,6 +12,9 @@ internal struct SplitItemsSection: View {
     internal let items: Binding<[EntryItem]>
     internal let categories: [SharedLogic.Category]
     internal let onStop: () -> Void
+    /// Whether the record is marked needs-review: its `差額` item shows in
+    /// the warning colour.
+    internal var isDifferenceMarked: Bool = false
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.small) {
@@ -69,11 +72,16 @@ internal struct SplitItemsSection: View {
         let category: SharedLogic.Category? = self.categories.first { choice in
             choice.id.description == item.wrappedValue.categoryId
         }
+        let name: String = item.wrappedValue.name
+        let isDifference: Bool =
+            self.isDifferenceMarked && ReviewPresentationKt.isDifferenceItem(name: name)
+        let textColor: Color = isDifference ? Theme.Scanning.review : Theme.text
         return HStack(spacing: Theme.Spacing.medium) {
             self.categoryMenu(item: item, category: category)
             VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
                 TextField("品名", text: item.name)
-                    .foregroundStyle(Theme.text)
+                    .foregroundStyle(textColor)
+                    .fontWeight(isDifference ? .bold : nil)
                 Text(category?.name ?? String(localized: "分類を選ぶ"))
                     .font(.caption)
                     .foregroundStyle(Theme.mutedText)
@@ -90,11 +98,11 @@ internal struct SplitItemsSection: View {
                 identifier: "entry-item-amount",
                 label: "明細の金額",
                 font: UIFont.preferredFont(forTextStyle: .body),
-                color: UIColor(Theme.text),
+                color: UIColor(textColor),
             )
             .fixedSize(horizontal: false, vertical: true)
             Text("円")
-                .foregroundStyle(Theme.text)
+                .foregroundStyle(textColor)
             self.discountButton(item: item)
             if self.items.wrappedValue.count > 1 {
                 self.removeButton(item: item)
