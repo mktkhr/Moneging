@@ -145,6 +145,23 @@ internal final class ReviewNeededAcceptanceTests: XCTestCase {
         expect(marked.isEmpty, "すべて確認済みなのに 要確認 の印が残る: \(marked.map(\.label))")
     }
 
+    /// The January record, reopened in its own month, has no mark and no
+    /// count is shown.
+    private static func checkNoMarkInJanuary(_ app: XCUIApplication) {
+        let january: XCUIApplication = app.relaunched(today: "2026-01-31")
+        expect(january.disappears(january.reviewStatus), "再起動後に 要確認 の件数が出る")
+        let drugstore: XCUIElement = january.transactionRow(
+            on: "2026-01-20",
+            containing: ["2,640円", "ドラッグストア みどり"]
+        )
+        expect(january.reveal(drugstore), "1月20日 の 2,640円 ドラッグストア みどり が1月の一覧にない")
+        expect(!drugstore.label.contains(Self.mark), "確認済みなのに 2,640円 ドラッグストア みどり に印がある")
+        let marked: [ScrolledRow] = january.transactionRowsInOrder().filter { row in
+            row.label.contains(Self.mark)
+        }
+        expect(marked.isEmpty, "1月に 要確認 の印が残る: \(marked.map(\.label))")
+    }
+
     internal func test_AC_F_503_countsMarksListsAndReviewsNeedsReviewRecords() {
         self.continueAfterFailure = false
         let app: XCUIApplication = Self.launchedWithRecords()
@@ -154,6 +171,7 @@ internal final class ReviewNeededAcceptanceTests: XCTestCase {
         Self.checkListNewestFirst(app)
         Self.checkFirstReviewed(app)
         Self.checkLastReviewed(app)
+        Self.checkNoMarkInJanuary(app)
     }
 
     deinit {

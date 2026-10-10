@@ -9,8 +9,8 @@
 4. Budget and savings（完了: stage.txt = 4）
 5. Photos and scanning（完了: stage.txt = 5。iOS と共有ロジックのみ。Android の画面（ML Kit の書類スキャナー・文字認識・Gemini Nano、進行中の通知、モジュール導入）は未着手）
 6. Receipts that do not add up（完了: stage.txt = 6。iOS と共有ロジックのみ。Android の画面は未着手）
-7. Needs-review records（iOS と共有ロジックを実装済み。make check が green なら閉じる。Android の画面は未着手）
-8. Pace and notifications
+7. Needs-review records（完了: stage.txt = 7。iOS と共有ロジックのみ。Android の画面は未着手）
+8. Pace and notifications（次: 未決事項を Claude Design で提示する）
 9. Theme
 10. Widget
 11. Backup（締めの記録 month_closes・month_close_carries、読み取りの scan_jobs・drafts・draft_items を RecordSnapshot に入れる。ステージ4・5で先送りした分）
@@ -28,7 +28,7 @@
   - AC-E-501: 表示中の月 `2026年2月` を直接見ていない。
   - AC-F-502: 記録後の明細の中身（差額を足した3件、受け入れた 980 の 唐揚げ弁当・緑茶・差額 150、合計だけの分かれていない 980）を見ていない。画面が通る `ScanEditor.confirmDraft(form, acceptMismatch)` は単体テストだけが確かめている。
   - `XCUIApplication+Scrolling.swift` の説明（シートの中では上方向へドラッグしない）と食い違い、AC-F-502 は下書きのシートを開いたまま `collectRows` を呼ぶ。今は下書きのシートがドラッグで閉じないので通る。
-- 不安定な UI テスト: `TabNavigationUITests.testHomeScrollPositionAndStateAreRetainedAcrossTabSwitch`、`RecordSheetAccessibilityUITests`、AC-F-301 の「Timed out while synthesizing event」（再実行では通る）。シミュレーターの状態が汚れると AC-F-203 が落ちる（erase で回復）。
+- 不安定な UI テスト: AC-F-501（まれに落ち、再実行では通る）、`TabNavigationUITests.testHomeScrollPositionAndStateAreRetainedAcrossTabSwitch`、`RecordSheetAccessibilityUITests`、AC-F-301 の「Timed out while synthesizing event」（再実行では通る）。シミュレーターの状態が汚れると AC-F-203 が落ちる（erase で回復）。
 
 ## 読み取り
 
@@ -38,6 +38,7 @@
 
 ## 画面
 
+- 記録の修正画面（明細を分けた記録）にも、下書きと同じ形（案A: 一覧は読むだけ、品目はシートで直す、スワイプで消す）を入れるか。ユーザーの返事待ち。
 - 右下の記録ボタン（＋）が、各タブの一覧の下端（予算タブの分類の行など）に重なる。スクロールすれば見えるが、一覧の下にボタンの分の余白を足す。
 - 下書きの破棄（discard）が断られると、理由が出ないまま下書きのシートごと閉じうる（`ScanStore.failureMessage` を下の画面のアラートが拾うため）。確定は直した。
 - 全体の分類がアーカイブ済みの下書きで、全体の `カテゴリ` のメニューが「未選択（その他）」と表示される（確定は断られ、選び直せば記録できる）。`その他` 自体がアーカイブされた場合の扱いは未確認。

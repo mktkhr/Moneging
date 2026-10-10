@@ -242,10 +242,16 @@ internal suspend fun assertReviewedAsItIs(world: ReviewWorld) {
 
 internal suspend fun assertRemovingDiffUnmarks(world: ReviewWorld) {
     val february = world.february
+    assertTrue(actual = february.isReviewNeeded, message = "差額を消す前に印が付いていない")
     val kept = february.newItems().filterNot { item -> item.name == DIFFERENCE_NAME }
     world.home.updateTransaction(
         transactionId = february.id,
-        transaction = february.toNew(items = kept, amount = ABOVE_TOTAL_SUM, isReviewNeeded = false),
+        transaction =
+            february.toNew(
+                items = kept,
+                amount = ABOVE_TOTAL_SUM,
+                isReviewNeeded = february.isReviewNeeded,
+            ),
     )
     val read = assertNotNull(actual = world.home.findTransaction(id = february.id), message = UNREADABLE)
     assertEquals(expected = ABOVE_TOTAL_SUM, actual = read.amount, message = "差額を消して金額が 830円 でない")
