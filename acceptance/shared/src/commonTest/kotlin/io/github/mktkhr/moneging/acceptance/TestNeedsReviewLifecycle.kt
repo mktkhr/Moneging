@@ -25,6 +25,10 @@ private const val BENTO_AMOUNT = 680L
 private const val TEA_AMOUNT = 150L
 private const val DIFFERENCE_AMOUNT = 150L
 private const val HAND_AMOUNT = 800L
+private const val BENTO_NAME = "唐揚げ弁当"
+private const val TEA_NAME = "緑茶"
+private const val MEMO_ONLY = "メモだけ変える"
+private const val UNREADABLE = "取引が読めない"
 private const val DIFFERENCE_NAME = "差額"
 private const val FAMILY_LEDGER_NAME = "実家"
 private const val JANUARY_DATE = "2026-01-20"
@@ -32,10 +36,11 @@ private const val FEBRUARY_TENTH = "2026-02-10"
 private const val FEBRUARY_THIRTEENTH = "2026-02-13"
 private const val FEBRUARY_FOURTEENTH = "2026-02-14"
 
-private val THREE_ITEMS: List<Pair<String?, Long>> =
-    listOf("唐揚げ弁当" to BENTO_AMOUNT, "緑茶" to TEA_AMOUNT, DIFFERENCE_NAME to DIFFERENCE_AMOUNT)
+private val TWO_ITEMS: List<Pair<String?, Long>> = listOf(BENTO_NAME to BENTO_AMOUNT, TEA_NAME to TEA_AMOUNT)
 
-private data class ReviewWorld(
+private val THREE_ITEMS: List<Pair<String?, Long>> = TWO_ITEMS + (DIFFERENCE_NAME to DIFFERENCE_AMOUNT)
+
+internal data class ReviewWorld(
     val home: LedgerScope,
     val family: LedgerScope,
     val january: Transaction,
@@ -74,19 +79,19 @@ private data class ReviewWorld(
 class TestNeedsReviewLifecycle {
     /** Listed across months newest first, per ledger; never marked by hand; cleared by review or by removing 差額. */
     @Test
-    fun listedClearedAndNeverMarkedByHand(): TestResult =
+    fun listedClearedNeverHandMarked(): TestResult =
         runTest {
             val world = reviewWorld()
             assertListedNewestFirst(world = world)
             assertHandMarkRefused(world = world)
             assertMemoKeepsMark(world = world)
             assertReviewedAsItIs(world = world)
-            assertRemovingDifferenceUnmarks(world = world)
+            assertRemovingDiffUnmarks(world = world)
             assertOnlyAboveTotalLeft(world = world)
         }
 }
 
-private suspend fun reviewWorld(): ReviewWorld {
+internal suspend fun reviewWorld(): ReviewWorld {
     val store =
         LocalStore.inMemory(
             clock = ManualClock(current = FIXTURE_NOON),
@@ -109,11 +114,19 @@ private suspend fun reviewWorld(): ReviewWorld {
                 ),
         )
     val familyRecord = family.confirmMismatched(date = null, total = null)
-    return ReviewWorld(home, family, january, february, aboveTotal, byHand, familyRecord)
+    return ReviewWorld(
+        home = home,
+        family = family,
+        january = january,
+        february = february,
+        aboveTotal = aboveTotal,
+        byHand = byHand,
+        familyRecord = familyRecord,
+    )
 }
 
 // Scans corner-deli.jpg, corrects the draft's [date] and [total] when given, and confirms it accepting the mismatch.
-private suspend fun LedgerScope.confirmMismatched(
+internal suspend fun LedgerScope.confirmMismatched(
     date: LocalDate?,
     total: Long?,
 ): Transaction {
@@ -123,9 +136,9 @@ private suspend fun LedgerScope.confirmMismatched(
     return confirmDraft(draftId = draft.id, acceptMismatch = true)
 }
 
-private fun Transaction.itemsRead(): List<Pair<String?, Long>> = items.map { item -> item.name to item.amount }
+internal fun Transaction.itemsRead(): List<Pair<String?, Long>> = items.map { item -> item.name to item.amount }
 
-private fun Transaction.toNew(
+internal fun Transaction.toNew(
     items: List<NewLineItem>,
     amount: Long,
     isReviewNeeded: Boolean,
@@ -142,10 +155,10 @@ private fun Transaction.toNew(
         isReviewNeeded = isReviewNeeded,
     )
 
-private fun Transaction.newItems(): List<NewLineItem> =
+internal fun Transaction.newItems(): List<NewLineItem> =
     items.map { item -> NewLineItem(amount = item.amount, categoryId = item.categoryId, name = item.name) }
 
-private suspend fun assertListedNewestFirst(world: ReviewWorld) {
+internal suspend fun assertListedNewestFirst(world: ReviewWorld) {
     val listed = world.home.reviewNeededTransactions()
     assertEquals(
         expected = listOf(world.aboveTotal.id, world.february.id, world.january.id),
@@ -174,13 +187,13 @@ private suspend fun assertListedNewestFirst(world: ReviewWorld) {
         message = "実家の要確認が実家自身の記録だけでない",
     )
     assertEquals(
-        expected = listOf("唐揚げ弁当" to BENTO_AMOUNT, "緑茶" to TEA_AMOUNT),
+        expected = TWO_ITEMS,
         actual = world.aboveTotal.itemsRead(),
         message = "合計を 800円 にした記録が 830円 の 2 つの明細（差額なし）でない",
     )
 }
 
-private suspend fun assertHandMarkRefused(world: ReviewWorld) {
+internal suspend fun assertHandMarkRefused(world: ReviewWorld) {
     assertFailsWith<IllegalArgumentException>(message = "手で要確認の印を付けられてしまう") {
         world.home.updateTransaction(
             transactionId = world.byHand.id,
@@ -199,10 +212,10 @@ private suspend fun assertHandMarkRefused(world: ReviewWorld) {
     assertEquals(expected = HAND_AMOUNT, actual = read.amount, message = "断られた変更で金額が変わった")
 }
 
-private suspend fun assertMemoKeepsMark(world: ReviewWorld) {
-    world.home.updateMemo(transactionId = world.february.id, memo = "メモだけ変える")
-    val read = assertNotNull(actual = world.home.findTransaction(id = world.february.id), message = "取引が読めない")
-    assertEquals(expected = "メモだけ変える", actual = read.memo, message = "メモが変わらない")
+internal suspend fun assertMemoKeepsMark(world: ReviewWorld) {
+    world.home.updateMemo(transactionId = world.february.id, memo = MEMO_ONLY)
+    val read = assertNotNull(actual = world.home.findTransaction(id = world.february.id), message = UNREADABLE)
+    assertEquals(expected = MEMO_ONLY, actual = read.memo, message = "メモが変わらない")
     assertTrue(actual = read.isReviewNeeded, message = "差額が残るのにメモの変更で印が外れた")
     assertEquals(
         expected = THREE_ITEMS,
@@ -211,13 +224,13 @@ private suspend fun assertMemoKeepsMark(world: ReviewWorld) {
     )
 }
 
-private suspend fun assertReviewedAsItIs(world: ReviewWorld) {
+internal suspend fun assertReviewedAsItIs(world: ReviewWorld) {
     val january = world.january
     world.home.updateTransaction(
         transactionId = january.id,
         transaction = january.toNew(items = january.newItems(), amount = january.amount, isReviewNeeded = false),
     )
-    val read = assertNotNull(actual = world.home.findTransaction(id = january.id), message = "取引が読めない")
+    val read = assertNotNull(actual = world.home.findTransaction(id = january.id), message = UNREADABLE)
     assertFalse(actual = read.isReviewNeeded, message = "isReviewNeeded false の変更で印が外れない")
     assertEquals(expected = DELI_TOTAL, actual = read.amount, message = "確認済みにして金額が 980円 でなくなった")
     assertEquals(
@@ -227,24 +240,24 @@ private suspend fun assertReviewedAsItIs(world: ReviewWorld) {
     )
 }
 
-private suspend fun assertRemovingDifferenceUnmarks(world: ReviewWorld) {
+internal suspend fun assertRemovingDiffUnmarks(world: ReviewWorld) {
     val february = world.february
     val kept = february.newItems().filterNot { item -> item.name == DIFFERENCE_NAME }
     world.home.updateTransaction(
         transactionId = february.id,
         transaction = february.toNew(items = kept, amount = ABOVE_TOTAL_SUM, isReviewNeeded = false),
     )
-    val read = assertNotNull(actual = world.home.findTransaction(id = february.id), message = "取引が読めない")
+    val read = assertNotNull(actual = world.home.findTransaction(id = february.id), message = UNREADABLE)
     assertEquals(expected = ABOVE_TOTAL_SUM, actual = read.amount, message = "差額を消して金額が 830円 でない")
     assertEquals(
-        expected = listOf("唐揚げ弁当" to BENTO_AMOUNT, "緑茶" to TEA_AMOUNT),
+        expected = TWO_ITEMS,
         actual = read.itemsRead(),
         message = "差額を消して明細が 2 つでない",
     )
     assertFalse(actual = read.isReviewNeeded, message = "差額を消したのに印が外れない")
 }
 
-private suspend fun assertOnlyAboveTotalLeft(world: ReviewWorld) {
+internal suspend fun assertOnlyAboveTotalLeft(world: ReviewWorld) {
     val left: List<Uuid> = world.home.reviewNeededTransactions().map { it.id }
     assertEquals(
         expected = listOf(world.aboveTotal.id),
