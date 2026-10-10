@@ -269,8 +269,10 @@ asks first.
 **Needs-review.** A record confirmed with its mismatch accepted is marked
 `要確認` until a user resolves it. While any record of the ledger is marked,
 the product shows `要確認 N件` with `明細が合計と合わないまま記録したもの`, and
-never with N of 0, and it can list every marked record of the ledger, whatever
-its month, newest first (`月をまたいで、印が付いている記録をすべて表示します`).
+never with N of 0, below the ledger's name on the home view (under the scan
+count when both show); choosing it lists every marked record of the ledger,
+whatever its month, newest first
+(`月をまたいで、印が付いている記録をすべて表示します`).
 Wherever a marked record is listed it carries a `要確認` mark. The marked
 record itself explains
 `要確認：読み取った明細が合計と合わなかったため「差額 150円」を足してあります。写真を見て直してください。`
