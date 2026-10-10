@@ -238,6 +238,16 @@ internal class SqlTransactionReads(
             }
         }
 
+    override suspend fun reviewNeededTransactions(): List<Transaction> =
+        withContext(rows.context) {
+            rows.database.transactionWithResult {
+                queries
+                    .liveReviewNeeded(ledgerId = rows.ledgerKey)
+                    .executeAsList()
+                    .map { row -> row.toDomain(items = itemsOf(rows.database, row.id)) }
+            }
+        }
+
     override suspend fun monthTotals(month: YearMonth): MonthTotals =
         withContext(rows.context) {
             val totals =

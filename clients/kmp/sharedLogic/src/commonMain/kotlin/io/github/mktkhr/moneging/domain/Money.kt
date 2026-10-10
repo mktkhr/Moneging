@@ -145,6 +145,12 @@ data class NewTransaction(
     val photoId: Uuid? = null,
     /** Its line items; empty for an unsplit transaction. */
     val items: List<NewLineItem> = emptyList(),
+    /**
+     * Whether it stays marked needs-review: only a transaction already marked
+     * keeps the mark, and only while it has an item named `差額`; `false`
+     * clears it (marks it reviewed). Never set by hand (PRODUCT.md §3).
+     */
+    val isReviewNeeded: Boolean = false,
 )
 
 /** A recurring rule to create, or the new content of one. */

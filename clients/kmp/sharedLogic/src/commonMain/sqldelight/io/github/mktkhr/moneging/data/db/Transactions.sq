@@ -52,6 +52,12 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 liveTransaction:
 SELECT * FROM transactions WHERE ledger_id = ? AND id = ? AND deleted_at IS NULL;
 
+-- The live transactions marked needs-review, whatever their month, newest first.
+liveReviewNeeded:
+SELECT * FROM transactions
+WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND needs_review = 1
+ORDER BY date DESC, created_at DESC, rowid DESC;
+
 liveTransactionsBetween:
 SELECT * FROM transactions
 WHERE ledger_id = :ledgerId AND deleted_at IS NULL AND date >= :fromDate AND date <= :toDate
@@ -100,7 +106,7 @@ UPDATE transactions SET memo = ?, updated_at = ? WHERE ledger_id = ? AND id = ? 
 updateTransaction:
 UPDATE transactions
 SET date = :date, direction = :direction, amount = :amount, category_id = :categoryId, memo = :memo,
-    store_name = :storeName, photo_id = :photoId, updated_at = :updatedAt
+    store_name = :storeName, photo_id = :photoId, needs_review = :needsReview, updated_at = :updatedAt
 WHERE ledger_id = :ledgerId AND id = :id AND deleted_at IS NULL;
 
 deleteLineItemsOf:
@@ -141,3 +147,7 @@ SELECT * FROM transactions ORDER BY rowid;
 -- Marks a transaction needs-review: confirmed from a draft whose items did not add up.
 markReviewNeeded:
 UPDATE transactions SET needs_review = 1 WHERE ledger_id = ? AND id = ?;
+
+-- Clears the needs-review mark: a change left the transaction with no `差額` item.
+clearReviewNeeded:
+UPDATE transactions SET needs_review = 0 WHERE ledger_id = ? AND id = ?;

@@ -105,13 +105,32 @@ class LedgerEditor internal constructor(
     suspend fun recordTransaction(draft: TransactionDraft): String? =
         attempt { recordTransaction(transaction = draft.toNewTransaction()) }
 
-    /** Replaces the transaction [transactionId] with [draft]. */
+    /**
+     * Replaces the transaction [transactionId] with [draft]; a needs-review
+     * mark stays while it keeps its `差額` item.
+     */
     @Throws(Exception::class)
     suspend fun updateTransaction(
         transactionId: String,
         draft: TransactionDraft,
     ): String? =
-        attempt { updateTransaction(transactionId = Uuid.parse(transactionId), transaction = draft.toNewTransaction()) }
+        attempt {
+            val id = Uuid.parse(transactionId)
+            val isMarked = findTransaction(id)?.isReviewNeeded == true
+            updateTransaction(
+                transactionId = id,
+                transaction = draft.toNewTransaction().copy(isReviewNeeded = isMarked),
+            )
+        }
+
+    /** Marks the transaction [transactionId] reviewed as it is (`このままで確認済みにする`). */
+    @Throws(Exception::class)
+    suspend fun markReviewed(transactionId: String): String? =
+        attempt {
+            val id = Uuid.parse(transactionId)
+            val current = requireNotNull(findTransaction(id)) { "記録が見つかりません" }
+            updateTransaction(transactionId = id, transaction = current.asReviewed())
+        }
 
     /** Deletes the transaction [transactionId]. */
     @Throws(Exception::class)
@@ -230,6 +249,20 @@ internal fun TransactionDraft.toNewTransaction(): NewTransaction {
         items = lineItems,
     )
 }
+
+// The transaction's content as it is, unmarked.
+private fun Transaction.asReviewed(): NewTransaction =
+    NewTransaction(
+        date = date,
+        direction = direction,
+        amount = amount,
+        categoryId = categoryId,
+        memo = memo,
+        storeName = storeName,
+        photoId = photoId,
+        items = items.map { NewLineItem(amount = it.amount, categoryId = it.categoryId, name = it.name) },
+        isReviewNeeded = false,
+    )
 
 /** [rule] as the rule form holds it. */
 internal fun RecurringRule.toDraft(): RecurringRuleDraft =

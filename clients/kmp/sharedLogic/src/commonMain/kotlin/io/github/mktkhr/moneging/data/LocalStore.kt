@@ -39,7 +39,8 @@ class LocalStore internal constructor(
     private val context: CoroutineContext = Dispatchers.Default,
     scanning: Scanning = Scanning(),
 ) {
-    private val database = MonegingDatabase(openDriver())
+    // Internal for the marks a test starts with (ReviewMarks.kt); reached otherwise only through this class.
+    internal val database = MonegingDatabase(openDriver())
 
     /** The device's reading method, which scans are read by unless told otherwise. */
     val readingMethods: ReadingMethods = scanning.readingMethods

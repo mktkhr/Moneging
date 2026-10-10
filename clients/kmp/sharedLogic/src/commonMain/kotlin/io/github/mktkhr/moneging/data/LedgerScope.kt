@@ -166,6 +166,9 @@ interface LedgerTransactionReads {
     /** The live transactions dated in [month], newest first. */
     suspend fun transactions(month: YearMonth): List<Transaction>
 
+    /** The live transactions marked needs-review, whatever their month, newest first. */
+    suspend fun reviewNeededTransactions(): List<Transaction>
+
     /** The totals of the live transactions dated in [month]. */
     suspend fun monthTotals(month: YearMonth): MonthTotals
 
@@ -191,20 +194,26 @@ interface LedgerReports {
 
 /** Writing a ledger's transactions. */
 interface LedgerTransactionWrites {
-    /** Records [transaction], stamped with this device's identifier. */
+    /**
+     * Records [transaction], stamped with this device's identifier; one with
+     * [NewTransaction.isReviewNeeded] is refused with [IllegalArgumentException].
+     */
     suspend fun recordTransaction(transaction: NewTransaction): Transaction
 
     /**
      * Replaces the content of the transaction [transactionId] with
      * [transaction], its items as a whole; keeps its identifier, creation,
-     * device and recurring rule.
+     * device and recurring rule. It stays marked needs-review only when it
+     * was marked, [NewTransaction.isReviewNeeded] keeps the mark and an item
+     * is named `差額`; marking one that was not is refused with
+     * [IllegalArgumentException].
      */
     suspend fun updateTransaction(
         transactionId: Uuid,
         transaction: NewTransaction,
     ): Transaction
 
-    /** Changes the memo of the transaction [transactionId]. */
+    /** Changes the memo of the transaction [transactionId]; a needs-review mark stays only while it has `差額`. */
     suspend fun updateMemo(
         transactionId: Uuid,
         memo: String?,

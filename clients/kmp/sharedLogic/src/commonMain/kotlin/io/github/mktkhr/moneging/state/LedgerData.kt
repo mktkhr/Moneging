@@ -51,6 +51,8 @@ data class LedgerUiState(
     val transactions: List<Transaction>,
     /** The month's totals. */
     val totals: MonthTotals,
+    /** The ledger's transactions marked needs-review, whatever their month, newest first. */
+    val reviewNeeded: List<Transaction>,
     /** The month's spending by category, or `null` before it is read. */
     val report: MonthlyReport?,
     /** The spending of every day of the month, in date order. */
@@ -88,6 +90,7 @@ data class LedgerUiState(
                 isLoaded = false,
                 transactions = emptyList(),
                 totals = MonthTotals(expense = 0L, income = 0L),
+                reviewNeeded = emptyList(),
                 report = null,
                 dailyTotals = emptyList(),
                 trend = emptyList(),
@@ -203,6 +206,7 @@ class LedgerData internal constructor(
                     isLoaded = true,
                     transactions = scope.transactions(month),
                     totals = scope.monthTotals(month),
+                    reviewNeeded = scope.reviewNeededTransactions(),
                     report = scope.monthlyReport(month),
                     dailyTotals = scope.dailyTotals(month),
                     trend = scope.monthlyTrend(to = month),

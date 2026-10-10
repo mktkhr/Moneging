@@ -1,6 +1,7 @@
 package io.github.mktkhr.moneging.data
 
 import io.github.mktkhr.moneging.domain.Direction
+import io.github.mktkhr.moneging.domain.NewLineItem
 import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.domain.Transaction
 import kotlinx.coroutines.withContext
@@ -11,6 +12,7 @@ import kotlin.uuid.Uuid
 internal const val MIN_AMOUNT = 1L
 
 private const val NOT_FOUND = "記録が見つかりません"
+private const val NOT_MARKABLE = "要確認の印は手では付けられません"
 
 /** [LedgerTransactionWrites] over the database, stamping [deviceId] on every transaction. */
 internal class SqlTransactionWrites(
@@ -21,6 +23,7 @@ internal class SqlTransactionWrites(
 
     override suspend fun recordTransaction(transaction: NewTransaction): Transaction {
         requireShape(transaction)
+        require(!transaction.isReviewNeeded) { NOT_MARKABLE }
         return withContext(rows.context) {
             rows.database.transactionWithResult {
                 rows.requireLedger()
@@ -39,6 +42,7 @@ internal class SqlTransactionWrites(
         return withContext(rows.context) {
             rows.database.transactionWithResult {
                 val current = requireNotNull(rows.transaction(transactionId)) { NOT_FOUND }
+                require(!transaction.isReviewNeeded || current.isReviewNeeded) { NOT_MARKABLE }
                 // A category archived since may stay on the transaction; only a newly chosen one must be active.
                 val kept = current.categoryIds()
                 transaction.categoryIds().forEach { id ->
@@ -54,6 +58,7 @@ internal class SqlTransactionWrites(
                     memo = transaction.memo,
                     storeName = transaction.storeName,
                     photoId = transaction.photoId?.toString(),
+                    needsReview = (transaction.isReviewNeeded && transaction.items.hasDifference()).toColumn(),
                     updatedAt = now,
                     ledgerId = rows.ledgerKey,
                     id = transactionId.toString(),
@@ -71,13 +76,17 @@ internal class SqlTransactionWrites(
     ): Transaction =
         withContext(rows.context) {
             rows.database.transactionWithResult {
-                requireNotNull(rows.transaction(transactionId)) { NOT_FOUND }
+                val current = requireNotNull(rows.transaction(transactionId)) { NOT_FOUND }
                 queries.updateMemo(
                     memo = memo,
                     updated_at = rows.now().toColumn(),
                     ledger_id = rows.ledgerKey,
                     id = transactionId.toString(),
                 )
+                // Any change that leaves it with no `差額` item clears the mark (PRODUCT.md §3).
+                if (current.isReviewNeeded && current.items.none { it.name == DIFFERENCE_ITEM_NAME }) {
+                    queries.clearReviewNeeded(ledger_id = rows.ledgerKey, id = transactionId.toString())
+                }
                 checkNotNull(rows.transaction(transactionId))
             }
         }
@@ -129,6 +138,9 @@ internal fun requireItemAmounts(amounts: List<Long>) {
     require(amounts.none { it == 0L }) { "明細の金額は1円以上か、割引ならマイナスにしてください" }
     require(amounts.isEmpty() || amounts.any { it >= MIN_AMOUNT }) { "割引だけの明細は記録できません" }
 }
+
+// Whether the items hold one named exactly `差額`, which keeps a needs-review mark.
+private fun List<NewLineItem>.hasDifference(): Boolean = any { it.name == DIFFERENCE_ITEM_NAME }
 
 // Every category a transaction names: its own and its items'.
 internal fun NewTransaction.categoryIds(): Set<Uuid> = (listOfNotNull(categoryId) + items.map { it.categoryId }).toSet()

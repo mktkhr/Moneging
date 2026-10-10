@@ -1,12 +1,15 @@
 package io.github.mktkhr.moneging.di
 
+import io.github.mktkhr.moneging.data.LedgerScope
 import io.github.mktkhr.moneging.data.LocalStore
 import io.github.mktkhr.moneging.data.PreferenceKeys
 import io.github.mktkhr.moneging.data.UserDefaultsPreferences
 import io.github.mktkhr.moneging.data.localDataDirectory
+import io.github.mktkhr.moneging.data.markReviewNeeded
 import io.github.mktkhr.moneging.data.toByteArray
 import io.github.mktkhr.moneging.data.todayInTokyo
 import io.github.mktkhr.moneging.domain.Direction
+import io.github.mktkhr.moneging.domain.NewLineItem
 import io.github.mktkhr.moneging.domain.NewTransaction
 import io.github.mktkhr.moneging.scan.FixtureReceipt
 import io.github.mktkhr.moneging.scan.FixtureReceiptScanner
@@ -19,6 +22,10 @@ import io.github.mktkhr.moneging.scan.ReceiptReading
 import io.github.mktkhr.moneging.scan.ScanPacer
 import io.github.mktkhr.moneging.scan.iosReceiptScanner
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -31,6 +38,7 @@ import platform.Foundation.dataWithContentsOfFile
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.time.TimeSource
+import kotlin.uuid.Uuid
 
 private const val NOON = 12
 private const val SEEDED_TRANSACTION_COUNT = 24
@@ -168,4 +176,54 @@ fun seedLedgersForUiTests(
     }
     preferences.setString(key = PreferenceKeys.LEDGER_IN_VIEW, value = ledgers.firstOrNull()?.id?.toString())
     preferences.setString(key = PreferenceKeys.TOUR_NEXT_STEP, value = PreferenceKeys.TOUR_FINISHED)
+}
+
+/**
+ * Once the onboarding has created the first ledger, records into it two
+ * expenses marked needs-review, as if drafts had been confirmed with their
+ * mismatch accepted: 980 on 2026-02-13 at コーナーデリ in 食費 (唐揚げ弁当 680,
+ * 緑茶 150, 差額 150) and 2,640 on 2026-01-20 at ドラッグストア みどり in 日用品
+ * (洗剤 2,000, 差額 640). Must run after [initKoin].
+ */
+fun seedReviewRecordsForUiTests() {
+    val store = KoinPlatform.getKoin().get<LocalStore>()
+    CoroutineScope(Dispatchers.Default).launch {
+        val ledger = store.observeLedgers().first { it.isNotEmpty() }.first()
+        val scope = store.ledger(ledger.id)
+        val deli =
+            scope.recordSplit(
+                date = "2026-02-13",
+                storeName = "コーナーデリ",
+                category = "食費",
+                items = listOf("唐揚げ弁当" to 680L, "緑茶" to 150L, "差額" to 150L),
+            )
+        val drugstore =
+            scope.recordSplit(
+                date = "2026-01-20",
+                storeName = "ドラッグストア みどり",
+                category = "日用品",
+                items = listOf("洗剤" to 2_000L, "差額" to 640L),
+            )
+        listOf(deli, drugstore).forEach { id -> store.markReviewNeeded(ledgerId = ledger.id, transactionId = id) }
+    }
+}
+
+// Records an expense of [items] (name to amount), all in the category named [category]; returns its id.
+private suspend fun LedgerScope.recordSplit(
+    date: String,
+    storeName: String,
+    category: String,
+    items: List<Pair<String, Long>>,
+): Uuid {
+    val categoryId = categories().first { it.name == category }.id
+    return recordTransaction(
+        NewTransaction(
+            date = LocalDate.parse(date),
+            direction = Direction.EXPENSE,
+            amount = items.sumOf { it.second },
+            categoryId = null,
+            storeName = storeName,
+            items = items.map { (name, amount) -> NewLineItem(amount = amount, categoryId = categoryId, name = name) },
+        ),
+    ).id
 }
