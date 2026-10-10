@@ -9,7 +9,7 @@
 4. Budget and savings（完了: stage.txt = 4）
 5. Photos and scanning（完了: stage.txt = 5。iOS と共有ロジックのみ。Android の画面（ML Kit の書類スキャナー・文字認識・Gemini Nano、進行中の通知、モジュール導入）は未着手）
 6. Receipts that do not add up（完了: stage.txt = 6。iOS と共有ロジックのみ。Android の画面は未着手）
-7. Needs-review records（次: 未決事項を Claude Design で提示する）
+7. Needs-review records（iOS と共有ロジックを実装済み。make check が green なら閉じる。Android の画面は未着手）
 8. Pace and notifications
 9. Theme
 10. Widget
@@ -20,7 +20,7 @@
 - 受け入れテストが遅い（AC-F-203 だけで約3分）。高速化する。
 - `make acceptance-ios` は、テストが 0 件しか実行されなくても ok になる（2つの make を同時に走らせると結果バンドルが壊れて起きた）。0 件を失敗として扱うようにする。
 - テスト専用の仕組みが製品のソースにある（監査の指摘、重さ低）。どれも Release からは届かない。Debug 専用のソースセット・ターゲットへ移すか検討する。
-  - Kotlin: UI テスト用の入口（`sharedLogic/src/iosMain/.../di/UiTestSupport.kt`）、ジョブの1段送り（`sharedLogic/src/commonMain/.../scan/ScanPacer.kt` の `Stepped`）。
+  - Kotlin: UI テスト用の入口（`sharedLogic/src/iosMain/.../di/UiTestSupport.kt`。要確認の2件の投入を含む）、印を付ける `data/ReviewMarks.kt`（そのため `LocalStore.database` を internal にした）、ジョブの1段送り（`sharedLogic/src/commonMain/.../scan/ScanPacer.kt` の `Stepped`）。
   - Swift: モジュール導入と進み具合の表示の偽物（`iosApp/iosApp/State/UITestScanning.swift` の `UITestModuleInstaller`・`UITestProgressSurface` など。`#if DEBUG` の中）。
 - Stop フック: サブエージェントが自分の実行したテストの完了を待つ間は SubagentStop が発火して目印が外れ、作業途中の未追跡ファイルでメインが止められる。メインの Stop フックの make とサブエージェントの make が重なり、Gradle のテスト結果のファイルを取り合って落ちることもある。待機中も目印を残す方法を検討する。
 - 受け入れテストの確かめ漏れ（監査の指摘、重さ低）:
