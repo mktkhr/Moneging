@@ -8,7 +8,8 @@ import SwiftUI
 /// category as the record sheet's tiles. ✓ (`draft-item-save`) keeps the
 /// changes, × (`draft-item-cancel`) closes it keeping nothing, and
 /// この明細を消す (`draft-item-delete`) removes the item. Changing anything
-/// makes the item certain (no longer 要確認).
+/// makes the item certain (no longer 要確認). The entry sheet's split items
+/// open it too, identified `entry-item-…` and needing a category.
 internal struct DraftItemSheet: View {
     internal let editing: DraftItemEditing
     internal let categories: [SharedLogic.Category]
@@ -16,6 +17,10 @@ internal struct DraftItemSheet: View {
     internal let onSave: (DraftItemState) -> Void
     /// Removes the item; `nil` for a new one, which has nothing to remove.
     internal let onDelete: (() -> Void)?
+    /// What its elements' identifiers start with (`draft-item-amount`).
+    internal var identifierPrefix: String = "draft-item"
+    /// Whether ✓ needs a category chosen (a split record's item does).
+    internal var requiresCategory: Bool = false
 
     @Environment(\.dismiss)
     private var dismiss: DismissAction
@@ -30,6 +35,10 @@ internal struct DraftItemSheet: View {
         let item: DraftItemState = self.editing.item
         return self.name != item.name || self.amountText != item.amountText
             || self.categoryId != item.categoryId || self.isDiscount != item.isDiscount
+    }
+
+    private var canSave: Bool {
+        (Int64(self.amountText) ?? 0) > 0 && (!self.requiresCategory || self.categoryId != nil)
     }
 
     internal var body: some View {
@@ -59,12 +68,12 @@ internal struct DraftItemSheet: View {
                 self.dismiss()
             }
             .tint(Theme.text)
-            .accessibilityIdentifier("draft-item-cancel")
+            .accessibilityIdentifier("\(self.identifierPrefix)-cancel")
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("保存", systemImage: "checkmark", role: .confirm, action: self.save)
-                .disabled((Int64(self.amountText) ?? 0) <= 0)
-                .accessibilityIdentifier("draft-item-save")
+                .disabled(!self.canSave)
+                .accessibilityIdentifier("\(self.identifierPrefix)-save")
         }
     }
 
@@ -83,13 +92,13 @@ internal struct DraftItemSheet: View {
                         Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Scanning.cardRadius)
                     )
                     .accessibilityLabel("品名")
-                    .accessibilityIdentifier("draft-item-name")
+                    .accessibilityIdentifier("\(self.identifierPrefix)-name")
             }
             AmountHeader(
                 text: self.$amountText,
                 isIncome: false,
                 splitTotal: nil,
-                identifier: "draft-item-amount",
+                identifier: "\(self.identifierPrefix)-amount",
             )
             self.discountToggle
             self.categorySection
@@ -111,7 +120,7 @@ internal struct DraftItemSheet: View {
         .tint(Theme.accent)
         .padding(Theme.Spacing.medium)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Scanning.cardRadius))
-        .accessibilityIdentifier("draft-item-discount")
+        .accessibilityIdentifier("\(self.identifierPrefix)-discount")
     }
 
     // この明細を消す, for an item of the draft (a new one has nothing to remove).
@@ -127,7 +136,7 @@ internal struct DraftItemSheet: View {
                     .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("draft-item-delete")
+            .accessibilityIdentifier("\(self.identifierPrefix)-delete")
         }
     }
 
@@ -139,13 +148,13 @@ internal struct DraftItemSheet: View {
                     .foregroundStyle(Theme.mutedText)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
-                if self.categoryId != nil {
+                if self.categoryId != nil, !self.requiresCategory {
                     Button("選ばない（その他）") {
                         self.categoryId = nil
                     }
                     .font(.footnote)
                     .foregroundStyle(Theme.accent)
-                    .accessibilityIdentifier("draft-item-category-clear")
+                    .accessibilityIdentifier("\(self.identifierPrefix)-category-clear")
                 }
             }
             CategoryTileGrid(categories: self.categories, selection: self.$categoryId)

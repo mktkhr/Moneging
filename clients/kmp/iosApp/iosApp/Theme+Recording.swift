@@ -171,5 +171,10 @@ extension Theme {
         internal static let totalMinimumScale: CGFloat = 0.6
         /// The corner radius of the 定期 mark and the search chips.
         internal static let badgeRadius: CGFloat = 9
+        /// The width of 削除 a split item reveals when swiped left.
+        internal static let swipeActionWidth: CGFloat = 80
+        /// How far a split item moves before letting go leaves 削除 shown,
+        /// as a part of `swipeActionWidth`.
+        internal static let swipeOpenThreshold: CGFloat = 0.5
     }
 }

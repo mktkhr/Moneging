@@ -1,13 +1,13 @@
 import SharedLogic
 import SwiftUI
-import UIKit
 
-/// The line items of a split expense (`Split2.dc.html`).
+/// The line items of a split expense (`EditSplitA`, the draft's 案A).
 ///
-/// Each item has its category, item name and amount, may be marked 割引 (a
-/// discount item, taken off: `−250円`), and can be removed;
-/// 明細を追加 adds one, and 分けるのをやめる returns to one amount and
-/// category.
+/// Each item is a row to look at (its category, name and amount; a
+/// discount item taken off, `−250円`); pressing it opens 明細を直す
+/// (`DraftItemSheet`, identified `entry-item-…`) and swiping it left removes
+/// it, while more than one is left. 明細を追加 opens the same sheet empty,
+/// and 分けるのをやめる returns to one amount and category.
 internal struct SplitItemsSection: View {
     internal let items: Binding<[EntryItem]>
     internal let categories: [SharedLogic.Category]
@@ -16,19 +16,45 @@ internal struct SplitItemsSection: View {
     /// the warning colour.
     internal var isDifferenceMarked: Bool = false
 
+    @State private var editing: DraftItemEditing?
+    @State private var openItemId: UUID?
+
+    private var canRemove: Bool {
+        self.items.wrappedValue.count > 1
+    }
+
+    private var numberedItems: [(offset: Int, element: EntryItem)] {
+        Array(self.items.wrappedValue.enumerated())
+    }
+
     internal var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.small) {
             self.header
             VStack(spacing: 0) {
-                ForEach(self.items) { $item in
-                    self.row(item: $item)
+                ForEach(self.numberedItems, id: \.element.id) { index, item in
+                    self.row(item: item, index: index)
                     if item.id != self.items.wrappedValue.last?.id {
                         Divider()
                     }
                 }
             }
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius))
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radius))
+            Text("押すと明細を直せます。左にすべらせると消せます。")
+                .font(.footnote)
+                .foregroundStyle(Theme.mutedText)
             self.addButton
+        }
+        .sheet(item: self.$editing) { editing in
+            DraftItemSheet(
+                editing: editing,
+                categories: self.categories,
+                onSave: { item in self.save(item, at: editing.index) },
+                onDelete: self.canRemove
+                    ? editing.index.map { index in { self.remove(at: index) } } : nil,
+                identifierPrefix: "entry-item",
+                requiresCategory: true,
+            )
         }
     }
 
@@ -47,7 +73,8 @@ internal struct SplitItemsSection: View {
 
     private var addButton: some View {
         Button {
-            self.items.wrappedValue.append(EntryItem())
+            self.openItemId = nil
+            self.editing = DraftItemEditing(index: nil, item: EntryItem().sheetItem)
         } label: {
             Label("明細を追加", systemImage: "plus")
                 .font(.subheadline.weight(.semibold))
@@ -68,94 +95,55 @@ internal struct SplitItemsSection: View {
         .accessibilityIdentifier("entry-split-add")
     }
 
-    private func row(item: Binding<EntryItem>) -> some View {
+    private func row(item: EntryItem, index: Int) -> some View {
         let category: SharedLogic.Category? = self.categories.first { choice in
-            choice.id.description == item.wrappedValue.categoryId
+            choice.id.description == item.categoryId
         }
-        let name: String = item.wrappedValue.name
-        let isDifference: Bool =
-            self.isDifferenceMarked && ReviewPresentationKt.isDifferenceItem(name: name)
-        let textColor: Color = isDifference ? Theme.Scanning.review : Theme.text
-        return HStack(spacing: Theme.Spacing.medium) {
-            self.categoryMenu(item: item, category: category)
-            VStack(alignment: .leading, spacing: Theme.Spacing.extraExtraSmall) {
-                TextField("品名", text: item.name)
-                    .foregroundStyle(textColor)
-                    .fontWeight(isDifference ? .bold : nil)
-                Text(category?.name ?? String(localized: "分類を選ぶ"))
-                    .font(.caption)
-                    .foregroundStyle(Theme.mutedText)
-            }
-            if item.wrappedValue.isDiscount {
-                // A discount is taken off: its digits read below zero.
-                Text("−")
-                    .foregroundStyle(Theme.text)
-                    .accessibilityHidden(true)
-            }
-            AmountTextField(
-                placeholder: "0",
-                text: item.amountText,
-                identifier: "entry-item-amount",
-                label: "明細の金額",
-                font: UIFont.preferredFont(forTextStyle: .body),
-                color: UIColor(textColor),
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            Text("円")
-                .foregroundStyle(textColor)
-            self.discountButton(item: item)
-            if self.items.wrappedValue.count > 1 {
-                self.removeButton(item: item)
+        let isOpen: Binding<Bool> = Binding(
+            get: { self.openItemId == item.id },
+            set: { isOpen in self.openItemId = isOpen ? item.id : nil },
+        )
+        return EntryItemRow(
+            item: item,
+            index: index,
+            category: category,
+            isDifference: self.isDifferenceMarked
+                && ReviewPresentationKt.isDifferenceItem(name: item.name),
+        ) {
+            if isOpen.wrappedValue {
+                isOpen.wrappedValue = false
+            } else {
+                self.openItemId = nil
+                self.editing = DraftItemEditing(index: index, item: item.sheetItem)
             }
         }
-        .padding(.horizontal, Theme.Spacing.large)
-        .padding(.vertical, Theme.Spacing.small)
+        .swipeToDelete(isEnabled: self.canRemove, isOpen: isOpen) {
+            self.remove(at: index)
+        }
     }
 
-    private func categoryMenu(
-        item: Binding<EntryItem>,
-        category: SharedLogic.Category?,
-    ) -> some View {
-        Menu {
-            ForEach(self.categories, id: \.id) { choice in
-                Button(choice.name) {
-                    item.wrappedValue.categoryId = choice.id.description
-                }
-            }
-        } label: {
-            CategoryIcon(defaultIndex: category?.defaultIndex.map { Int(truncating: $0) })
+    // Keeps the sheet's item: over the one at `index`, or after the others.
+    private func save(_ item: DraftItemState, at index: Int?) {
+        guard let index else {
+            var added: EntryItem = EntryItem()
+            added.apply(item)
+            self.items.wrappedValue.append(added)
+            return
         }
-        .accessibilityLabel("分類 \(category?.name ?? String(localized: "未選択"))")
+        guard self.items.wrappedValue.indices.contains(index) else {
+            return
+        }
+        self.items.wrappedValue[index].apply(item)
     }
 
-    // 割引: turns the item into a discount taken off (`−250円`), or back.
-    private func discountButton(item: Binding<EntryItem>) -> some View {
-        let isDiscount: Bool = item.wrappedValue.isDiscount
-        return Button {
-            item.wrappedValue.isDiscount.toggle()
-        } label: {
-            Text("割引")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(isDiscount ? Theme.onAccent : Theme.mutedText)
-                .padding(.horizontal, Theme.Spacing.small)
-                .padding(.vertical, Theme.Spacing.extraSmall)
-                .background(isDiscount ? Theme.accent : Theme.background, in: Capsule())
+    // Removes the item at `index`, while another is left.
+    private func remove(at index: Int) {
+        guard self.canRemove, self.items.wrappedValue.indices.contains(index) else {
+            return
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("割引")
-        .accessibilityValue(isDiscount ? "1" : "0")
-        .accessibilityAddTraits(isDiscount ? [.isButton, .isSelected] : .isButton)
-        .accessibilityIdentifier("entry-item-discount")
-    }
-
-    private func removeButton(item: Binding<EntryItem>) -> some View {
-        Button {
-            self.items.wrappedValue.removeAll { candidate in candidate.id == item.wrappedValue.id }
-        } label: {
-            Image(systemName: "minus.circle")
-                .foregroundStyle(Theme.mutedText)
+        withAnimation {
+            self.items.wrappedValue.remove(atOffsets: IndexSet(integer: index))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("この明細を消す")
+        self.openItemId = nil
     }
 }

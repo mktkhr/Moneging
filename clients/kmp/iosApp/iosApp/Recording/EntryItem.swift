@@ -27,4 +27,23 @@ internal struct EntryItem: Identifiable, Equatable {
     internal var signedAmountText: String {
         self.isDiscount ? "-" + self.amountText : self.amountText
     }
+
+    /// The item as the sheet 明細を直す opens it (nothing to check).
+    internal var sheetItem: DraftItemState {
+        DraftItemState(
+            name: self.name,
+            amountText: self.amountText,
+            isDiscount: self.isDiscount,
+            categoryId: self.categoryId,
+            confidence: Theme.Scanning.certain,
+        )
+    }
+
+    /// Takes the changes the sheet 明細を直す kept in `item`.
+    internal mutating func apply(_ item: DraftItemState) {
+        self.name = item.name
+        self.amountText = item.amountText
+        self.isDiscount = item.isDiscount
+        self.categoryId = item.categoryId
+    }
 }
